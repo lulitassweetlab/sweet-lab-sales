@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas de Visitas - Sweet Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css?v=2026-06-11" />
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #e27a90 0%, #f4a6b7 100%);
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            --border-radius-lg: 16px;
+        }
+
+        body {
+            font-family: 'DM+Sans', 'DM Sans', sans-serif;
+            background-color: var(--background, #f8fafc);
+            color: var(--text, #1e293b);
+            margin: 0;
+            padding: 0;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        /* Controls / Filter Header */
+        .controls-card {
+            background: var(--surface, #ffffff);
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: var(--border-radius-lg);
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted, #64748b);
+        }
+
+        .btn-filter-preset {
+            background: var(--secondary, #f1f5f9);
+            border: 1px solid transparent;
+            color: var(--text, #1e293b);
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-filter-preset:hover {
+            background: var(--border, #cbd5e1);
+        }
+
+        .btn-filter-preset.active {
+            background: #e27a90;
+            color: white;
+            box-shadow: 0 4px 12px rgba(226, 122, 144, 0.25);
+        }
+
+        .date-input {
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            background: var(--surface, #ffffff);
+            color: var(--text, #1e293b);
+        }
+
+        .select-input {
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            background: var(--surface, #ffffff);
+            color: var(--text, #1e293b);
+            cursor: pointer;
+        }
+
+        /* KPI Cards Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--surface, #ffffff);
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary-gradient);
+        }
+
+        .kpi-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted, #64748b);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text, #0f172a);
+            margin: 0;
+        }
+
+        .kpi-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted, #64748b);
+            margin-top: 6px;
+        }
+
+        /* Layout Main Grid */
+        .dashboard-main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--surface, #ffffff);
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text, #0f172a);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Chart container */
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            margin-top: 10px;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Lists and Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .data-table th {
+            padding: 12px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-muted, #64748b);
+            border-bottom: 2px solid var(--border, #e2e8f0);
+            font-weight: 600;
+        }
+
+        .data-table td {
+            padding: 12px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border, #e2e8f0);
+            color: var(--text, #334155);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Progress bars for devices */
+        .device-row {
+            margin-bottom: 16px;
+        }
+
+        .device-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .progress-bar-bg {
+            background: var(--secondary, #e2e8f0);
+            height: 8px;
+            border-radius: 99px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .progress-bar-fill {
+            background: var(--primary-gradient);
+            height: 100%;
+            border-radius: 99px;
+            transition: width 0.6s ease;
+        }
+
+        /* Header Style overrides */
+        .app-header {
+            margin-bottom: 0;
+        }
+
+        /* SVG Graph Styles */
+        .graph-line {
+            fill: none;
+            stroke: #e27a90;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .graph-area {
+            fill: url(#area-gradient);
+            opacity: 0.2;
+        }
+
+        .graph-grid-line {
+            stroke: var(--border, #e2e8f0);
+            stroke-width: 1;
+            stroke-dasharray: 4 4;
+        }
+
+        .graph-axis-text {
+            fill: var(--text-muted, #64748b);
+            font-size: 10px;
+            font-family: inherit;
+        }
+
+        .graph-dot {
+            fill: #ffffff;
+            stroke: #e27a90;
+            stroke-width: 2.5;
+            cursor: pointer;
+            transition: r 0.2s;
+        }
+
+        .graph-dot:hover {
+            r: 7;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-row">
+            <div class="header-left">
+                <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+                <h1>Estadísticas de Visitas</h1>
+            </div>
+            <div class="header-actions">
+                <button id="btn-back" class="press-btn">Volver</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- Filter Bar -->
+        <div class="controls-card">
+            <div class="filter-group">
+                <span class="filter-label">Rango:</span>
+                <button id="preset-today" class="btn-filter-preset">Hoy</button>
+                <button id="preset-week" class="btn-filter-preset active">7 días</button>
+                <button id="preset-month" class="btn-filter-preset">30 días</button>
+                <span class="filter-label" style="margin-left: 12px;">Personalizado:</span>
+                <input type="date" id="date-start" class="date-input" />
+                <span class="filter-label">al</span>
+                <input type="date" id="date-end" class="date-input" />
+            </div>
+
+            <div class="filter-group">
+                <span class="filter-label">Audiencia:</span>
+                <select id="audience-select" class="select-input">
+                    <option value="clients">Clientes (Tráfico Real)</option>
+                    <option value="all">Clientes y Vendedores</option>
+                    <option value="sellers">Solo Vendedores</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="stats-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Visitas Totales</div>
+                <div class="kpi-value" id="kpi-total-visits">0</div>
+                <div class="kpi-subtitle">Total de cargas de página en el rango</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Visitas Únicas</div>
+                <div class="kpi-value" id="kpi-unique-visits">0</div>
+                <div class="kpi-subtitle">Usuarios individuales (por sesión)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Promedio Diario</div>
+                <div class="kpi-value" id="kpi-avg-visits">0</div>
+                <div class="kpi-subtitle">Visitas promedio por día</div>
+            </div>
+        </div>
+
+        <!-- Main section layout -->
+        <div class="dashboard-main-grid">
+            <!-- Left Side: Interactive Line Chart -->
+            <div class="panel" style="display: flex; flex-direction: column;">
+                <div class="panel-header">
+                    <h3 class="panel-title">📈 Evolución de Tráfico Diario</h3>
+                </div>
+                <div class="chart-wrapper" id="chart-container">
+                    <div class="chart-tooltip" id="chart-tooltip"></div>
+                    <svg id="visits-svg-chart" width="100%" height="100%" viewBox="0 0 600 300" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="area-gradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#e27a90" />
+                                <stop offset="100%" stop-color="#ffffff" />
+                            </linearGradient>
+                        </defs>
+                        <!-- Grid lines and lines will be injected dynamically -->
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Right Side: Device statistics -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3 class="panel-title">📱 Dispositivos y Navegadores</h3>
+                </div>
+                <div id="devices-container" style="margin-top: 10px;">
+                    <!-- Devices rows injected here -->
+                    <div style="text-align: center; color: var(--text-muted); padding: 40px 0;">Cargando dispositivos...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom section: Seller activity -->
+        <div class="panel" id="seller-activity-panel" style="display: none;">
+            <div class="panel-header">
+                <h3 class="panel-title">👥 Ingresos de Vendedores</h3>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Vendedor</th>
+                            <th>Ingresos Registrados</th>
+                            <th>Última Conexión a la Tienda</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sellers-tbody">
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 20px 0;">Cargando vendedores...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        let currentUser = null;
+        try {
+            const saved = localStorage.getItem('authUser');
+            if (saved) currentUser = JSON.parse(saved);
+        } catch(e) {}
+
+        // Back action
+        document.getElementById('btn-back').addEventListener('click', () => {
+            window.location.href = '/index.html';
+        });
+
+        // Initialize dates
+        const dateStart = document.getElementById('date-start');
+        const dateEnd = document.getElementById('date-end');
+        const audienceSelect = document.getElementById('audience-select');
+
+        // Set default dates (last 7 days)
+        const initDefaultDates = () => {
+            const today = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 6);
+
+            dateEnd.value = today.toISOString().slice(0, 10);
+            dateStart.value = sevenDaysAgo.toISOString().slice(0, 10);
+        };
+        initDefaultDates();
+
+        // Preset button handlers
+        const setPreset = (days) => {
+            const today = new Date();
+            const start = new Date();
+            start.setDate(today.getDate() - (days - 1));
+            
+            dateEnd.value = today.toISOString().slice(0, 10);
+            dateStart.value = start.toISOString().slice(0, 10);
+            
+            loadVisitsData();
+        };
+
+        const deactivatePresets = () => {
+            document.querySelectorAll('.btn-filter-preset').forEach(btn => btn.classList.remove('active'));
+        };
+
+        document.getElementById('preset-today').addEventListener('click', (e) => {
+            deactivatePresets();
+            e.target.classList.add('active');
+            setPreset(1);
+        });
+
+        document.getElementById('preset-week').addEventListener('click', (e) => {
+            deactivatePresets();
+            e.target.classList.add('active');
+            setPreset(7);
+        });
+
+        document.getElementById('preset-month').addEventListener('click', (e) => {
+            deactivatePresets();
+            e.target.classList.add('active');
+            setPreset(30);
+        });
+
+        [dateStart, dateEnd].forEach(el => {
+            el.addEventListener('change', () => {
+                deactivatePresets();
+                loadVisitsData();
+            });
+        });
+
+        audienceSelect.addEventListener('change', () => {
+            loadVisitsData();
+        });
+
+        // Parse User Agent to extract Device Type and OS/Browser
+        function parseUserAgent(ua) {
+            let device = 'Computadora';
+            let system = 'Desktop';
+
+            if (/mobile|android|iphone|ipad|phone/i.test(ua)) {
+                device = 'Móvil';
+                if (/ipad/i.test(ua)) device = 'Tablet';
+            }
+
+            if (/android/i.test(ua)) system = 'Android';
+            else if (/iphone|ipad/i.test(ua)) system = 'iOS';
+            else if (/windows/i.test(ua)) system = 'Windows';
+            else if (/macintosh/i.test(ua)) system = 'macOS';
+            else if (/linux/i.test(ua)) system = 'Linux';
+
+            return { device, system };
+        }
+
+        // Fetch data and update dashboard
+        async function loadVisitsData() {
+            try {
+                const start = dateStart.value;
+                const end = dateEnd.value;
+                const audience = audienceSelect.value;
+                
+                const actor = currentUser?.name || currentUser?.username || 'admin';
+                const res = await fetch(`/api/visits?start=${start}&end=${end}&audience=${audience}`, {
+                    headers: {
+                        'x-actor-name': actor
+                    }
+                });
+
+                if (!res.ok) {
+                    if (res.status === 403) {
+                        alert('No tienes permisos para ver este reporte.');
+                        window.location.href = '/index.html';
+                        return;
+                    }
+                    throw new Error('Error al cargar datos');
+                }
+
+                const data = await res.json();
+                updateUI(data);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Update DOM elements with data
+        function updateUI(data) {
+            // 1. KPI Cards
+            document.getElementById('kpi-total-visits').textContent = data.totals.total_visits || 0;
+            document.getElementById('kpi-unique-visits').textContent = data.totals.unique_visits || 0;
+            
+            // Calculate days range to find average
+            const start = new Date(dateStart.value);
+            const end = new Date(dateEnd.value);
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const avg = Math.round((data.totals.total_visits || 0) / diffDays);
+            document.getElementById('kpi-avg-visits').textContent = avg || 0;
+
+            // 2. Render chart
+            renderSVGChart(data.daily);
+
+            // 3. Render Devices/Browsers
+            const deviceCounts = { Mobile: 0, Desktop: 0, Tablet: 0 };
+            const osCounts = {};
+
+            (data.userAgentData || []).forEach(item => {
+                const parsed = parseUserAgent(item.user_agent);
+                const count = item.total;
+                
+                if (parsed.device === 'Móvil') deviceCounts.Mobile += count;
+                else if (parsed.device === 'Tablet') deviceCounts.Tablet += count;
+                else deviceCounts.Desktop += count;
+
+                osCounts[parsed.system] = (osCounts[parsed.system] || 0) + count;
+            });
+
+            const totalDevices = deviceCounts.Mobile + deviceCounts.Desktop + deviceCounts.Tablet || 1;
+            
+            const mobilePct = Math.round((deviceCounts.Mobile / totalDevices) * 100);
+            const desktopPct = Math.round((deviceCounts.Desktop / totalDevices) * 100);
+            const tabletPct = Math.round((deviceCounts.Tablet / totalDevices) * 100);
+
+            let devicesHtml = `
+                <div class="device-row">
+                    <div class="device-info">
+                        <span>📱 Dispositivos Móviles</span>
+                        <span>${deviceCounts.Mobile} (${mobilePct}%)</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${mobilePct}%"></div></div>
+                </div>
+                <div class="device-row">
+                    <div class="device-info">
+                        <span>💻 Computadoras</span>
+                        <span>${deviceCounts.Desktop} (${desktopPct}%)</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${desktopPct}%"></div></div>
+                </div>
+            `;
+            if (deviceCounts.Tablet > 0) {
+                devicesHtml += `
+                    <div class="device-row">
+                        <div class="device-info">
+                            <span>📟 Tablets</span>
+                            <span>${deviceCounts.Tablet} (${tabletPct}%)</span>
+                        </div>
+                        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${tabletPct}%"></div></div>
+                    </div>
+                `;
+            }
+
+            // Add OS breakdown below
+            devicesHtml += `<h4 style="margin: 24px 0 12px; font-size: 0.9rem; color: var(--text-muted);">Sistemas Operativos</h4>`;
+            Object.entries(osCounts)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([os, count]) => {
+                    const pct = Math.round((count / totalDevices) * 100);
+                    devicesHtml += `
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
+                            <span>${os}</span>
+                            <span style="font-weight: 600;">${count} (${pct}%)</span>
+                        </div>
+                    `;
+                });
+
+            document.getElementById('devices-container').innerHTML = devicesHtml;
+
+            // 4. Render Sellers Table (if audience allows it)
+            const showSellersTable = audienceSelect.value === 'all' || audienceSelect.value === 'sellers';
+            const sellerPanel = document.getElementById('seller-activity-panel');
+            
+            if (showSellersTable && data.sellers && data.sellers.length > 0) {
+                sellerPanel.style.display = 'block';
+                const tbody = document.getElementById('sellers-tbody');
+                tbody.innerHTML = '';
+                
+                data.sellers.forEach(s => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="font-weight: 600; color: var(--primary);">${s.seller_name}</td>
+                        <td>${s.total} veces</td>
+                        <td style="font-size: 0.85rem; color: var(--text-muted);">${s.last_visit}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                sellerPanel.style.display = 'none';
+            }
+        }
+
+        // SVG Chart Drawer
+        function renderSVGChart(dailyData) {
+            const svg = document.getElementById('visits-svg-chart');
+            
+            // Remove previous drawings
+            svg.querySelectorAll('.graph-injected').forEach(el => el.remove());
+
+            if (!dailyData || dailyData.length === 0) {
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', '300');
+                text.setAttribute('y', '150');
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('class', 'graph-axis-text graph-injected');
+                text.style.fontSize = '14px';
+                text.textContent = 'No hay datos de visitas en este rango';
+                svg.appendChild(text);
+                return;
+            }
+
+            // SVG Viewport constants
+            const width = 600;
+            const height = 300;
+            const paddingLeft = 50;
+            const paddingRight = 20;
+            const paddingTop = 30;
+            const paddingBottom = 40;
+
+            const chartWidth = width - paddingLeft - paddingRight;
+            const chartHeight = height - paddingTop - paddingBottom;
+
+            // Compute Y limit
+            const maxVal = Math.max(...dailyData.map(d => Math.max(d.total, d.unique)), 5);
+            const yMax = Math.ceil(maxVal * 1.15); // Add 15% headroom
+
+            // Draw Y-Axis helper lines (grid)
+            const gridCount = 4;
+            for (let i = 0; i <= gridCount; i++) {
+                const val = Math.round((yMax / gridCount) * i);
+                const y = paddingTop + chartHeight - (chartHeight * (val / yMax));
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', paddingLeft);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', width - paddingRight);
+                line.setAttribute('y2', y);
+                line.setAttribute('class', 'graph-grid-line graph-injected');
+                svg.appendChild(line);
+
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', paddingLeft - 10);
+                label.setAttribute('y', y + 3);
+                label.setAttribute('text-anchor', 'end');
+                label.setAttribute('class', 'graph-axis-text graph-injected');
+                label.textContent = val;
+                svg.appendChild(label);
+            }
+
+            // Draw data lines
+            const xStep = dailyData.length > 1 ? chartWidth / (dailyData.length - 1) : chartWidth;
+            let pathD = '';
+            let uniquePathD = '';
+
+            const points = [];
+            const uniquePoints = [];
+
+            dailyData.forEach((d, idx) => {
+                const x = paddingLeft + (idx * xStep);
+                const y = paddingTop + chartHeight - (chartHeight * (d.total / yMax));
+                const yUnique = paddingTop + chartHeight - (chartHeight * (d.unique / yMax));
+
+                points.push({ x, y, data: d });
+                uniquePoints.push({ x, y: yUnique, data: d });
+
+                if (idx === 0) {
+                    pathD = `M ${x} ${y}`;
+                    uniquePathD = `M ${x} ${yUnique}`;
+                } else {
+                    pathD += ` L ${x} ${y}`;
+                    uniquePathD += ` L ${x} ${yUnique}`;
+                }
+            });
+
+            // 1. Draw Total area and line
+            if (dailyData.length > 1) {
+                // Area path needs to close at the bottom
+                const areaPathD = `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`;
+                const areaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                areaPath.setAttribute('d', areaPathD);
+                areaPath.setAttribute('class', 'graph-area graph-injected');
+                svg.appendChild(areaPath);
+            }
+
+            const linePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            linePath.setAttribute('d', pathD);
+            linePath.setAttribute('class', 'graph-line graph-injected');
+            svg.appendChild(linePath);
+
+            // 2. Draw Unique Line (dashed & darker)
+            const uniqueLinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            uniqueLinePath.setAttribute('d', uniquePathD);
+            uniqueLinePath.setAttribute('class', 'graph-line graph-injected');
+            uniqueLinePath.setAttribute('stroke', '#a855f7'); // Purple for unique
+            uniqueLinePath.setAttribute('stroke-dasharray', '5 4');
+            svg.appendChild(uniqueLinePath);
+
+            // 3. Draw Axis dates
+            // Reduce dates labels on x axis if they are too many to prevent overlapping
+            const labelSkip = Math.ceil(dailyData.length / 7);
+            
+            points.forEach((pt, idx) => {
+                // Dates label on X-axis
+                if (idx % labelSkip === 0 || idx === dailyData.length - 1) {
+                    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    label.setAttribute('x', pt.x);
+                    label.setAttribute('y', height - paddingBottom + 20);
+                    label.setAttribute('text-anchor', 'middle');
+                    label.setAttribute('class', 'graph-axis-text graph-injected');
+                    
+                    // Format date (slice off year)
+                    const parts = pt.data.day.split('-');
+                    label.textContent = `${parts[2]}/${parts[1]}`;
+                    svg.appendChild(label);
+                }
+
+                // Interactive dot for Total
+                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                dot.setAttribute('cx', pt.x);
+                dot.setAttribute('cy', pt.y);
+                dot.setAttribute('r', '4.5');
+                dot.setAttribute('class', 'graph-dot graph-injected');
+                
+                // Interactive dot for Unique
+                const uDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                uDot.setAttribute('cx', pt.x);
+                uDot.setAttribute('cy', pt.yUnique);
+                uDot.setAttribute('r', '4');
+                uDot.setAttribute('class', 'graph-dot graph-injected');
+                uDot.setAttribute('stroke', '#a855f7');
+
+                // Tooltip events
+                const setupTooltip = (element, isUnique) => {
+                    element.addEventListener('mouseenter', (e) => {
+                        const tooltip = document.getElementById('chart-tooltip');
+                        const container = document.getElementById('chart-container');
+                        const rect = container.getBoundingClientRect();
+                        
+                        // Local date formatting
+                        const parts = pt.data.day.split('-');
+                        const dateText = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+                        tooltip.innerHTML = `
+                            <strong>Fecha: ${dateText}</strong><br/>
+                            Visitas Totales: ${pt.data.total}<br/>
+                            Visitas Únicas: ${pt.data.unique}
+                        `;
+                        tooltip.style.display = 'block';
+                        
+                        // Position tooltip relative to container
+                        const dotX = pt.x * (rect.width / width);
+                        const dotY = (isUnique ? pt.yUnique : pt.y) * (rect.height / height);
+
+                        tooltip.style.left = `${dotX - tooltip.offsetWidth / 2}px`;
+                        tooltip.style.top = `${dotY - tooltip.offsetHeight - 12}px`;
+                    });
+
+                    element.addEventListener('mouseleave', () => {
+                        document.getElementById('chart-tooltip').style.display = 'none';
+                    });
+                };
+
+                setupTooltip(dot, false);
+                setupTooltip(uDot, true);
+
+                svg.appendChild(dot);
+                svg.appendChild(uDot);
+            });
+        }
+
+        // Initial Data Load
+        loadVisitsData();
+    </script>
+</body>
+</html>

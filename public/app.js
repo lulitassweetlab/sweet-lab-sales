@@ -1398,6 +1398,10 @@ function applyAuthVisibility() {
 
 	const globalDbBtn = document.getElementById('global-clients-button');
 	if (globalDbBtn) globalDbBtn.style.display = (isSuper || feats.has('nav.globaldb')) ? 'inline-block' : 'none';
+
+	const visitsBtn = document.getElementById('visits-button');
+	const canVisits = isSuper || isAdminUser || feats.has('nav.visits');
+	if (visitsBtn) visitsBtn.style.display = canVisits ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
@@ -5210,6 +5214,15 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo para superadmin'); return; }
 		openGlobalClientsView();
+	});
+
+	const visitsBtn = document.getElementById('visits-button');
+	visitsBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		const isAdminUser = !!state.currentUser?.isAdmin;
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
+		window.location.href = '/visitas.html';
 	});
 
 	const globalDbBackBtn = document.getElementById('global-clients-back');

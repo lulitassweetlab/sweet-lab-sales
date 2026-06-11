@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 56; // 56: added position to sellers
+const SCHEMA_VERSION = 57; // 57: added store_visits table
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -680,6 +680,23 @@ export async function ensureSchema() {
 					console.log('Migrating to v56: Adding position to sellers...');
 					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`;
 					await sql`UPDATE schema_meta SET version = 56`;
+				}
+
+				if (Number(meta[0].version) < 57) {
+					console.log('Migrating to v57: Creating store_visits table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS store_visits (
+							id SERIAL PRIMARY KEY,
+							visited_at TIMESTAMPTZ DEFAULT now(),
+							session_id VARCHAR(50) NOT NULL,
+							ip_hash VARCHAR(64),
+							user_agent TEXT,
+							is_seller BOOLEAN DEFAULT false,
+							seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL
+						)
+					`;
+					await sql`CREATE INDEX IF NOT EXISTS idx_store_visits_date ON store_visits(visited_at)`;
+					await sql`UPDATE schema_meta SET version = 57`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

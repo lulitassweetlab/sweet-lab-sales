@@ -1814,6 +1814,42 @@
                 const input = document.getElementById('store-customer-name');
                 if (input) input.value = crmName;
             }
+
+            // Visits Tracking
+            (async function() {
+                try {
+                    let sessionId = sessionStorage.getItem('store_session_id');
+                    if (!sessionId) {
+                        sessionId = 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+                        sessionStorage.setItem('store_session_id', sessionId);
+                    }
+                    
+                    let isSeller = false;
+                    let sellerId = null;
+                    try {
+                        const savedSeller = localStorage.getItem('storeActiveSeller');
+                        if (savedSeller) {
+                            const sellerObj = JSON.parse(savedSeller);
+                            if (sellerObj && sellerObj.id) {
+                                isSeller = true;
+                                sellerId = sellerObj.id;
+                            }
+                        }
+                    } catch (e) {}
+
+                    await fetch('/api/visits', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: sessionId,
+                            is_seller: isSeller,
+                            seller_id: sellerId
+                        })
+                    });
+                } catch (err) {
+                    console.error('Error tracking visit:', err);
+                }
+            })();
         });
 
         // Bridge Listeners (connecting HTML elements to logic in external files)
