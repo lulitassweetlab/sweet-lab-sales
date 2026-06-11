@@ -86,6 +86,13 @@ const KitchenManager = {
         this.render(); 
     },
 
+    startTimerForStep(stepId, targetDate) {
+        const key = `${stepId}_${targetDate}`;
+        if (!this.timers[key]) this.timers[key] = { elapsedBefore: 0 };
+        this.timers[key].startTime = Date.now();
+        this.render();
+    },
+
     getElapsedSeconds(stepId, targetDate) {
         const key = `${stepId}_${targetDate}`;
         const t = this.timers[key];
@@ -713,18 +720,56 @@ const KitchenManager = {
         const btnTextDone = hasIngredients ? 'Producir Más' : 'Completar Más';
         const btnTextPending = hasIngredients ? 'Producir' : 'Completar';
 
+        let actionButtonsHtml = "";
+        if (isDone) {
+            actionButtonsHtml = `
+                <button onclick="window.KitchenManager.startTimerForStep('${step.id}', '${targetDate}')" 
+                    class="press-btn" style="width:100%; background:#10b981; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
+                    ${btnTextDone}
+                </button>
+            `;
+        } else {
+            if (isRunning) {
+                actionButtonsHtml = `
+                    <div style="display:flex; gap:6px; width:100%;">
+                        <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
+                            class="press-btn" style="flex:1; background:#f59e0b; color:white; border:none; padding:10px; border-radius:10px; font-size:0.9rem; display:flex; align-items:center; justify-content:center;" title="Pausar">
+                            ⏸
+                        </button>
+                        <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
+                            class="press-btn" style="flex:1.2; background:#ef4444; color:white; border:none; padding:10px; border-radius:10px; font-size:0.9rem; display:flex; align-items:center; justify-content:center;" title="Completar y Detener">
+                            ⏹
+                        </button>
+                    </div>
+                `;
+            } else if (elapsed > 0) {
+                actionButtonsHtml = `
+                    <div style="display:flex; gap:6px; width:100%;">
+                        <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
+                            class="press-btn" style="flex:1; background:#4f46e5; color:white; border:none; padding:10px; border-radius:10px; font-size:0.9rem; display:flex; align-items:center; justify-content:center;" title="Reanudar">
+                            ▶
+                        </button>
+                        <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
+                            class="press-btn" style="flex:1.2; background:#ef4444; color:white; border:none; padding:10px; border-radius:10px; font-size:0.9rem; display:flex; align-items:center; justify-content:center;" title="Completar y Detener">
+                            ⏹
+                        </button>
+                    </div>
+                `;
+            } else {
+                actionButtonsHtml = `
+                    <button onclick="window.KitchenManager.startTimerForStep('${step.id}', '${targetDate}')" 
+                        ${!step.id ? 'disabled' : ''}
+                        class="press-btn" style="width:100%; background:#4f46e5; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
+                        ${btnTextPending}
+                    </button>
+                `;
+            }
+        }
+
         return `
             <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
                 <div class="flex" style="margin-bottom:10px; justify-content:space-between; align-items:center; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
-                        <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
-                            class="press-btn" 
-                            style="width:28px; height:28px; border-radius:8px; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? '#ef4444' : '#4f46e5'}; color:white; padding:0; flex-shrink:0;">
-                            ${isRunning ? 
-                                '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
-                                '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
-                            }
-                        </button>
                         <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex:1;">
                             <strong style="font-size:1.1rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800;">${step.name || 'Proceso General'}</strong>
                             <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
@@ -755,11 +800,7 @@ const KitchenManager = {
                     ` : ''}
 
                     <div style="display:flex; flex-direction:column; gap:4px; flex:1.2; align-self: flex-end;">
-                        <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
-                            ${!step.id ? 'disabled' : ''}
-                            class="press-btn" style="width:100%; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
-                            ${isDone ? btnTextDone : btnTextPending}
-                        </button>
+                        ${actionButtonsHtml}
                     </div>
                 </div>
                 <div id="ingredients-container-${inputId}" style="margin-top:10px; font-size:0.7rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:8px;">
