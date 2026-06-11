@@ -167,17 +167,22 @@ async function loadSellerClients() {
 }
 
 let storeSellerDays = [];
+let storeSelectedDayId = null;
 
-function formatStoreDayLabel(input) {
-    if (!input) return 'Fecha';
+function formatStoreDayCardParts(input) {
+    if (!input) return { weekday: 'Fecha', dateString: '' };
     let iso = String(input);
     if (/^\d{4}-\d{2}-\d{2}T/.test(iso)) iso = iso.slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return String(input);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { weekday: String(input), dateString: '' };
     const d = new Date(iso + 'T00:00:00Z');
-    if (isNaN(d.getTime())) return iso;
+    if (isNaN(d.getTime())) return { weekday: iso, dateString: '' };
     const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    return `${weekdays[d.getUTCDay()]} ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    
+    return {
+        weekday: weekdays[d.getUTCDay()],
+        dateString: `${d.getUTCDate()} de ${months[d.getUTCMonth()]}`
+    };
 }
 
 async function loadSellerDays() {
@@ -198,22 +203,53 @@ async function loadSellerDays() {
 }
 
 function updateDateSelectorUI() {
-    const select = document.getElementById('store-order-date-select');
-    if (!select) return;
-    select.innerHTML = '';
+    const container = document.getElementById('store-order-date-container');
+    if (!container) return;
+    container.innerHTML = '';
     
     if (storeSellerDays.length <= 1) {
-        select.style.display = 'none';
+        container.style.display = 'none';
+        storeSelectedDayId = storeSellerDays[0] ? storeSellerDays[0].id : null;
         return;
     }
 
-    storeSellerDays.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d.id;
-        opt.textContent = formatStoreDayLabel(d.day);
-        select.appendChild(opt);
+    // Set first day as default selected
+    storeSelectedDayId = storeSellerDays[0].id;
+
+    storeSellerDays.forEach((d, idx) => {
+        const card = document.createElement('div');
+        card.className = `store-date-card ${idx === 0 ? 'active' : ''}`;
+        card.dataset.dayId = d.id;
+
+        const parts = formatStoreDayCardParts(d.day);
+
+        const weekdayEl = document.createElement('span');
+        weekdayEl.className = 'store-date-card-day';
+        weekdayEl.textContent = parts.weekday;
+
+        const dateEl = document.createElement('span');
+        dateEl.className = 'store-date-card-date';
+        dateEl.textContent = parts.dateString;
+
+        card.appendChild(weekdayEl);
+        if (parts.dateString) card.appendChild(dateEl);
+
+        card.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Update selected ID
+            storeSelectedDayId = d.id;
+            
+            // Toggle active classes
+            container.querySelectorAll('.store-date-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+        });
+
+        container.appendChild(card);
     });
-    select.style.display = 'block';
+    
+    container.style.display = 'flex';
 }
 
 function setupClientAutocomplete() {
@@ -380,9 +416,6 @@ async function executeCheckout(customerName) {
     const newClientWhatsApp = document.getElementById('new-client-whatsapp');
     const whatsappValue = (newClientWhatsApp ? newClientWhatsApp.value : '') || customerNameInput.dataset.whatsapp || '';
     
-    const dateSelect = document.getElementById('store-order-date-select');
-    const selectedDayId = (dateSelect && dateSelect.style.display !== 'none') ? dateSelect.value : null;
-
     const saleItems = [];
     for (const productId in cart) {
         saleItems.push({ 
@@ -401,7 +434,7 @@ async function executeCheckout(customerName) {
         seller: storeActiveSeller,
         user: storeAuthUser,
         timestamp: new Date().toISOString(),
-        sale_day_id: selectedDayId
+        sale_day_id: storeSelectedDayId
     };
 
     // 1. Queue immediately
