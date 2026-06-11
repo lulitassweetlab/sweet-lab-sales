@@ -433,6 +433,7 @@ const KitchenManager = {
                 const perUnit = log.qty > 0 ? this.formatDuration(Math.round(log.duration_seconds / log.qty)) : 'N/D';
 
                 const card = document.createElement('div');
+                card.id = `prod-log-row-${log.id}`;
                 card.style = `
                     background: rgba(255, 255, 255, 0.6);
                     border: 1px solid rgba(226, 232, 240, 0.8);
@@ -445,7 +446,13 @@ const KitchenManager = {
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.7rem; color:#94a3b8; font-weight:600;">${dateStr}</span>
-                        <span style="font-size:0.75rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px;">👨‍🍳 ${log.actor_name || 'Cocinero'}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:0.75rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px;">👨‍🍳 ${log.actor_name || 'Cocinero'}</span>
+                            <button onclick="window.KitchenManager.editProductionLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
+                                class="press-btn" style="border:none; background:transparent; font-size:12px; cursor:pointer; padding:2px;" title="Editar registro">
+                                ✏️
+                            </button>
+                        </div>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:10px; margin-top:4px;">
                         <div style="display:flex; flex-direction:column;">
@@ -476,6 +483,114 @@ const KitchenManager = {
         };
 
         document.body.appendChild(backdrop);
+    },
+
+    editProductionLog(logId, stepId, titleName) {
+        const log = (this.productionLogsRaw || []).find(l => l.id === Number(logId));
+        if (!log) return;
+
+        const rowEl = document.getElementById(`prod-log-row-${logId}`);
+        if (!rowEl) return;
+
+        const minutes = Math.floor(log.duration_seconds / 60);
+        const seconds = log.duration_seconds % 60;
+
+        rowEl.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:8px;">
+                <span style="font-size:0.75rem; color:#64748b; font-weight:700;">Editar Registro</span>
+                <div style="display:flex; gap:6px;">
+                    <button onclick="window.KitchenManager.saveProductionLog(${logId}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
+                        class="press-btn" style="border:none; background:#10b981; color:white; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                        Guardar
+                    </button>
+                    <button onclick="window.KitchenManager.showProductionLogsPopover(${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
+                        class="press-btn" style="border:none; background:#cbd5e1; color:#1e293b; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
+                    <input type="number" id="edit-log-qty-${logId}" value="${log.qty}" min="1" 
+                        style="width:100%; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; text-align:center; outline:none;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Minutos</span>
+                    <input type="number" id="edit-log-min-${logId}" value="${minutes}" min="0" 
+                        style="width:100%; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; text-align:center; outline:none;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Segundos</span>
+                    <input type="number" id="edit-log-sec-${logId}" value="${seconds}" min="0" max="59" 
+                        style="width:100%; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; text-align:center; outline:none;">
+                </div>
+            </div>
+        `;
+    },
+
+    async saveProductionLog(logId, stepId, titleName) {
+        const qtyInp = document.getElementById(`edit-log-qty-${logId}`);
+        const minInp = document.getElementById(`edit-log-min-${logId}`);
+        const secInp = document.getElementById(`edit-log-sec-${logId}`);
+
+        if (!qtyInp || !minInp || !secInp) return;
+
+        const qty = Number(qtyInp.value) || 0;
+        const minutes = Number(minInp.value) || 0;
+        const seconds = Number(secInp.value) || 0;
+        const duration = (minutes * 60) + seconds;
+
+        if (qty <= 0) return window.showToast("Ingresa una cantidad de lote válida", "warning");
+        if (duration <= 0) return window.showToast("Ingresa un tiempo válido", "warning");
+
+        try {
+            const res = await window.api('POST', '/api/inventory', {
+                action: 'update_production_log',
+                log_id: logId,
+                qty: qty,
+                duration_seconds: duration
+            });
+
+            if (res.ok) {
+                const logIndex = (this.productionLogsRaw || []).findIndex(l => l.id === Number(logId));
+                if (logIndex !== -1) {
+                    this.productionLogsRaw[logIndex].qty = qty;
+                    this.productionLogsRaw[logIndex].duration_seconds = duration;
+                }
+
+                this.productionLogsByStep = {};
+                this.productionLogsRaw.forEach(l => {
+                    const sid = l.step_id;
+                    if (!this.productionLogsByStep[sid]) {
+                        this.productionLogsByStep[sid] = [];
+                    }
+                    this.productionLogsByStep[sid].push(l);
+                });
+
+                window.showToast("✅ Registro de producción actualizado", "success");
+
+                const badge = document.querySelector(`.average-time-badge[data-step-id="${stepId}"]`);
+                if (badge) {
+                    const avgValSpan = badge.querySelector('.avg-val');
+                    const inputElement = document.querySelector(`input[data-step-id="${stepId}"]`);
+                    const multiplier = inputElement ? (Number(inputElement.value) || 1) : 1;
+
+                    const newBaseAvg = this.getAverageTimePerUnit(stepId) || 0;
+                    avgValSpan.setAttribute('data-base-avg', newBaseAvg);
+
+                    const newTotalSeconds = Math.round(newBaseAvg * multiplier);
+                    avgValSpan.textContent = this.formatDuration(newTotalSeconds);
+                }
+
+                this.showProductionLogsPopover(stepId, titleName);
+            } else {
+                throw new Error(res.error || "No se pudo actualizar");
+            }
+        } catch (err) {
+            console.error("Save Log Error:", err);
+            window.showToast("Error al guardar: " + err.message, "error");
+        }
     },
 
     render() {
@@ -924,7 +1039,7 @@ const KitchenManager = {
             averageTimeHtml = `
                 <span class="average-time-badge" 
                     onclick="window.KitchenManager.showProductionLogsPopover(${step.id}, '${recipeName} - ${step.name || 'General'}')"
-                    style="font-size:0.65rem; color:#64748b; font-weight:700; background:#f1f5f9; padding:3px 8px; border-radius:6px; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; border:1px solid #e2e8f0; pointer-events:auto;"
+                    style="position:absolute; top:12px; right:12px; font-size:0.65rem; color:#64748b; font-weight:700; background:#f1f5f9; padding:3px 8px; border-radius:6px; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; border:1px solid #e2e8f0; pointer-events:auto; z-index:10;"
                     onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b';"
                     onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b';"
                     title="Ver historial de producción"
@@ -981,11 +1096,14 @@ const KitchenManager = {
         }
 
         return `
-            <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
+            <div style="position:relative; background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
                 <div class="flex" style="margin-bottom:10px; justify-content:space-between; align-items:center; gap:10px;">
-                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding-right:110px;">
                         <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex:1;">
-                            <strong style="font-size:1.1rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800;">${step.name || 'Proceso General'}</strong>
+                            <strong style="font-size:1.1rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800; display:inline-flex; align-items:center;">
+                                ${step.name || 'Proceso General'}
+                                ${producedInWindow > 0 ? `<span style="font-size:0.75rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 6px; border-radius:6px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow}</span>` : ''}
+                            </strong>
                             <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
                                 style="font-family:monospace; font-size:0.85rem; color:${isRunning ? '#ef4444' : '#64748b'}; font-weight:700; letter-spacing:0.5px;">
                                 ${this.formatDuration(elapsed)}
@@ -993,10 +1111,7 @@ const KitchenManager = {
                             ${isRunning ? '<span style="width:5px; height:5px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-                        ${averageTimeHtml}
-                        ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ ${producedInWindow}</span>` : ''}
-                    </div>
+                    ${averageTimeHtml}
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
