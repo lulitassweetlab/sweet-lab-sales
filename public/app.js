@@ -2793,10 +2793,10 @@ function openNewSalePopover(anchorX, anchorY) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (union of active store desserts and desserts with sales on this date)
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
 		let defaultActiveIds = new Set();
 		for (const d of (state.desserts || [])) {
-			if (d && d.is_active) {
+			if (d && d.store_is_active) {
 				defaultActiveIds.add(d.id);
 			}
 		}
@@ -3176,10 +3176,10 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (union of active store desserts and desserts with sales on this date)
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
 		let defaultActiveIds = new Set();
 		for (const d of (state.desserts || [])) {
-			if (d && d.is_active) {
+			if (d && d.store_is_active) {
 				defaultActiveIds.add(d.id);
 			}
 		}
@@ -3946,10 +3946,10 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (union of active store desserts and desserts with sales on this date)
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
 		let defaultActiveIds = new Set();
 		for (const d of (state.desserts || [])) {
-			if (d && d.is_active) {
+			if (d && d.store_is_active) {
 				defaultActiveIds.add(d.id);
 			}
 		}
