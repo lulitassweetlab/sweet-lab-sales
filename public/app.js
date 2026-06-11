@@ -2793,14 +2793,17 @@ function openNewSalePopover(anchorX, anchorY) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
-		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
-		if (defaultActiveIds.size === 0) {
-			defaultActiveIds = new Set(
-				(state.desserts || [])
-					.filter(d => d.is_active)
-					.map(d => d.id)
-			);
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.store_is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
 		}
 
 		// Dessert rows (dynamic from state.desserts)
@@ -2915,7 +2918,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
@@ -2924,6 +2927,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
 
 		async function doSave() {
+			if (saveBtn.disabled) return;
 			try {
 				// Silent validation: if no desserts have a quantity greater than zero, close silently and don't save
 				let totalQty = 0;
@@ -3172,14 +3176,17 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
-		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
-		if (defaultActiveIds.size === 0) {
-			defaultActiveIds = new Set(
-				(state.desserts || [])
-					.filter(d => d.is_active)
-					.map(d => d.id)
-			);
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.store_is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
 		}
 		// Always show any dessert that has a positive quantity in this sale
 		if (sale) {
@@ -3341,7 +3348,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
@@ -3350,6 +3357,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
 
 		async function doSave() {
+			if (saveBtn.disabled) return;
 			try {
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 
@@ -3938,14 +3946,17 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
-		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
-		if (defaultActiveIds.size === 0) {
-			defaultActiveIds = new Set(
-				(state.desserts || [])
-					.filter(d => d.is_active)
-					.map(d => d.id)
-			);
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.store_is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
 		}
 
 		// Dessert rows (dynamic from state.desserts)
@@ -4047,7 +4058,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);

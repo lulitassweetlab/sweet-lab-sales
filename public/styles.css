@@ -3170,13 +3170,13 @@ tfoot td {
 @media (max-width: 640px) {
 	.new-sale-popover {
 		min-width: 0;
-		width: 53vw;
-		max-width: 240px;
+		width: 90vw !important;
+		max-width: 460px !important;
 		max-height: 85vh;
 		overflow-y: auto;
 		left: 50% !important;
-		transform: translateX(-50%) !important;
-		top: 8vh !important;
+		top: 50% !important;
+		transform: translate(-50%, -50%) !important;
 		padding: 12px;
 	}
 
@@ -8557,4 +8557,66 @@ td.col-client.action-bar-fading .client-input {
 
 [data-theme="dark"] .show-more-desserts-btn:hover {
 	background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Storefront loading state bar */
+.store-loading-container {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	gap: 16px;
+	text-align: center;
+}
+
+.store-loading-text {
+	font-size: 1.1rem;
+	font-weight: 500;
+	color: var(--text-muted);
+	letter-spacing: 0.5px;
+	animation: pulse 1.5s ease-in-out infinite;
+}
+
+.store-loading-bar-track {
+	width: 200px;
+	height: 4px;
+	background-color: var(--border);
+	border-radius: 2px;
+	overflow: hidden;
+	position: relative;
+}
+
+.store-loading-bar-fill {
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(90deg, var(--primary), var(--accent));
+	position: absolute;
+	top: 0;
+	left: -100%;
+	animation: fill-line 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fill-line {
+	0% {
+		left: -100%;
+		width: 30%;
+	}
+	50% {
+		width: 60%;
+	}
+	100% {
+		left: 100%;
+		width: 30%;
+	}
+}
+
+@keyframes pulse {
+	0%, 100% {
+		opacity: 0.6;
+	}
+	50% {
+		opacity: 1;
+	}
 }

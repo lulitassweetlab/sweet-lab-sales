@@ -46,7 +46,13 @@ export async function handler(event) {
 					return json(dessertsCache);
 				}
 
-				const desserts = await sql`SELECT id, name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, is_active, position, created_at FROM desserts ORDER BY position ASC, name ASC`;
+				const desserts = await sql`
+					SELECT d.id, d.name, d.short_code, d.sale_price, d.cost_price, d.promo_qty, d.promo_price, d.store_name, d.store_product_id, d.is_active, d.position, d.created_at,
+					       COALESCE(sp.is_active, false) as store_is_active
+					FROM desserts d
+					LEFT JOIN store_products sp ON d.store_product_id = sp.id
+					ORDER BY d.position ASC, d.name ASC
+				`;
 				dessertsCache = desserts;
 				cacheTime = now;
 				return json(desserts);

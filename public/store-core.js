@@ -3,18 +3,35 @@
 async function loadStore() {
     const grid = document.getElementById('product-grid');
     
-    // SWR: Load from cache first for instant feel
+    // SWR: Load from cache first for instant feel, only if it's less than 1 minute old
     const cached = safeLS.getItem('store_products_cache');
-    if (cached) {
+    const cachedTime = safeLS.getItem('store_products_cache_time');
+    const now = Date.now();
+    const CACHE_TTL = 60 * 1000; // 1 minute
+    
+    let showingCache = false;
+    if (cached && cachedTime && (now - Number(cachedTime) < CACHE_TTL)) {
         try {
             const products = JSON.parse(cached);
             if (Array.isArray(products) && products.length > 0) {
                 grid.innerHTML = '';
                 products.filter(p => p.is_active).forEach(storeRenderProduct);
+                showingCache = true;
             }
         } catch (e) {
             console.error('Error parsing product cache', e);
         }
+    }
+
+    if (!showingCache) {
+        grid.innerHTML = `
+            <div class="store-loading-container">
+                <div class="store-loading-text">Cargando...</div>
+                <div class="store-loading-bar-track">
+                    <div class="store-loading-bar-fill"></div>
+                </div>
+            </div>
+        `;
     }
 
     try {
@@ -22,9 +39,11 @@ async function loadStore() {
         if (!res.ok) throw new Error('Error de red');
         const products = await res.json();
 
-        // If data changed compared to cache, update UI
-        if (JSON.stringify(products) !== cached) {
+        // If data changed compared to cache, or we didn't show the cache initially, update UI
+        const dataChanged = JSON.stringify(products) !== cached;
+        if (!showingCache || dataChanged) {
             safeLS.setItem('store_products_cache', JSON.stringify(products));
+            safeLS.setItem('store_products_cache_time', String(Date.now()));
             const activeProducts = products.filter(p => p.is_active);
 
             if (activeProducts.length === 0) {
@@ -39,11 +58,14 @@ async function loadStore() {
 
             grid.innerHTML = '';
             activeProducts.forEach(storeRenderProduct);
+        } else {
+            // Update time anyway to keep cache active
+            safeLS.setItem('store_products_cache_time', String(Date.now()));
         }
 
     } catch (err) {
         console.error('Error loading store:', err);
-        if (!cached) {
+        if (!showingCache) {
             grid.innerHTML = `
                 <div class="empty-state">
                     <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--danger);">¡Ups! Algo salió mal.</h2>
