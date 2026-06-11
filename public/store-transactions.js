@@ -263,6 +263,12 @@ function updateDateSelectorUI() {
             // Toggle active classes
             container.querySelectorAll('.store-date-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
+
+            // Send selection to embedded sales table iframe
+            const iframe = document.querySelector('.embedded-sales-iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'selectDay', selectedDayId: d.id }, '*');
+            }
         });
 
         container.appendChild(card);
@@ -579,7 +585,7 @@ function refreshSalesTable() {
         const iframe = document.querySelector('.embedded-sales-iframe');
         if (iframe && iframe.contentWindow) {
             console.log('[Store] Sending refresh request to embedded sales table.');
-            iframe.contentWindow.postMessage('refreshSales', '*');
+            iframe.contentWindow.postMessage({ type: 'refreshSales', selectedDayId: storeSelectedDayId }, '*');
         }
     } catch (e) {
         console.error('[Store] Could not refresh sales table:', e);
@@ -846,3 +852,24 @@ async function processSingleSale(sale) {
 window.addEventListener('online', syncPendingSales);
 setInterval(syncPendingSales, 60000);
 document.addEventListener('DOMContentLoaded', syncPendingSales);
+
+// Listen to date changes made within the embedded sales table to sync store UI
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'selectDay') {
+        const dayId = event.data.selectedDayId;
+        console.log('[Store] Selected day update received from iframe:', dayId);
+        storeSelectedDayId = dayId;
+        
+        // Update active class on cards
+        const container = document.getElementById('store-order-date-container');
+        if (container) {
+            container.querySelectorAll('.store-date-card').forEach(card => {
+                if (card.dataset.dayId === String(dayId)) {
+                    card.classList.add('active');
+                } else {
+                    card.classList.remove('active');
+                }
+            });
+        }
+    }
+});

@@ -8229,6 +8229,10 @@ function renderDaysList() {
 		btn.textContent = formatDayLabel(d.day);
 		btn.addEventListener('click', async () => {
 			state.selectedDayId = d.id;
+			// Notify parent page (store.html) to keep UI in sync
+			try {
+				window.parent.postMessage({ type: 'selectDay', selectedDayId: d.id }, '*');
+			} catch (e) { }
 			document.getElementById('sales-wrapper').classList.remove('hidden');
 			await loadSales();
 		});
@@ -8280,6 +8284,10 @@ function renderDaysList() {
 				}
 				if (latest && latest.id) {
 					state.selectedDayId = latest.id;
+					// Notify parent page (store.html) to sync selection
+					try {
+						window.parent.postMessage({ type: 'selectDay', selectedDayId: latest.id }, '*');
+					} catch (e) { }
 					const wrap = document.getElementById('sales-wrapper');
 					if (wrap) wrap.classList.remove('hidden');
 					loadSales().catch(() => { });
@@ -11712,6 +11720,10 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 					const latest = [...state.saleDays].sort((a, b) => new Date(b.day) - new Date(a.day))[0];
 					if (latest) {
 						state.selectedDayId = latest.id;
+						// Notify parent page (store.html)
+						try {
+							window.parent.postMessage({ type: 'selectDay', selectedDayId: latest.id }, '*');
+						} catch (e) { }
 						document.getElementById('sales-wrapper')?.classList.remove('hidden');
 						switchView('#view-sales');
 						await loadSales();
@@ -11772,8 +11784,17 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 
 	// 🔄 Message listener for parent-to-iframe communication (e.g. from store.html)
 	window.addEventListener('message', async (event) => {
-		if (event.data === 'refreshSales' && typeof loadSales === 'function') {
-			console.log('[Iframe] Refresh request received from parent.');
+		const isRefresh = event.data === 'refreshSales' || (event.data && event.data.type === 'refreshSales');
+		const isSelectDay = event.data && event.data.type === 'selectDay';
+		
+		if ((isRefresh || isSelectDay) && typeof loadSales === 'function') {
+			console.log('[Iframe] Request received from parent:', event.data);
+			
+			const targetDayId = event.data && event.data.selectedDayId;
+			if (targetDayId) {
+				state.selectedDayId = Number(targetDayId);
+			}
+			
 			await loadSales();
 		}
 	});
