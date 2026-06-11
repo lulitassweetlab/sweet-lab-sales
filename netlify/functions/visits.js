@@ -66,47 +66,89 @@ export async function handler(event) {
                 const startDate = `${start} 00:00:00-05`;
                 const endDate = `${end} 23:59:59-05`;
 
-                // Base filter for audience
-                let audienceFilter = sql``;
+                let totalResult;
+                let dailyResult;
+                let agentResult;
+
                 if (audience === 'clients') {
-                    audienceFilter = sql`AND is_seller = false`;
+                    totalResult = await sql`
+                        SELECT 
+                            COUNT(*)::int AS total_visits,
+                            COUNT(DISTINCT session_id)::int AS unique_visits
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate} AND is_seller = false
+                    `;
+                    dailyResult = await sql`
+                        SELECT 
+                            TO_CHAR(visited_at AT TIME ZONE 'UTC-5', 'YYYY-MM-DD') AS day,
+                            COUNT(*)::int AS total,
+                            COUNT(DISTINCT session_id)::int AS unique
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate} AND is_seller = false
+                        GROUP BY day
+                        ORDER BY day ASC
+                    `;
+                    agentResult = await sql`
+                        SELECT 
+                            user_agent,
+                            COUNT(*)::int AS total
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate} AND is_seller = false
+                        GROUP BY user_agent
+                    `;
                 } else if (audience === 'sellers') {
-                    audienceFilter = sql`AND is_seller = true`;
+                    totalResult = await sql`
+                        SELECT 
+                            COUNT(*)::int AS total_visits,
+                            COUNT(DISTINCT session_id)::int AS unique_visits
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate} AND is_seller = true
+                    `;
+                    dailyResult = await sql`
+                        SELECT 
+                            TO_CHAR(visited_at AT TIME ZONE 'UTC-5', 'YYYY-MM-DD') AS day,
+                            COUNT(*)::int AS total,
+                            COUNT(DISTINCT session_id)::int AS unique
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate} AND is_seller = true
+                        GROUP BY day
+                        ORDER BY day ASC
+                    `;
+                    agentResult = await sql`
+                        SELECT 
+                            user_agent,
+                            COUNT(*)::int AS total
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate} AND is_seller = true
+                        GROUP BY user_agent
+                    `;
+                } else {
+                    totalResult = await sql`
+                        SELECT 
+                            COUNT(*)::int AS total_visits,
+                            COUNT(DISTINCT session_id)::int AS unique_visits
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate}
+                    `;
+                    dailyResult = await sql`
+                        SELECT 
+                            TO_CHAR(visited_at AT TIME ZONE 'UTC-5', 'YYYY-MM-DD') AS day,
+                            COUNT(*)::int AS total,
+                            COUNT(DISTINCT session_id)::int AS unique
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate}
+                        GROUP BY day
+                        ORDER BY day ASC
+                    `;
+                    agentResult = await sql`
+                        SELECT 
+                            user_agent,
+                            COUNT(*)::int AS total
+                        FROM store_visits
+                        WHERE visited_at >= ${startDate} AND visited_at <= ${endDate}
+                        GROUP BY user_agent
+                    `;
                 }
-
-                // Query totals
-                const totalResult = await sql`
-                    SELECT 
-                        COUNT(*)::int AS total_visits,
-                        COUNT(DISTINCT session_id)::int AS unique_visits
-                    FROM store_visits
-                    WHERE visited_at >= ${startDate} AND visited_at <= ${endDate}
-                    ${audienceFilter}
-                `;
-
-                // Query daily breakdown (grouping in America/Bogota or UTC-5 timezone)
-                const dailyResult = await sql`
-                    SELECT 
-                        TO_CHAR(visited_at AT TIME ZONE 'UTC-5', 'YYYY-MM-DD') AS day,
-                        COUNT(*)::int AS total,
-                        COUNT(DISTINCT session_id)::int AS unique
-                    FROM store_visits
-                    WHERE visited_at >= ${startDate} AND visited_at <= ${endDate}
-                    ${audienceFilter}
-                    GROUP BY day
-                    ORDER BY day ASC
-                `;
-
-                // Query user agent/devices breakdown
-                const agentResult = await sql`
-                    SELECT 
-                        user_agent,
-                        COUNT(*)::int AS total
-                    FROM store_visits
-                    WHERE visited_at >= ${startDate} AND visited_at <= ${endDate}
-                    ${audienceFilter}
-                    GROUP BY user_agent
-                `;
 
                 // Query seller activity breakdown if any sellers visited
                 const sellerResult = await sql`
