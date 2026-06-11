@@ -21,6 +21,11 @@ function normalizePromotionFields({ promoQtyRaw, promoPriceRaw }) {
     return { promoQty, promoPrice };
 }
 
+// In-memory cache for store products
+let productsCache = null;
+let cacheTime = 0;
+const CACHE_TTL = 60000; // 1 minute
+
 export async function handler(event) {
     try {
         await ensureSchema();
@@ -28,22 +33,25 @@ export async function handler(event) {
 
         switch (event.httpMethod) {
             case 'GET': {
-                // EMERGENCY RESCUE: AWS API Gateway drops connections (502) if response > 6MB.
-                // If a user uploaded a massive video, the DB stores it, but reading it crashes the API.
-                // We purge oversized media directly from the DB before querying to guarantee recovery.
-                await sql`UPDATE store_products SET media = '[]'::jsonb WHERE length(media::text) > 5500000`;
-                await sql`UPDATE store_products SET image_base64 = null WHERE length(image_base64::text) > 5500000`;
+                const now = Date.now();
+                if (productsCache && (now - cacheTime) < CACHE_TTL) {
+                    return json(productsCache);
+                }
 
                 const products = await sql`
 					SELECT id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_new, is_active, position
 					FROM store_products
 					ORDER BY position ASC, name ASC
 				`;
-                // Parse media JSONB if needed (Neon returns objects for JSONB usually, but just in case)
-                return json(products.map(p => ({
+                
+                const formatted = products.map(p => ({
                     ...p,
                     media: typeof p.media === 'string' ? JSON.parse(p.media || '[]') : (p.media || [])
-                })));
+                }));
+                
+                productsCache = formatted;
+                cacheTime = now;
+                return json(formatted);
             }
             case 'POST': {
                 const data = JSON.parse(event.body || '{}');
@@ -70,6 +78,8 @@ export async function handler(event) {
 					VALUES (${name}, ${description}, ${price}, ${promotion.promoQty}, ${promotion.promoPrice}, ${image_base64}, ${mediaJson}::jsonb, ${isPromo}, ${isNew}, ${position})
 					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_new, is_active, position
 				`;
+                productsCache = null;
+                cacheTime = 0;
                 return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) }, 201);
             }
             case 'PUT': {
@@ -118,6 +128,8 @@ export async function handler(event) {
                         RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_new, is_active, position
                     `;
                 }
+                productsCache = null;
+                cacheTime = 0;
                 return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) });
             }
             case 'DELETE': {
@@ -129,6 +141,8 @@ export async function handler(event) {
 
                 // Optional: Hard delete for store products as they are separate from sales reporting
                 await sql`DELETE FROM store_products WHERE id = ${id}`;
+                productsCache = null;
+                cacheTime = 0;
                 return json({ ok: true });
             }
             default:

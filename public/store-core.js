@@ -26,8 +26,10 @@ async function loadStore() {
     if (!showingCache) {
         grid.innerHTML = `
             <div class="store-loading-container">
-                <div class="store-loading-spinner"></div>
-                <p>Cargando delicias...</p>
+                <div class="store-loading-text">Cargando...</div>
+                <div class="store-loading-bar-track">
+                    <div class="store-loading-bar-fill"></div>
+                </div>
             </div>
         `;
     }
