@@ -374,6 +374,14 @@ export async function handler(event) {
 					return json({ ok: true });
 				}
 
+				if (action === 'delete_production_log') {
+					const logId = Number(data.log_id || 0);
+					if (!logId) return json({ error: 'log_id requerido' }, 400);
+
+					await sql`DELETE FROM production_logs WHERE id = ${logId}`;
+					return json({ ok: true });
+				}
+
 				if (action === 'produccion_paso') {
 					const stepId = Number(data.step_id || 0);
 					const multiplier = Number(data.multiplier || 1) || 1;
