@@ -430,7 +430,8 @@ const KitchenManager = {
                 const date = new Date(log.created_at);
                 const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const perUnit = log.qty > 0 ? this.formatDuration(Math.round(log.duration_seconds / log.qty)) : 'N/D';
-                const minutes = Math.floor(log.duration_seconds / 60);
+                const hours = Math.floor(log.duration_seconds / 3600);
+                const minutes = Math.floor((log.duration_seconds % 3600) / 60);
                 const seconds = log.duration_seconds % 60;
 
                 const card = document.createElement('div');
@@ -455,7 +456,7 @@ const KitchenManager = {
                             </button>
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1.5fr 1.2fr; gap:10px; margin-top:4px; align-items:end;">
+                    <div style="display:grid; grid-template-columns: 1fr 1.8fr 1.2fr; gap:10px; margin-top:4px; align-items:end;">
                         <div style="display:flex; flex-direction:column; gap:4px;">
                             <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
                             <div style="display:flex; align-items:center; gap:4px;">
@@ -466,15 +467,19 @@ const KitchenManager = {
                             </div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:4px;">
-                            <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo (Min : Seg)</span>
+                            <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo (Hrs : Min : Seg)</span>
                             <div style="display:flex; align-items:center; gap:4px;">
-                                <input type="number" value="${minutes}" min="0" 
+                                <input type="number" value="${hours}" min="0" 
+                                    onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'hrs')"
+                                    style="width:40px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;" title="Horas">
+                                <span style="font-size:1.1rem; font-weight:700; color:#cbd5e1;">:</span>
+                                <input type="number" value="${minutes}" min="0" max="59" 
                                     onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'min')"
-                                    style="width:55px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;">
+                                    style="width:40px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;" title="Minutos">
                                 <span style="font-size:1.1rem; font-weight:700; color:#cbd5e1;">:</span>
                                 <input type="number" value="${seconds}" min="0" max="59" 
                                     onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'sec')"
-                                    style="width:55px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;">
+                                    style="width:40px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;" title="Segundos">
                             </div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:4px; align-items:center; justify-content:center; height:100%;">
@@ -505,17 +510,20 @@ const KitchenManager = {
 
         let qty = log.qty;
         let duration = log.duration_seconds;
-        let minutes = Math.floor(duration / 60);
+        let hours = Math.floor(duration / 3600);
+        let minutes = Math.floor((duration % 3600) / 60);
         let seconds = duration % 60;
 
         if (type === 'qty') {
             qty = Number(value) || 0;
+        } else if (type === 'hrs') {
+            hours = Number(value) || 0;
         } else if (type === 'min') {
             minutes = Number(value) || 0;
         } else if (type === 'sec') {
             seconds = Number(value) || 0;
         }
-        duration = (minutes * 60) + seconds;
+        duration = (hours * 3600) + (minutes * 60) + seconds;
 
         if (qty <= 0) return window.showToast("Ingresa una cantidad de lote válida", "warning");
         if (duration <= 0) return window.showToast("Ingresa un tiempo válido", "warning");
