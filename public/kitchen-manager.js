@@ -405,22 +405,22 @@ const KitchenManager = {
         header.style = "display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(226, 232, 240, 0.8); padding-bottom: 12px;";
         header.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:4px;">
-                <h3 style="margin:0; font-size:1.1rem; font-weight:900; color:#0f172a;">Historial de Producción</h3>
-                <span style="font-size:0.75rem; color:#64748b; font-weight:600;">${titleName}</span>
+                <h3 style="margin:0; font-size:1.35rem; font-weight:900; color:#0f172a;">Historial de Producción</h3>
+                <span style="font-size:0.95rem; color:#64748b; font-weight:600;">${titleName}</span>
             </div>
             <button onclick="document.getElementById('production-logs-modal').remove()" 
-                class="press-btn" style="border:none; background:rgba(241,245,249,0.8); color:#64748b; font-size:14px; font-weight:700; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                class="press-btn" style="border:none; background:rgba(241,245,249,0.8); color:#64748b; font-size:18px; font-weight:700; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
                 ✕
             </button>
         `;
         modal.appendChild(header);
 
         const listContainer = document.createElement('div');
-        listContainer.style = "max-height: 300px; overflow-y: auto; display:flex; flex-direction:column; gap:10px; padding-right: 4px;";
+        listContainer.style = "max-height: 350px; overflow-y: auto; display:flex; flex-direction:column; gap:12px; padding-right: 4px;";
 
         if (logs.length === 0) {
             listContainer.innerHTML = `
-                <div style="text-align:center; padding:32px 16px; color:#94a3b8; font-size:0.85rem; display:flex; flex-direction:column; gap:8px;">
+                <div style="text-align:center; padding:32px 16px; color:#94a3b8; font-size:1.1rem; display:flex; flex-direction:column; gap:8px;">
                     <span>🥞</span>
                     <span>No hay registros anteriores de producción para este paso.</span>
                 </div>
@@ -445,27 +445,31 @@ const KitchenManager = {
                 `;
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.7rem; color:#94a3b8; font-weight:600;">${dateStr}</span>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:0.75rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px;">👨‍🍳 ${log.actor_name || 'Cocinero'}</span>
+                        <span style="font-size:0.9rem; color:#94a3b8; font-weight:600;">${dateStr}</span>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:0.95rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px;">👨‍🍳 ${log.actor_name || 'Cocinero'}</span>
                             <button onclick="window.KitchenManager.editProductionLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
-                                class="press-btn" style="border:none; background:transparent; font-size:12px; cursor:pointer; padding:2px;" title="Editar registro">
+                                class="press-btn" style="border:none; background:transparent; font-size:16px; cursor:pointer; padding:2px;" title="Editar registro">
                                 ✏️
+                            </button>
+                            <button onclick="window.KitchenManager.deleteProductionLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
+                                class="press-btn" style="border:none; background:transparent; font-size:16px; cursor:pointer; padding:2px;" title="Eliminar registro">
+                                🗑️
                             </button>
                         </div>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:10px; margin-top:4px;">
                         <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
-                            <span style="font-size:0.85rem; font-weight:800; color:#1e293b;">${log.qty} uds</span>
+                            <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
+                            <span style="font-size:1.15rem; font-weight:800; color:#1e293b;">${log.qty} uds</span>
                         </div>
                         <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo</span>
-                            <span style="font-size:0.85rem; font-weight:800; color:#4f46e5;">${duration}</span>
+                            <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo</span>
+                            <span style="font-size:1.15rem; font-weight:800; color:#4f46e5;">${duration}</span>
                         </div>
                         <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo / U.</span>
-                            <span style="font-size:0.85rem; font-weight:800; color:#10b981;">${perUnit}</span>
+                            <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo / U.</span>
+                            <span style="font-size:1.15rem; font-weight:800; color:#10b981;">${perUnit}</span>
                         </div>
                     </div>
                 `;
@@ -497,33 +501,33 @@ const KitchenManager = {
 
         rowEl.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:8px;">
-                <span style="font-size:0.75rem; color:#64748b; font-weight:700;">Editar Registro</span>
+                <span style="font-size:1rem; color:#64748b; font-weight:700;">Editar Registro</span>
                 <div style="display:flex; gap:6px;">
                     <button onclick="window.KitchenManager.saveProductionLog(${logId}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
-                        class="press-btn" style="border:none; background:#10b981; color:white; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                        class="press-btn" style="border:none; background:#10b981; color:white; padding:6px 12px; border-radius:6px; font-size:1rem; font-weight:700; cursor:pointer;">
                         Guardar
                     </button>
                     <button onclick="window.KitchenManager.showProductionLogsPopover(${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
-                        class="press-btn" style="border:none; background:#cbd5e1; color:#1e293b; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                        class="press-btn" style="border:none; background:#cbd5e1; color:#1e293b; padding:6px 12px; border-radius:6px; font-size:1rem; font-weight:700; cursor:pointer;">
                         Cancelar
                     </button>
                 </div>
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
                 <div style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
+                    <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
                     <input type="number" id="edit-log-qty-${logId}" value="${log.qty}" min="1" 
-                        style="width:100%; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; text-align:center; outline:none;">
+                        style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none;">
                 </div>
                 <div style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Minutos</span>
+                    <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Minutos</span>
                     <input type="number" id="edit-log-min-${logId}" value="${minutes}" min="0" 
-                        style="width:100%; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; text-align:center; outline:none;">
+                        style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none;">
                 </div>
                 <div style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Segundos</span>
+                    <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Segundos</span>
                     <input type="number" id="edit-log-sec-${logId}" value="${seconds}" min="0" max="59" 
-                        style="width:100%; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; text-align:center; outline:none;">
+                        style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none;">
                 </div>
             </div>
         `;
@@ -1091,7 +1095,7 @@ const KitchenManager = {
             averageTimeHtml = `
                 <span class="average-time-badge" 
                     onclick="window.KitchenManager.showProductionLogsPopover(${step.id}, '${recipeName} - ${step.name || 'General'}')"
-                    style="position:absolute; top:12px; right:12px; font-size:0.85rem; color:#64748b; font-weight:700; background:#f1f5f9; padding:4px 10px; border-radius:8px; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; border:1px solid #e2e8f0; pointer-events:auto; z-index:10;"
+                    style="position:absolute; top:12px; right:12px; font-size:1.05rem; color:#64748b; font-weight:700; background:#f1f5f9; padding:4px 10px; border-radius:8px; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; border:1px solid #e2e8f0; pointer-events:auto; z-index:10;"
                     onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b';"
                     onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b';"
                     title="Ver historial de producción"
@@ -1105,7 +1109,7 @@ const KitchenManager = {
         if (isDone) {
             actionButtonsHtml = `
                 <button onclick="window.KitchenManager.startTimerForStep('${step.id}', '${targetDate}')" 
-                    class="press-btn" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1.05rem; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
+                    class="press-btn" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1.25rem; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
                     ${btnTextDone}
                 </button>
             `;
@@ -1114,11 +1118,11 @@ const KitchenManager = {
                 actionButtonsHtml = `
                     <div style="display:flex; gap:8px; width:100%;">
                         <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
-                            class="press-btn" style="flex:1; background:#f59e0b; color:white; border:none; padding:12px; border-radius:12px; font-size:1.15rem; display:flex; align-items:center; justify-content:center;" title="Pausar">
+                            class="press-btn" style="flex:1; background:#f59e0b; color:white; border:none; padding:12px; border-radius:12px; font-size:1.3rem; display:flex; align-items:center; justify-content:center;" title="Pausar">
                             ⏸
                         </button>
                         <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
-                            class="press-btn" style="flex:1.2; background:#ef4444; color:white; border:none; padding:12px; border-radius:12px; font-size:1.15rem; display:flex; align-items:center; justify-content:center;" title="Completar y Detener">
+                            class="press-btn" style="flex:1.2; background:#ef4444; color:white; border:none; padding:12px; border-radius:12px; font-size:1.3rem; display:flex; align-items:center; justify-content:center;" title="Completar y Detener">
                             ⏹
                         </button>
                     </div>
@@ -1127,11 +1131,11 @@ const KitchenManager = {
                 actionButtonsHtml = `
                     <div style="display:flex; gap:8px; width:100%;">
                         <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
-                            class="press-btn" style="flex:1; background:#4f46e5; color:white; border:none; padding:12px; border-radius:12px; font-size:1.15rem; display:flex; align-items:center; justify-content:center;" title="Reanudar">
+                            class="press-btn" style="flex:1; background:#4f46e5; color:white; border:none; padding:12px; border-radius:12px; font-size:1.3rem; display:flex; align-items:center; justify-content:center;" title="Reanudar">
                             ▶
                         </button>
                         <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
-                            class="press-btn" style="flex:1.2; background:#ef4444; color:white; border:none; padding:12px; border-radius:12px; font-size:1.15rem; display:flex; align-items:center; justify-content:center;" title="Completar y Detener">
+                            class="press-btn" style="flex:1.2; background:#ef4444; color:white; border:none; padding:12px; border-radius:12px; font-size:1.3rem; display:flex; align-items:center; justify-content:center;" title="Completar y Detener">
                             ⏹
                         </button>
                     </div>
@@ -1140,7 +1144,7 @@ const KitchenManager = {
                 actionButtonsHtml = `
                     <button onclick="window.KitchenManager.startTimerForStep('${step.id}', '${targetDate}')" 
                         ${!step.id ? 'disabled' : ''}
-                        class="press-btn" style="width:100%; background:#4f46e5; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1.05rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
+                        class="press-btn" style="width:100%; background:#4f46e5; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1.25rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
                         ${btnTextPending}
                     </button>
                 `;
@@ -1152,12 +1156,12 @@ const KitchenManager = {
                 <div class="flex" style="margin-bottom:12px; justify-content:space-between; align-items:center; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding-right:120px;">
                         <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex:1;">
-                            <strong style="font-size:1.35rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800; display:inline-flex; align-items:center;">
+                            <strong style="font-size:1.55rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800; display:inline-flex; align-items:center;">
                                 ${step.name || 'Proceso General'}
-                                ${producedInWindow > 0 ? `<span style="font-size:0.95rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:3px 8px; border-radius:8px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow}</span>` : ''}
+                                ${producedInWindow > 0 ? `<span style="font-size:1.1rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:3px 8px; border-radius:8px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow}</span>` : ''}
                             </strong>
                             <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
-                                style="font-family:monospace; font-size:1.1rem; color:${isRunning ? '#ef4444' : '#64748b'}; font-weight:700; letter-spacing:0.5px;">
+                                style="font-family:monospace; font-size:1.3rem; color:${isRunning ? '#ef4444' : '#64748b'}; font-weight:700; letter-spacing:0.5px;">
                                 ${this.formatDuration(elapsed)}
                             </span>
                             ${isRunning ? '<span style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
@@ -1167,21 +1171,21 @@ const KitchenManager = {
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
-                        <small style="font-size:0.85rem; color:#64748b; font-weight:600;">Lote</small>
+                        <small style="font-size:0.95rem; color:#64748b; font-weight:600;">Lote</small>
                         <input type="number" id="${inputId}" 
                             data-step-id="${step.id || ''}" 
                             data-date="${targetDate}"
                             value="${defaultQty}" min="1" 
-                            style="width:100%; padding:10px; border-radius:12px; border:1px solid #cbd5e1; font-weight:700; text-align:center; font-size:1.1rem; outline:none;"
+                            style="width:100%; padding:10px; border-radius:12px; border:1px solid #cbd5e1; font-weight:700; text-align:center; font-size:1.25rem; outline:none;"
                             onfocus="this.select()"
                             oninput="window.KitchenManager.recalculateIngredients('${inputId}')">
                     </div>
                     
                     ${step.produces_ingredient ? `
                     <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
-                        <small style="font-size:0.85rem; color:#0ea5e9; font-weight:600;">Obtenido</small>
+                        <small style="font-size:0.95rem; color:#0ea5e9; font-weight:600;">Obtenido</small>
                         <input type="number" id="${inputId}-produced" placeholder="?"
-                            style="width:100%; padding:10px; border-radius:12px; border:1px solid #0ea5e9; font-weight:700; text-align:center; font-size:1.1rem; outline:none; background:rgba(14,165,233,0.02)"
+                            style="width:100%; padding:10px; border-radius:12px; border:1px solid #0ea5e9; font-weight:700; text-align:center; font-size:1.25rem; outline:none; background:rgba(14,165,233,0.02)"
                             onfocus="this.select()">
                     </div>
                     ` : ''}
@@ -1190,13 +1194,13 @@ const KitchenManager = {
                         ${actionButtonsHtml}
                     </div>
                 </div>
-                <div id="ingredients-container-${inputId}" style="margin-top:14px; font-size:0.9rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:10px;">
+                <div id="ingredients-container-${inputId}" style="margin-top:14px; font-size:1.1rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:10px;">
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
-                        <span style="font-size:0.9rem; font-weight:700; color:#64748b; text-transform:uppercase;">Insumos a descontar</span>
-                        ${hasIngredients ? `<button type="button" class="press-btn" onclick="window.KitchenManager.toggleIngredientEdit('${inputId}')" style="padding:4px 10px; font-size:13px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; color:var(--text);">✏️ Ajustar</button>` : ''}
+                        <span style="font-size:1.05rem; font-weight:700; color:#64748b; text-transform:uppercase;">Insumos a descontar</span>
+                        ${hasIngredients ? `<button type="button" class="press-btn" onclick="window.KitchenManager.toggleIngredientEdit('${inputId}')" style="padding:4px 10px; font-size:15px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; color:var(--text);">✏️ Ajustar</button>` : ''}
                     </div>
                     
-                    <div class="ingredients-readonly" style="font-size:1.05rem; line-height:1.5; color:#334155; margin-top:4px;">
+                    <div class="ingredients-readonly" style="font-size:1.2rem; line-height:1.5; color:#334155; margin-top:4px;">
                         ${(step.items || []).map(it => {
                             const key = (it.ingredient || "").toLowerCase().trim();
                             const currentProjected = this.virtualStockMap[key] || 0;
@@ -1220,17 +1224,17 @@ const KitchenManager = {
                             const qtyNeeded = Number(it.qty_per_unit || 0) * defaultQty;
                             return `
                             <div style="display:flex; align-items:center; gap:8px; justify-content:space-between;" class="custom-ing-row">
-                                <strong style="color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; font-size:1rem;">${it.ingredient}</strong>
+                                <strong style="color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; font-size:1.15rem;">${it.ingredient}</strong>
                                 <input type="hidden" class="ing-name" value="${it.ingredient}">
                                 <input type="hidden" class="ing-unit" value="${it.unit}">
-                                <input type="number" class="ing-qty" data-base="${it.qty_per_unit}" value="${Number(qtyNeeded).toFixed(2)}" style="width:80px; padding:6px; border:1px solid #cbd5e1; border-radius:8px; text-align:right; font-size:1rem;">
-                                <span style="font-size:1rem;">${it.unit}</span>
-                                <button type="button" class="press-btn" onclick="this.parentElement.remove()" style="padding:6px 10px; font-size:12px; background:#f1f5f9; color:#ef4444; border:none; border-radius:8px;">❌</button>
+                                <input type="number" class="ing-qty" data-base="${it.qty_per_unit}" value="${Number(qtyNeeded).toFixed(2)}" style="width:80px; padding:6px; border:1px solid #cbd5e1; border-radius:8px; text-align:right; font-size:1.15rem;">
+                                <span style="font-size:1.15rem;">${it.unit}</span>
+                                <button type="button" class="press-btn" onclick="this.parentElement.remove()" style="padding:6px 10px; font-size:14px; background:#f1f5f9; color:#ef4444; border:none; border-radius:8px;">❌</button>
                             </div>
                             `;
                         }).join('')}
                         <div id="extra-ing-container-${inputId}" style="display:flex; flex-direction:column; gap:10px;"></div>
-                        <button type="button" class="press-btn" onclick="window.KitchenManager.addExtraIngredientRow('${inputId}')" style="padding:8px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; font-size:13px; text-align:center; width:100%; color:var(--text); font-weight:600;">+ Añadir ingrediente</button>
+                        <button type="button" class="press-btn" onclick="window.KitchenManager.addExtraIngredientRow('${inputId}')" style="padding:8px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; font-size:15px; text-align:center; width:100%; color:var(--text); font-weight:600;">+ Añadir ingrediente</button>
                     </div>
                 </div>
             </div>
