@@ -429,8 +429,9 @@ const KitchenManager = {
             logs.forEach(log => {
                 const date = new Date(log.created_at);
                 const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const duration = this.formatDuration(log.duration_seconds);
                 const perUnit = log.qty > 0 ? this.formatDuration(Math.round(log.duration_seconds / log.qty)) : 'N/D';
+                const minutes = Math.floor(log.duration_seconds / 60);
+                const seconds = log.duration_seconds % 60;
 
                 const card = document.createElement('div');
                 card.id = `prod-log-row-${log.id}`;
@@ -448,28 +449,37 @@ const KitchenManager = {
                         <span style="font-size:0.9rem; color:#94a3b8; font-weight:600;">${dateStr}</span>
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="font-size:0.95rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px;">👨‍🍳 ${log.actor_name || 'Cocinero'}</span>
-                            <button onclick="window.KitchenManager.editProductionLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
-                                class="press-btn" style="border:none; background:transparent; font-size:16px; cursor:pointer; padding:2px;" title="Editar registro">
-                                ✏️
-                            </button>
                             <button onclick="window.KitchenManager.deleteProductionLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
                                 class="press-btn" style="border:none; background:transparent; font-size:16px; cursor:pointer; padding:2px;" title="Eliminar registro">
                                 🗑️
                             </button>
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:10px; margin-top:4px;">
-                        <div style="display:flex; flex-direction:column;">
+                    <div style="display:grid; grid-template-columns: 1fr 1.5fr 1.2fr; gap:10px; margin-top:4px; align-items:end;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
                             <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
-                            <span style="font-size:1.15rem; font-weight:800; color:#1e293b;">${log.qty} uds</span>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <input type="number" value="${log.qty}" min="1" 
+                                    onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'qty')"
+                                    style="width:100%; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;">
+                                <span style="font-size:0.85rem; color:#64748b; font-weight:600;">uds</span>
+                            </div>
                         </div>
-                        <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo</span>
-                            <span style="font-size:1.15rem; font-weight:800; color:#4f46e5;">${duration}</span>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo (Min : Seg)</span>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <input type="number" value="${minutes}" min="0" 
+                                    onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'min')"
+                                    style="width:55px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;">
+                                <span style="font-size:1.1rem; font-weight:700; color:#cbd5e1;">:</span>
+                                <input type="number" value="${seconds}" min="0" max="59" 
+                                    onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'sec')"
+                                    style="width:55px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none; background:white;">
+                            </div>
                         </div>
-                        <div style="display:flex; flex-direction:column;">
+                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; justify-content:center; height:100%;">
                             <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo / U.</span>
-                            <span style="font-size:1.15rem; font-weight:800; color:#10b981;">${perUnit}</span>
+                            <span class="per-unit-val" style="font-size:1.15rem; font-weight:800; color:#10b981; margin-bottom:8px;">${perUnit}</span>
                         </div>
                     </div>
                 `;
@@ -489,61 +499,23 @@ const KitchenManager = {
         document.body.appendChild(backdrop);
     },
 
-    editProductionLog(logId, stepId, titleName) {
+    async autoSaveLog(logId, stepId, titleName, value, type) {
         const log = (this.productionLogsRaw || []).find(l => l.id === Number(logId));
         if (!log) return;
 
-        const rowEl = document.getElementById(`prod-log-row-${logId}`);
-        if (!rowEl) return;
+        let qty = log.qty;
+        let duration = log.duration_seconds;
+        let minutes = Math.floor(duration / 60);
+        let seconds = duration % 60;
 
-        const minutes = Math.floor(log.duration_seconds / 60);
-        const seconds = log.duration_seconds % 60;
-
-        rowEl.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:8px;">
-                <span style="font-size:1rem; color:#64748b; font-weight:700;">Editar Registro</span>
-                <div style="display:flex; gap:6px;">
-                    <button onclick="window.KitchenManager.saveProductionLog(${logId}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
-                        class="press-btn" style="border:none; background:#10b981; color:white; padding:6px 12px; border-radius:6px; font-size:1rem; font-weight:700; cursor:pointer;">
-                        Guardar
-                    </button>
-                    <button onclick="window.KitchenManager.showProductionLogsPopover(${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
-                        class="press-btn" style="border:none; background:#cbd5e1; color:#1e293b; padding:6px 12px; border-radius:6px; font-size:1rem; font-weight:700; cursor:pointer;">
-                        Cancelar
-                    </button>
-                </div>
-            </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
-                    <input type="number" id="edit-log-qty-${logId}" value="${log.qty}" min="1" 
-                        style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none;">
-                </div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Minutos</span>
-                    <input type="number" id="edit-log-min-${logId}" value="${minutes}" min="0" 
-                        style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none;">
-                </div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Segundos</span>
-                    <input type="number" id="edit-log-sec-${logId}" value="${seconds}" min="0" max="59" 
-                        style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size:1.1rem; font-weight:700; text-align:center; outline:none;">
-                </div>
-            </div>
-        `;
-    },
-
-    async saveProductionLog(logId, stepId, titleName) {
-        const qtyInp = document.getElementById(`edit-log-qty-${logId}`);
-        const minInp = document.getElementById(`edit-log-min-${logId}`);
-        const secInp = document.getElementById(`edit-log-sec-${logId}`);
-
-        if (!qtyInp || !minInp || !secInp) return;
-
-        const qty = Number(qtyInp.value) || 0;
-        const minutes = Number(minInp.value) || 0;
-        const seconds = Number(secInp.value) || 0;
-        const duration = (minutes * 60) + seconds;
+        if (type === 'qty') {
+            qty = Number(value) || 0;
+        } else if (type === 'min') {
+            minutes = Number(value) || 0;
+        } else if (type === 'sec') {
+            seconds = Number(value) || 0;
+        }
+        duration = (minutes * 60) + seconds;
 
         if (qty <= 0) return window.showToast("Ingresa una cantidad de lote válida", "warning");
         if (duration <= 0) return window.showToast("Ingresa un tiempo válido", "warning");
@@ -557,6 +529,9 @@ const KitchenManager = {
             });
 
             if (res.ok) {
+                log.qty = qty;
+                log.duration_seconds = duration;
+
                 const logIndex = (this.productionLogsRaw || []).findIndex(l => l.id === Number(logId));
                 if (logIndex !== -1) {
                     this.productionLogsRaw[logIndex].qty = qty;
@@ -572,8 +547,6 @@ const KitchenManager = {
                     this.productionLogsByStep[sid].push(l);
                 });
 
-                window.showToast("✅ Registro de producción actualizado", "success");
-
                 const badge = document.querySelector(`.average-time-badge[data-step-id="${stepId}"]`);
                 if (badge) {
                     const avgValSpan = badge.querySelector('.avg-val');
@@ -587,7 +560,14 @@ const KitchenManager = {
                     avgValSpan.textContent = this.formatDuration(newTotalSeconds);
                 }
 
-                this.showProductionLogsPopover(stepId, titleName);
+                const rowEl = document.getElementById(`prod-log-row-${logId}`);
+                if (rowEl) {
+                    const perUnitSpan = rowEl.querySelector('.per-unit-val');
+                    if (perUnitSpan) {
+                        const perUnit = qty > 0 ? this.formatDuration(Math.round(duration / qty)) : 'N/D';
+                        perUnitSpan.textContent = perUnit;
+                    }
+                }
             } else {
                 throw new Error(res.error || "No se pudo actualizar");
             }
@@ -598,10 +578,6 @@ const KitchenManager = {
     },
 
     async deleteProductionLog(logId, stepId, titleName) {
-        if (!confirm("¿Estás seguro de que deseas eliminar este registro de tiempo? (Esto no afectará el inventario físico de insumos)")) {
-            return;
-        }
-
         try {
             window.notify.info("Eliminando...");
             const res = await window.api('POST', '/api/inventory', {
