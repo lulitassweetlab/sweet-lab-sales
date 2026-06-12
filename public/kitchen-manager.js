@@ -945,7 +945,7 @@ const KitchenManager = {
                 `;
 
                 card.onclick = (e) => {
-                    if (e.target.closest('input') || e.target.closest('button')) return;
+                    if (e.target.closest('input') || e.target.closest('button') || e.target.closest('.average-time-badge')) return;
                     const container = card.querySelector('.steps-list-container');
                     const chevron = card.querySelector('.chevron');
                     const isNowExpanded = container.style.maxHeight === '0px';
@@ -1094,7 +1094,7 @@ const KitchenManager = {
         if (avgSeconds !== null) {
             averageTimeHtml = `
                 <span class="average-time-badge" 
-                    onclick="window.KitchenManager.showProductionLogsPopover(${step.id}, '${recipeName} - ${step.name || 'General'}')"
+                    onclick="event.stopPropagation(); window.KitchenManager.showProductionLogsPopover(${step.id}, '${recipeName} - ${step.name || 'General'}')"
                     style="position:absolute; top:12px; right:12px; font-size:1.05rem; color:#64748b; font-weight:700; background:#f1f5f9; padding:4px 10px; border-radius:8px; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; border:1px solid #e2e8f0; pointer-events:auto; z-index:10;"
                     onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b';"
                     onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b';"
