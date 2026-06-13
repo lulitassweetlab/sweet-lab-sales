@@ -95,7 +95,7 @@ const KitchenManager = {
             if (currentUsername) {
                 (this.dbActiveTimers || []).forEach(dbTimer => {
                     if (dbTimer.username.toLowerCase() === currentUsername.toLowerCase()) {
-                        const key = `${dbTimer.step_id}_${dbTimer.target_date.slice(0, 10)}`;
+                        const key = `${dbTimer.step_id}_${String(dbTimer.target_date || '').slice(0, 10)}`;
                         if (!this.timers[key]) {
                             this.timers[key] = {
                                 elapsedBefore: 0,
