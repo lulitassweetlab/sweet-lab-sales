@@ -1,7 +1,7 @@
 import { ensureSchema, sql } from '../netlify/functions/_db.js';
 
 async function run() {
-    console.log('🔄 Initializing database schema and ensuring migration v61 runs...');
+    console.log('🔄 Initializing database schema and ensuring migration v62 runs...');
     await ensureSchema();
 
     // 1. Fetch all users and check their roles
@@ -9,7 +9,12 @@ async function run() {
     console.log('\n👤 Database Users found:');
     console.table(users);
 
-    // 2. Perform validations
+    // 2. Fetch feature permissions
+    const permissions = await sql`SELECT username, feature FROM user_feature_permissions`;
+    console.log('\n🔑 Feature Permissions found:');
+    console.table(permissions);
+
+    // 3. Perform validations
     console.log('\n🧪 Running validations...');
     
     // Check if any user still has the 'cocina' role
@@ -21,24 +26,25 @@ async function run() {
         console.log('✅ PASS: No users with role "cocina" exist.');
     }
 
-    // Check if user 'jaimes' exists and has role 'produccion'
+    // Check if user 'jaimes' exists and has role 'user' (mixed/seller)
     const jaimes = users.find(u => u.username.toLowerCase() === 'jaimes');
     if (!jaimes) {
         console.error('❌ FAIL: User "jaimes" does not exist in the database!');
         process.exit(1);
-    } else if (jaimes.role !== 'produccion') {
-        console.error(`❌ FAIL: User "jaimes" has role "${jaimes.role}", expected "produccion"!`);
+    } else if (jaimes.role !== 'user') {
+        console.error(`❌ FAIL: User "jaimes" has role "${jaimes.role}", expected "user" (seller)!`);
         process.exit(1);
     } else {
-        console.log('✅ PASS: User "jaimes" exists and has role "produccion".');
+        console.log('✅ PASS: User "jaimes" exists and has role "user" (seller).');
     }
 
-    // Check that we have a 'produccion' role user
-    const productionUsers = users.filter(u => u.role === 'produccion');
-    if (productionUsers.length === 0) {
-        console.warn('⚠️ WARNING: No users found with role "produccion".');
+    // Check if user 'jaimes' has 'produccion' feature permission
+    const jaimesProdFeature = permissions.find(p => p.username.toLowerCase() === 'jaimes' && p.feature === 'produccion');
+    if (!jaimesProdFeature) {
+        console.error('❌ FAIL: User "jaimes" does not have the "produccion" feature permission!');
+        process.exit(1);
     } else {
-        console.log(`✅ PASS: Found ${productionUsers.length} user(s) with role "produccion" (${productionUsers.map(u => u.username).join(', ')}).`);
+        console.log('✅ PASS: User "jaimes" has the "produccion" feature permission.');
     }
 
     console.log('\n🎉 All role database checks passed successfully!');
