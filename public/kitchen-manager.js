@@ -1144,9 +1144,15 @@ const KitchenManager = {
             inp.value = Math.round(base * multiplier);
         });
 
-        // Update average time dynamically if the badge exists
+        // Update inline instruction quantities
         const stepBlock = loteInput.closest('div').parentElement.parentElement;
         if (stepBlock) {
+            stepBlock.querySelectorAll('.inst-qty-calc').forEach(span => {
+                const base = Number(span.getAttribute('data-base-qty')) || 0;
+                span.textContent = Math.round(base * multiplier);
+            });
+
+            // Update average time dynamically if the badge exists
             const avgValSpan = stepBlock.querySelector('.avg-val');
             if (avgValSpan) {
                 const baseAvg = Number(avgValSpan.getAttribute('data-base-avg')) || 0;
@@ -1207,7 +1213,8 @@ const KitchenManager = {
         
         sortedItems.forEach(it => {
             const qtyNeeded = Math.round(Number(it.qty_per_unit || 0) * batchQty);
-            const formattedQty = `${qtyNeeded} ${it.unit}`;
+            const qtySpan = `<span class="inst-qty-calc" data-base-qty="${it.qty_per_unit}">${qtyNeeded}</span>`;
+            const formattedQty = `${qtySpan} ${it.unit}`;
             
             const escapedName = it.ingredient.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
             const regex = new RegExp(`(${escapedName})`, 'gi');
