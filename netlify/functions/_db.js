@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 57; // 57: added store_visits table
+const SCHEMA_VERSION = 60; // 60: added instructions checklist to dessert_recipes
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -697,6 +697,24 @@ export async function ensureSchema() {
 					`;
 					await sql`CREATE INDEX IF NOT EXISTS idx_store_visits_date ON store_visits(visited_at)`;
 					await sql`UPDATE schema_meta SET version = 57`;
+				}
+
+				if (Number(meta[0].version) < 58) {
+					console.log('Migrating to v58: Seeding kitchen user Jaimes...');
+					await sql`INSERT INTO users (username, password_hash, role) VALUES ('jaimes', 'jaimessweet', 'cocina') ON CONFLICT (username) DO NOTHING`;
+					await sql`UPDATE schema_meta SET version = 58`;
+				}
+
+				if (Number(meta[0].version) < 59) {
+					console.log('Migrating to v59: Updating kitchen user Jaimes password...');
+					await sql`INSERT INTO users (username, password_hash, role) VALUES ('jaimes', 'padilla', 'cocina') ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash`;
+					await sql`UPDATE schema_meta SET version = 59`;
+				}
+
+				if (Number(meta[0].version) < 60) {
+					console.log('Migrating to v60: Adding instructions column to dessert_recipes...');
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS instructions JSONB DEFAULT '[]'::jsonb`;
+					await sql`UPDATE schema_meta SET version = 60`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

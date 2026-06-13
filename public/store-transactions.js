@@ -60,8 +60,33 @@ function updateAuthUI() {
     const storeClientsBtn = document.getElementById('store-clients-btn');
     const storeCrmBtn = document.getElementById('store-crm-btn');
     const storeQrBtn = document.getElementById('store-qr-btn');
+    const storeKitchenBtn = document.getElementById('store-kitchen-btn');
 
-    if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
+    const isKitchenUser = storeAuthUser && (storeAuthUser.role === 'cocina' || (storeAuthUser.features && storeAuthUser.features.includes('cocina')));
+
+    if (isKitchenUser) {
+        if (storeKitchenBtn) storeKitchenBtn.style.display = 'block';
+        storeAuthBtn.textContent = storeAuthUser.username;
+        storeAuthBtn.style.color = 'var(--text)';
+        storeAuthBtn.style.borderColor = 'transparent';
+        storeAuthBtn.style.background = 'transparent';
+        storeAuthBtn.style.boxShadow = 'none';
+        storeClientsBtn.style.display = 'none';
+        storeCrmBtn.style.display = 'none';
+        if (storeQrBtn) storeQrBtn.style.display = 'none';
+        document.body.classList.remove('is-seller-active');
+
+        document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'block');
+        document.querySelectorAll('.product-desc').forEach(d => d.style.display = '-webkit-box');
+        document.querySelectorAll('.qty-container').forEach(q => { q.style.display = 'none'; });
+
+        const embedContainer = document.getElementById('seller-embedded-sales-container');
+        if (embedContainer) {
+            embedContainer.innerHTML = '';
+            embedContainer.style.display = 'none';
+        }
+    } else if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
+        if (storeKitchenBtn) storeKitchenBtn.style.display = 'none';
         storeAuthBtn.textContent = storeActiveSeller.name;
         storeAuthBtn.style.color = 'var(--text)';
         storeAuthBtn.style.borderColor = 'transparent';
@@ -88,6 +113,7 @@ function updateAuthUI() {
         loadSellerClients();
         loadSellerDays();
     } else if (storeAuthUser && storeAuthUser.username) {
+        if (storeKitchenBtn) storeKitchenBtn.style.display = 'none';
         // Logged in but no seller selected yet
         storeAuthBtn.textContent = 'Seleccionar Vendedor';
         storeAuthBtn.style.color = 'var(--primary)';
@@ -102,6 +128,7 @@ function updateAuthUI() {
         const embedContainer = document.getElementById('seller-embedded-sales-container');
         if (embedContainer) { embedContainer.innerHTML = ''; embedContainer.style.display = 'none'; }
     } else {
+        if (storeKitchenBtn) storeKitchenBtn.style.display = 'none';
         storeAuthBtn.textContent = 'Ingresar';
         storeAuthBtn.style.color = 'var(--primary)';
         storeAuthBtn.style.borderColor = 'var(--primary)';

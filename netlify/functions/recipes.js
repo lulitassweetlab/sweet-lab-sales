@@ -119,7 +119,7 @@ export async function handler(event) {
 					// Single payload with all items grouped by dessert + extras to reduce roundtrips
 					const desserts = (await sql`SELECT DISTINCT dessert FROM dessert_recipes ORDER BY dessert ASC`).map(r => r.dessert);
 					const items = await sql`
-						SELECT dr.id as step_id, dr.dessert, dr.step_name, dr.produces_ingredient, dr.produces_unit, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
+						SELECT dr.id as step_id, dr.dessert, dr.step_name, dr.produces_ingredient, dr.produces_unit, dr.instructions, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
 						       COALESCE(ii.price, i.price) as price, COALESCE(ii.pack_size, i.pack_size) as pack_size
 						FROM dessert_recipes dr
 						LEFT JOIN dessert_recipe_items i ON dr.id = i.recipe_id
@@ -136,7 +136,7 @@ export async function handler(event) {
 					return json({ desserts, items, extras });
 				}
 				if (dessert) {
-					const steps = await sql`SELECT id, dessert, step_name, position, produces_ingredient, produces_unit FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
+					const steps = await sql`SELECT id, dessert, step_name, position, produces_ingredient, produces_unit, instructions FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
 					const stepIds = steps.map(s => s.id);
 					let items = [];
 					if (stepIds.length) items = await sql`
@@ -147,7 +147,7 @@ export async function handler(event) {
 						WHERE i.recipe_id = ANY(${stepIds}) 
 						ORDER BY i.position ASC, i.id ASC
 					`;
-					const grouped = steps.map(s => ({ id: s.id, dessert: s.dessert, step_name: s.step_name || null, position: s.position, items: items.filter(i => i.recipe_id === s.id) }));
+					const grouped = steps.map(s => ({ id: s.id, dessert: s.dessert, step_name: s.step_name || null, position: s.position, produces_ingredient: s.produces_ingredient, produces_unit: s.produces_unit, instructions: s.instructions || [], items: items.filter(i => i.recipe_id === s.id) }));
 					let extras = [];
 					if (includeExtras) extras = await sql`
 						SELECT i.id, i.ingredient, i.unit, i.qty_per_unit, COALESCE(ii.price, i.price) as price, COALESCE(ii.pack_size, i.pack_size) as pack_size, i.position 
@@ -437,6 +437,7 @@ export async function handler(event) {
 					const producesIngredient = data.produces_ingredient || null;
 					const producesUnit = data.produces_unit || null;
 					const salePrice = data.sale_price !== undefined ? Number(data.sale_price || 0) : null;
+					const instructions = data.instructions !== undefined ? JSON.stringify(data.instructions) : null;
 					
 					// If sale_price is provided, upsert into desserts table
 					if (salePrice !== null && salePrice > 0) {
@@ -451,13 +452,13 @@ export async function handler(event) {
 					
 					let row;
 					if (id) {
-						[row] = await sql`UPDATE dessert_recipes SET dessert=${dessert}, step_name=${stepName}, position=${position}, produces_ingredient=${producesIngredient}, produces_unit=${producesUnit}, updated_at=now() WHERE id=${id} RETURNING id, dessert, step_name, position, produces_ingredient, produces_unit`; 
+						[row] = await sql`UPDATE dessert_recipes SET dessert=${dessert}, step_name=${stepName}, position=${position}, produces_ingredient=${producesIngredient}, produces_unit=${producesUnit}, instructions=COALESCE(${instructions}::jsonb, instructions), updated_at=now() WHERE id=${id} RETURNING id, dessert, step_name, position, produces_ingredient, produces_unit, instructions`; 
 					} else {
 						if (!position || position <= 0) {
 							const [p] = await sql`SELECT COALESCE(MAX(position), 0)::int + 1 AS next_pos FROM dessert_recipes WHERE lower(dessert)=lower(${dessert})`;
 							position = Number(p?.next_pos || 1) || 1;
 						}
-						[row] = await sql`INSERT INTO dessert_recipes (dessert, step_name, position, produces_ingredient, produces_unit) VALUES (${dessert}, ${stepName}, ${position}, ${producesIngredient}, ${producesUnit}) RETURNING id, dessert, step_name, position, produces_ingredient, produces_unit`;
+						[row] = await sql`INSERT INTO dessert_recipes (dessert, step_name, position, produces_ingredient, produces_unit, instructions) VALUES (${dessert}, ${stepName}, ${position}, ${producesIngredient}, ${producesUnit}, COALESCE(${instructions}::jsonb, '[]'::jsonb)) RETURNING id, dessert, step_name, position, produces_ingredient, produces_unit, instructions`;
 					}
 					return json(row, id ? 200 : 201);
 				}

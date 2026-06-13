@@ -1,4 +1,4 @@
-import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName, recalculateAllDessertCosts, updateIngredientPMP } from './_db.js';
+import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName, recalculateAllDessertCosts, updateIngredientPMP, notify } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -37,9 +37,9 @@ export async function handler(event) {
 					const stepId = params.get('step_id');
 					let list;
 					if (stepId) {
-						list = await sql`SELECT id, step_id, qty, duration_seconds, actor_name, created_at FROM production_logs WHERE step_id = ${Number(stepId)} ORDER BY created_at DESC LIMIT 100`;
+						list = await sql`SELECT pl.id, pl.step_id, pl.qty, pl.duration_seconds, pl.actor_name, pl.created_at, dr.dessert, dr.step_name FROM production_logs pl LEFT JOIN dessert_recipes dr ON dr.id = pl.step_id WHERE pl.step_id = ${Number(stepId)} ORDER BY pl.created_at DESC LIMIT 100`;
 					} else {
-						list = await sql`SELECT id, step_id, qty, duration_seconds, actor_name, created_at FROM production_logs ORDER BY created_at DESC LIMIT 1000`;
+						list = await sql`SELECT pl.id, pl.step_id, pl.qty, pl.duration_seconds, pl.actor_name, pl.created_at, dr.dessert, dr.step_name FROM production_logs pl LEFT JOIN dessert_recipes dr ON dr.id = pl.step_id ORDER BY pl.created_at DESC LIMIT 1000`;
 					}
 					return json(list);
 				}
@@ -366,17 +366,63 @@ export async function handler(event) {
 					const durationSeconds = Number(data.duration_seconds || 0);
 					if (!logId) return json({ error: 'log_id requerido' }, 400);
 
+					const logRows = await sql`SELECT step_id, qty, duration_seconds FROM production_logs WHERE id = ${logId} LIMIT 1`;
+					if (!logRows.length) return json({ error: 'Registro no encontrado' }, 404);
+					const oldLog = logRows[0];
+
 					await sql`
 						UPDATE production_logs 
 						SET qty = ${qty}, duration_seconds = ${durationSeconds}
 						WHERE id = ${logId}
 					`;
+
+					let actorRole = 'user';
+					if (actor) {
+						try {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+							if (r.length) actorRole = r[0].role;
+						} catch {}
+					}
+
+					if (actorRole === 'cocina') {
+						const stepRows = await sql`SELECT dessert, step_name FROM dessert_recipes WHERE id = ${oldLog.step_id} LIMIT 1`;
+						const stepName = stepRows.length ? `${stepRows[0].dessert} - ${stepRows[0].step_name || 'General'}` : `Paso ID ${oldLog.step_id}`;
+						await notify({
+							type: 'kitchen_log_edit',
+							message: `El cocinero/a ${actor} modificó un registro del paso "${stepName}": Lote cambió de ${oldLog.qty} a ${qty}, Tiempo de ${oldLog.duration_seconds}s a ${durationSeconds}s.`,
+							actorName: actor
+						});
+					}
+
 					return json({ ok: true });
 				}
 
 				if (action === 'delete_production_log') {
 					const logId = Number(data.log_id || 0);
 					if (!logId) return json({ error: 'log_id requerido' }, 400);
+
+					const logRows = await sql`SELECT step_id, qty, duration_seconds FROM production_logs WHERE id = ${logId} LIMIT 1`;
+					if (logRows.length) {
+						const oldLog = logRows[0];
+						
+						let actorRole = 'user';
+						if (actor) {
+							try {
+								const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+								if (r.length) actorRole = r[0].role;
+							} catch {}
+						}
+
+						if (actorRole === 'cocina') {
+							const stepRows = await sql`SELECT dessert, step_name FROM dessert_recipes WHERE id = ${oldLog.step_id} LIMIT 1`;
+							const stepName = stepRows.length ? `${stepRows[0].dessert} - ${stepRows[0].step_name || 'General'}` : `Paso ID ${oldLog.step_id}`;
+							await notify({
+								type: 'kitchen_log_delete',
+								message: `El cocinero/a ${actor} eliminó un registro del paso "${stepName}" (Lote: ${oldLog.qty} uds, Tiempo: ${oldLog.duration_seconds}s).`,
+								actorName: actor
+							});
+						}
+					}
 
 					await sql`DELETE FROM production_logs WHERE id = ${logId}`;
 					return json({ ok: true });

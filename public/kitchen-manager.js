@@ -32,7 +32,13 @@ const KitchenManager = {
         
         const goHomeBtn = document.getElementById('kitchen-go-home');
         if (goHomeBtn) {
-            goHomeBtn.onclick = () => window.switchView('#view-select-seller');
+            goHomeBtn.onclick = () => {
+                if (window.state?.currentUser?.role === 'cocina') {
+                    window.location.href = '/store.html';
+                } else {
+                    window.switchView('#view-select-seller');
+                }
+            };
         }
     },
 
@@ -112,6 +118,39 @@ const KitchenManager = {
         const m = Math.floor((seconds % 3600) / 60);
         const s = seconds % 60;
         return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    },
+
+    isInstructionChecked(stepId, targetDate, index) {
+        const key = `kitchen_checklist_${stepId}_${targetDate}`;
+        try {
+            const checked = JSON.parse(localStorage.getItem(key) || '[]');
+            return checked.includes(index);
+        } catch {
+            return false;
+        }
+    },
+
+    toggleInstructionCheck(stepId, targetDate, index, checkbox) {
+        const key = `kitchen_checklist_${stepId}_${targetDate}`;
+        let checked = [];
+        try {
+            checked = JSON.parse(localStorage.getItem(key) || '[]');
+        } catch {}
+        
+        if (checkbox.checked) {
+            if (!checked.includes(index)) checked.push(index);
+        } else {
+            checked = checked.filter(i => i !== index);
+        }
+        
+        localStorage.setItem(key, JSON.stringify(checked));
+        
+        // Update styling of the label
+        const label = checkbox.closest('label');
+        if (label) {
+            label.style.color = checkbox.checked ? '#94a3b8' : '#334155';
+            label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
+        }
     },
 
     updateTimerDisplays() {
@@ -533,7 +572,8 @@ const KitchenManager = {
                 action: 'update_production_log',
                 log_id: logId,
                 qty: qty,
-                duration_seconds: duration
+                duration_seconds: duration,
+                actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
 
             if (res.ok) {
@@ -590,7 +630,8 @@ const KitchenManager = {
             window.notify.info("Eliminando...");
             const res = await window.api('POST', '/api/inventory', {
                 action: 'delete_production_log',
-                log_id: logId
+                log_id: logId,
+                actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
 
             if (res.ok) {
@@ -1221,6 +1262,24 @@ const KitchenManager = {
                         <button type="button" class="press-btn" onclick="window.KitchenManager.addExtraIngredientRow('${inputId}')" style="padding:8px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; font-size:15px; text-align:center; width:100%; color:var(--text); font-weight:600;">+ Añadir ingrediente</button>
                     </div>
                 </div>
+                ${step.instructions && step.instructions.length > 0 ? `
+                <div style="margin-top:14px; border-top:1px solid #eef2f6; padding-top:10px;">
+                    <div style="font-size:1.05rem; font-weight:700; color:#db2777; text-transform:uppercase; margin-bottom:8px;">Paso a Paso</div>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${step.instructions.map((inst, idx) => {
+                            const isChecked = this.isInstructionChecked(step.id, targetDate, idx);
+                            return `
+                            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:1.2rem; color:${isChecked ? '#94a3b8' : '#334155'}; text-decoration:${isChecked ? 'line-through' : 'none'}; transition:all 0.2s; padding:4px 0;">
+                                <input type="checkbox" ${isChecked ? 'checked' : ''} 
+                                    onclick="window.KitchenManager.toggleInstructionCheck('${step.id}', '${targetDate}', ${idx}, this)"
+                                    style="width:20px; height:20px; border-radius:6px; border:2px solid #cbd5e1; cursor:pointer; margin-top:2px;">
+                                <span>${idx + 1}. ${inst}</span>
+                            </label>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                ` : ''}
             </div>
         `;
     },

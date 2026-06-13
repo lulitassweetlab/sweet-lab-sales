@@ -5916,7 +5916,8 @@ function openUsersMenu(anchorX, anchorY) {
 	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
 	const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
 	const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
-	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
+	const b7 = document.createElement('button'); b7.className = 'press-btn'; b7.textContent = 'Tiempos de producción';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6); list.appendChild(b7);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -5944,9 +5945,13 @@ function openUsersMenu(anchorX, anchorY) {
 	});
 	b3.addEventListener('click', async () => {
 		const username = prompt('Usuario a modificar rol:'); if (!username) return;
-		const role = prompt('Nuevo rol (user, admin, superadmin):'); if (!role) return;
+		const role = prompt('Nuevo rol (user, admin, superadmin, cocina):'); if (!role) return;
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
+	});
+	b7.addEventListener('click', async () => {
+		cleanup();
+		await openKitchenProductionLogsReport();
 	});
 	b4.addEventListener('click', async () => {
 		const viewer = prompt('Usuario que podrá ver:'); if (!viewer) return;
@@ -6282,6 +6287,254 @@ function openMaterialsMenu(anchorX, anchorY) {
 }
 
 // Removed openAssignIconsDialog
+
+async function openKitchenProductionLogsReport() {
+	const modal = document.createElement('div');
+	modal.className = 'notif-center-modal';
+
+	const backdrop = document.createElement('div');
+	backdrop.className = 'notif-center-backdrop';
+	backdrop.addEventListener('click', () => modal.remove());
+	modal.appendChild(backdrop);
+
+	const panel = document.createElement('div');
+	panel.className = 'notif-center-panel';
+	panel.style.maxWidth = '900px';
+	panel.style.width = '95%';
+	panel.style.height = '85vh';
+	panel.style.maxHeight = '85vh';
+
+	const header = document.createElement('div');
+	header.className = 'notif-center-header';
+
+	const title = document.createElement('h2');
+	title.textContent = 'Tiempos de Producción de Cocina';
+	header.appendChild(title);
+
+	const closeBtn = document.createElement('button');
+	closeBtn.className = 'icon-btn';
+	closeBtn.innerHTML = '&times;';
+	closeBtn.style.fontSize = '24px';
+	closeBtn.style.border = 'none';
+	closeBtn.style.background = 'transparent';
+	closeBtn.style.cursor = 'pointer';
+	closeBtn.style.color = 'var(--text)';
+	closeBtn.addEventListener('click', () => modal.remove());
+	header.appendChild(closeBtn);
+
+	panel.appendChild(header);
+
+	const body = document.createElement('div');
+	body.className = 'notif-center-body';
+	body.style.padding = '20px';
+	body.style.display = 'flex';
+	body.style.flexDirection = 'column';
+	body.style.gap = '15px';
+
+	const filterBar = document.createElement('div');
+	filterBar.style.display = 'flex';
+	filterBar.style.gap = '10px';
+	filterBar.style.alignItems = 'center';
+	filterBar.style.flexWrap = 'wrap';
+
+	const searchInput = document.createElement('input');
+	searchInput.type = 'text';
+	searchInput.placeholder = 'Buscar por cocinero, postre o paso...';
+	searchInput.style.flex = '1';
+	searchInput.style.minWidth = '200px';
+	searchInput.style.padding = '8px 12px';
+	searchInput.style.fontSize = '14px';
+	searchInput.style.borderRadius = '8px';
+	searchInput.style.border = '1px solid var(--border)';
+	searchInput.style.background = 'var(--background)';
+	searchInput.style.color = 'var(--text)';
+	filterBar.appendChild(searchInput);
+
+	body.appendChild(filterBar);
+
+	// Stats cards
+	const statsBar = document.createElement('div');
+	statsBar.style.display = 'flex';
+	statsBar.style.gap = '15px';
+	statsBar.style.flexWrap = 'wrap';
+
+	const statTotalLogs = document.createElement('div');
+	const statTotalQty = document.createElement('div');
+	const statTotalTime = document.createElement('div');
+
+	[statTotalLogs, statTotalQty, statTotalTime].forEach(div => {
+		div.style.flex = '1';
+		div.style.minWidth = '120px';
+		div.style.padding = '12px 15px';
+		div.style.background = 'var(--surface)';
+		div.style.border = '1px solid var(--border)';
+		div.style.borderRadius = '8px';
+		div.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+	});
+
+	statsBar.appendChild(statTotalLogs);
+	statsBar.appendChild(statTotalQty);
+	statsBar.appendChild(statTotalTime);
+	body.appendChild(statsBar);
+
+	const tableContainer = document.createElement('div');
+	tableContainer.style.flex = '1';
+	tableContainer.style.overflowY = 'auto';
+	tableContainer.style.border = '1px solid var(--border)';
+	tableContainer.style.borderRadius = '8px';
+	tableContainer.style.background = 'var(--surface)';
+
+	const table = document.createElement('table');
+	table.className = 'clients-table';
+	table.style.width = '100%';
+	table.style.borderCollapse = 'collapse';
+	tableContainer.appendChild(table);
+
+	body.appendChild(tableContainer);
+	panel.appendChild(body);
+	modal.appendChild(panel);
+	document.body.appendChild(modal);
+
+	const loadingDiv = document.createElement('div');
+	loadingDiv.textContent = 'Cargando registros de producción...';
+	loadingDiv.style.textAlign = 'center';
+	loadingDiv.style.padding = '40px';
+	loadingDiv.style.color = 'var(--text-muted)';
+	table.appendChild(loadingDiv);
+
+	function formatDuration(seconds) {
+		if (seconds === undefined || seconds === null) return '-';
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		const s = seconds % 60;
+		return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+	}
+
+	function formatDate(isoStr) {
+		if (!isoStr) return '';
+		const d = new Date(isoStr);
+		if (isNaN(d.getTime())) return isoStr;
+		const pad = n => n.toString().padStart(2, '0');
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	}
+
+	let allLogs = [];
+
+	try {
+		allLogs = await api('GET', '/api/inventory?action=get_production_logs') || [];
+		table.removeChild(loadingDiv);
+	} catch (e) {
+		loadingDiv.textContent = 'Error al cargar registros: ' + e.message;
+		loadingDiv.style.color = 'var(--danger)';
+		return;
+	}
+
+	function renderLogs(logsList) {
+		table.innerHTML = '';
+
+		const totalLogs = logsList.length;
+		const totalQty = logsList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+		const totalTime = logsList.reduce((sum, item) => sum + (Number(item.duration_seconds) || 0), 0);
+
+		statTotalLogs.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:bold;">Registros</div><div style="font-size:20px; font-weight:bold; color:var(--text); margin-top:4px;">${totalLogs}</div>`;
+		statTotalQty.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:bold;">Total Producido</div><div style="font-size:20px; font-weight:bold; color:var(--text); margin-top:4px;">${totalQty} uds</div>`;
+		statTotalTime.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:bold;">Tiempo Total</div><div style="font-size:20px; font-weight:bold; color:var(--text); margin-top:4px;">${formatDuration(totalTime)}</div>`;
+
+		const thead = document.createElement('thead');
+		thead.style.position = 'sticky';
+		thead.style.top = '0';
+		thead.style.background = 'var(--card)';
+		thead.style.zIndex = '1';
+		const headerRow = document.createElement('tr');
+		['Fecha', 'Cocinero/a', 'Postre', 'Paso', 'Lote', 'Tiempo Total', 'Tiempo/Ud'].forEach(text => {
+			const th = document.createElement('th');
+			th.textContent = text;
+			th.style.padding = '10px';
+			th.style.borderBottom = '2px solid var(--border)';
+			th.style.fontWeight = 'bold';
+			th.style.fontSize = '13px';
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
+		table.appendChild(thead);
+
+		const tbody = document.createElement('tbody');
+		if (logsList.length === 0) {
+			const tr = document.createElement('tr');
+			const td = document.createElement('td');
+			td.colSpan = 7;
+			td.textContent = 'No hay registros de producción.';
+			td.style.padding = '30px';
+			td.style.textAlign = 'center';
+			td.style.color = 'var(--text-muted)';
+			tr.appendChild(td);
+			tbody.appendChild(tr);
+		} else {
+			logsList.forEach(log => {
+				const tr = document.createElement('tr');
+				tr.style.borderBottom = '1px solid var(--border)';
+				
+				const tdDate = document.createElement('td');
+				tdDate.textContent = formatDate(log.created_at);
+				tdDate.style.padding = '8px 10px';
+				tdDate.style.fontSize = '13px';
+				
+				const tdActor = document.createElement('td');
+				tdActor.textContent = log.actor_name || 'Anónimo';
+				tdActor.style.padding = '8px 10px';
+				tdActor.style.fontWeight = 'bold';
+				tdActor.style.fontSize = '13px';
+				
+				const tdDessert = document.createElement('td');
+				tdDessert.textContent = log.dessert || 'General';
+				tdDessert.style.padding = '8px 10px';
+				tdDessert.style.fontSize = '13px';
+				
+				const tdStep = document.createElement('td');
+				tdStep.textContent = log.step_name || '-';
+				tdStep.style.padding = '8px 10px';
+				tdStep.style.fontSize = '13px';
+				
+				const tdQty = document.createElement('td');
+				tdQty.textContent = `${log.qty || 0} uds`;
+				tdQty.style.padding = '8px 10px';
+				tdQty.style.fontSize = '13px';
+				
+				const tdDuration = document.createElement('td');
+				tdDuration.textContent = formatDuration(log.duration_seconds || 0);
+				tdDuration.style.padding = '8px 10px';
+				tdDuration.style.fontSize = '13px';
+				
+				const tdPerUnit = document.createElement('td');
+				const perUnit = log.qty > 0 ? Math.round(log.duration_seconds / log.qty) : 0;
+				tdPerUnit.textContent = perUnit > 0 ? formatDuration(perUnit) : '-';
+				tdPerUnit.style.padding = '8px 10px';
+				tdPerUnit.style.fontSize = '13px';
+				
+				tr.append(tdDate, tdActor, tdDessert, tdStep, tdQty, tdDuration, tdPerUnit);
+				tbody.appendChild(tr);
+			});
+		}
+		table.appendChild(tbody);
+	}
+
+	renderLogs(allLogs);
+
+	searchInput.addEventListener('input', () => {
+		const query = searchInput.value.toLowerCase().trim();
+		if (!query) {
+			renderLogs(allLogs);
+			return;
+		}
+		const filtered = allLogs.filter(log => {
+			const actor = (log.actor_name || '').toLowerCase();
+			const dessertName = (log.dessert || '').toLowerCase();
+			const step = (log.step_name || '').toLowerCase();
+			return actor.includes(query) || dessertName.includes(query) || step.includes(query);
+		});
+		renderLogs(filtered);
+	});
+}
 
 async function exportUsersExcel() {
 	try {
@@ -7790,7 +8043,111 @@ function buildStepCard(dessertName, step) {
 		} catch { notify.error('No se pudo guardar la configuración de producción'); }
 	});
 
-	box.append(head, table, producesDiv);
+	const instructionsDiv = document.createElement('div');
+	instructionsDiv.style.cssText = 'margin-top:12px; padding:12px; background:rgba(244,166,183,0.05); border-radius:8px; border:1px solid rgba(244,166,183,0.15); display:flex; flex-direction:column; gap:8px;';
+	
+	const instructionsTitle = document.createElement('div');
+	instructionsTitle.style.cssText = 'font-weight:700; color:var(--primary); font-size:0.85rem;';
+	instructionsTitle.textContent = 'Instrucciones del paso (Lista paso a paso):';
+	instructionsDiv.appendChild(instructionsTitle);
+
+	const instructionsList = document.createElement('div');
+	instructionsList.style.cssText = 'display:flex; flex-direction:column; gap:6px;';
+	instructionsDiv.appendChild(instructionsList);
+
+	const newInstructionRow = document.createElement('div');
+	newInstructionRow.style.cssText = 'display:flex; gap:8px; align-items:center;';
+	
+	const newInstructionInput = document.createElement('input');
+	newInstructionInput.type = 'text';
+	newInstructionInput.className = 'input-cell';
+	newInstructionInput.placeholder = 'Ej: Mezclar la masa a velocidad media por 5 minutos...';
+	newInstructionInput.style.cssText = 'flex:1; font-size:0.85rem; padding:6px 10px; border: 1px solid var(--border); border-radius: 8px; background: white;';
+	
+	const addInstructionBtn = document.createElement('button');
+	addInstructionBtn.className = 'press-btn btn-primary';
+	addInstructionBtn.textContent = '+ Agregar';
+	addInstructionBtn.style.cssText = 'padding:6px 12px; font-size:0.85rem; min-width:unset;';
+	
+	newInstructionRow.append(newInstructionInput, addInstructionBtn);
+	instructionsDiv.appendChild(newInstructionRow);
+
+	let currentInstructions = Array.isArray(step.instructions) ? step.instructions : [];
+
+	async function saveInstructions() {
+		try {
+			await api('POST', API.Recipes, {
+				kind: 'step.upsert',
+				id: step.id,
+				dessert: dessertName,
+				step_name: step.step_name,
+				position: step.position || 0,
+				produces_ingredient: step.produces_ingredient || null,
+				produces_unit: step.produces_unit || 'unidad',
+				instructions: currentInstructions
+			});
+			step.instructions = currentInstructions;
+		} catch {
+			notify.error('No se pudo guardar la instrucción');
+		}
+	}
+
+	function renderInstructions() {
+		instructionsList.innerHTML = '';
+		if (currentInstructions.length === 0) {
+			const emptyMsg = document.createElement('div');
+			emptyMsg.style.cssText = 'font-size:0.8rem; color:var(--muted); font-style:italic;';
+			emptyMsg.textContent = 'No hay instrucciones configuradas. Agrega una arriba.';
+			instructionsList.appendChild(emptyMsg);
+			return;
+		}
+
+		currentInstructions.forEach((inst, idx) => {
+			const row = document.createElement('div');
+			row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:white; padding:6px 10px; border-radius:6px; border:1px solid var(--border); gap:8px;';
+			
+			const textSpan = document.createElement('span');
+			textSpan.style.cssText = 'font-size:0.85rem; color:var(--text); flex:1;';
+			textSpan.textContent = `${idx + 1}. ${inst}`;
+			
+			const deleteBtn = document.createElement('button');
+			deleteBtn.className = 'press-btn';
+			deleteBtn.textContent = '🗑️';
+			deleteBtn.style.cssText = 'color:var(--danger); padding:2px 6px; font-size:0.8rem; border:none; background:transparent; cursor:pointer; min-width:unset;';
+			deleteBtn.addEventListener('click', async () => {
+				currentInstructions.splice(idx, 1);
+				await saveInstructions();
+				renderInstructions();
+			});
+
+			row.append(textSpan, deleteBtn);
+			instructionsList.appendChild(row);
+		});
+	}
+
+	addInstructionBtn.addEventListener('click', async () => {
+		const val = newInstructionInput.value.trim();
+		if (!val) return;
+		currentInstructions.push(val);
+		newInstructionInput.value = '';
+		await saveInstructions();
+		renderInstructions();
+	});
+
+	newInstructionInput.addEventListener('keydown', async (e) => {
+		if (e.key === 'Enter') {
+			const val = newInstructionInput.value.trim();
+			if (!val) return;
+			currentInstructions.push(val);
+			newInstructionInput.value = '';
+			await saveInstructions();
+			renderInstructions();
+		}
+	});
+
+	renderInstructions();
+
+	box.append(head, table, producesDiv, instructionsDiv);
 	// Enable drag & drop for steps using the header as a handle
 	box.draggable = false;
 	head.draggable = true;
@@ -11763,6 +12120,9 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	if (!__handledPendingFocus && !__handledEmbedded) {
 		if (!state.currentUser) {
 			switchView('#view-login');
+		} else if (state.currentUser.role === 'cocina' || (state.currentUser.features && state.currentUser.features.includes('cocina'))) {
+			switchView('#view-kitchen');
+			if (window.KitchenManager) window.KitchenManager.init();
 		} else if (state.currentUser.isAdmin) {
 			const urlParams = new URLSearchParams(window.location.search);
 			const linkSeller = urlParams.get('seller');

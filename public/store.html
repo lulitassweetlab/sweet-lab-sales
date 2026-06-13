@@ -1423,6 +1423,7 @@
             <button id="store-qr-btn" class="store-qr-btn" style="display: none;">Ver QR</button>
             <button id="store-crm-btn" class="store-crm-btn" style="display: none;">CRM</button>
             <button id="store-clients-btn" class="store-clients-btn" style="display: none;">Clientes</button>
+            <button id="store-kitchen-btn" class="store-login-btn" style="display: none; background: #e0f2fe; color: #0369a1; border-color: #0369a1; box-shadow: none;">Cocina</button>
             <div id="sync-indicator" class="sync-indicator" style="display: none;">
                 <span class="sync-icon">🔄</span>
                 <span class="sync-text">Sincronizando...</span>
@@ -1853,8 +1854,20 @@
         });
 
         // Bridge Listeners (connecting HTML elements to logic in external files)
+        on('store-kitchen-btn', 'click', () => {
+            window.location.href = '/index.html?view=kitchen';
+        });
+
         on('store-auth-btn', 'click', () => {
-            if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
+            const isKitchenUser = storeAuthUser && (storeAuthUser.role === 'cocina' || (storeAuthUser.features && storeAuthUser.features.includes('cocina')));
+            if (isKitchenUser) {
+                if (confirm(`¿Deseas cerrar sesión de ${storeAuthUser.username}?`)) {
+                    storeAuthUser = null;
+                    safeLS.removeItem('storeAuthUser');
+                    safeLS.removeItem('authUser');
+                    window.location.reload();
+                }
+            } else if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
                 // Fully active: offer logout
                 if (confirm(`¿Deseas cerrar sesión de ${storeActiveSeller.name}?`)) {
                     storeAuthUser = null;
@@ -1918,7 +1931,19 @@
                 safeLS.setItem('storeAuthUser', JSON.stringify(storeAuthUser));
                 document.getElementById('store-login-modal').style.display = 'none';
                 document.getElementById('login-pass').value = '';
-                await showSellerSelection();
+                if (storeAuthUser.role === 'cocina' || (storeAuthUser.features && storeAuthUser.features.includes('cocina'))) {
+                    const authUser = {
+                        name: storeAuthUser.username,
+                        role: storeAuthUser.role,
+                        features: storeAuthUser.features || [],
+                        isAdmin: storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin',
+                        isSuperAdmin: storeAuthUser.role === 'superadmin'
+                    };
+                    safeLS.setItem('authUser', JSON.stringify(authUser));
+                    window.location.href = '/index.html?view=kitchen';
+                } else {
+                    await showSellerSelection();
+                }
             } catch (err) {
                 errDiv.textContent = String(err.message || err);
                 errDiv.style.display = 'block';
