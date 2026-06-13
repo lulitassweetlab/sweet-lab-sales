@@ -1054,6 +1054,10 @@ const KitchenManager = {
     addExtraIngredientRow(inputId) {
         const cont = document.getElementById(`extra-ing-container-${inputId}`);
         if (!cont) return;
+
+        // Fetch current batch quantity dynamically
+        const batchQtyInput = document.getElementById(inputId);
+        const batchQty = batchQtyInput ? Number(batchQtyInput.value) : 1;
         
         // Build a select with all inventory items
         let optionsHtml = '<option value="">Selecciona...</option>';
@@ -1075,16 +1079,17 @@ const KitchenManager = {
         
         const row = document.createElement('div');
         row.className = 'custom-ing-row extra-ing-row';
-        row.style = "display:flex; align-items:center; gap:8px; justify-content:space-between;";
+        row.style = "display:flex; align-items:center; gap:8px; justify-content:space-between; margin-bottom:8px;";
         row.innerHTML = `
-            <select class="ing-name-select" style="flex:1; padding:4px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; width:100px; text-overflow:ellipsis;" onchange="this.parentElement.querySelector('.ing-name').value = this.value; this.parentElement.querySelector('.ing-unit').value = this.options[this.selectedIndex].getAttribute('data-unit') || 'u'; this.parentElement.querySelector('.unit-display').textContent = this.options[this.selectedIndex].getAttribute('data-unit') || 'u';">
+            <select class="ing-name-select" style="flex:1.5; padding:6px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; width:100px; text-overflow:ellipsis;" onchange="this.parentElement.querySelector('.ing-name').value = this.value; this.parentElement.querySelector('.ing-unit').value = this.options[this.selectedIndex].getAttribute('data-unit') || 'u'; this.parentElement.querySelector('.unit-display').textContent = this.options[this.selectedIndex].getAttribute('data-unit') || 'u';">
                 ${optionsHtml}
             </select>
             <input type="hidden" class="ing-name" value="">
             <input type="hidden" class="ing-unit" value="u">
-            <input type="number" class="ing-qty" placeholder="0" style="width:70px; padding:4px; border:1px solid #cbd5e1; border-radius:6px; text-align:right;">
-            <span class="unit-display" style="width:20px; font-size:12px;">u</span>
-            <button type="button" class="press-btn" onclick="this.parentElement.remove()" style="padding:4px 8px; font-size:10px; background:#f1f5f9; color:#ef4444; border:none; border-radius:6px;">❌</button>
+            <span style="font-size:13px; color:#64748b; font-weight:600; white-space:nowrap;">Lote: ${batchQty}</span>
+            <input type="number" class="ing-qty" placeholder="${batchQty}" value="${batchQty}" style="width:80px; padding:6px; border:1px solid #cbd5e1; border-radius:8px; text-align:right; font-size:1.15rem;">
+            <span class="unit-display" style="width:25px; font-size:1.15rem;">u</span>
+            <button type="button" class="press-btn" onclick="this.parentElement.remove()" style="padding:6px 10px; font-size:14px; background:#f1f5f9; color:#ef4444; border:none; border-radius:8px;">❌</button>
         `;
         cont.appendChild(row);
     },

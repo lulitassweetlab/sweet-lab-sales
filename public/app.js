@@ -8106,10 +8106,34 @@ function buildStepCard(dessertName, step) {
 			const row = document.createElement('div');
 			row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:white; padding:6px 10px; border-radius:6px; border:1px solid var(--border); gap:8px;';
 			
-			const textSpan = document.createElement('span');
-			textSpan.style.cssText = 'font-size:0.85rem; color:var(--text); flex:1;';
-			textSpan.textContent = `${idx + 1}. ${inst}`;
+			const prefixSpan = document.createElement('span');
+			prefixSpan.style.cssText = 'font-size:0.85rem; color:var(--muted); font-weight:700; margin-right:4px; user-select:none;';
+			prefixSpan.textContent = `${idx + 1}.`;
+
+			const editSpan = document.createElement('span');
+			editSpan.contentEditable = 'true';
+			editSpan.style.cssText = 'font-size:0.85rem; color:var(--text); flex:1; padding:2px 4px; border-radius:4px; border-bottom:1px dashed transparent; outline:none; transition: border-color 0.15s;';
+			editSpan.textContent = inst;
+
+			editSpan.addEventListener('mouseenter', () => { editSpan.style.borderBottomColor = 'var(--primary)'; });
+			editSpan.addEventListener('mouseleave', () => { editSpan.style.borderBottomColor = 'transparent'; });
 			
+			editSpan.addEventListener('blur', async () => {
+				const newVal = editSpan.textContent.trim();
+				if (newVal && newVal !== inst) {
+					currentInstructions[idx] = newVal;
+					await saveInstructions();
+				}
+				renderInstructions();
+			});
+
+			editSpan.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					editSpan.blur();
+				}
+			});
+
 			const deleteBtn = document.createElement('button');
 			deleteBtn.className = 'press-btn';
 			deleteBtn.textContent = '🗑️';
@@ -8120,7 +8144,7 @@ function buildStepCard(dessertName, step) {
 				renderInstructions();
 			});
 
-			row.append(textSpan, deleteBtn);
+			row.append(prefixSpan, editSpan, deleteBtn);
 			instructionsList.appendChild(row);
 		});
 	}
