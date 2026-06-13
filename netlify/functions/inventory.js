@@ -55,7 +55,7 @@ export async function handler(event) {
 				}
 
 				if (actionQuery === 'active_timers') {
-					const activeList = await sql`SELECT id, step_id, target_date, username, start_time, qty, created_at FROM active_production_timers ORDER BY start_time DESC`;
+					const activeList = await sql`SELECT id, step_id, TO_CHAR(target_date, 'YYYY-MM-DD') AS target_date, username, start_time, qty, created_at FROM active_production_timers ORDER BY start_time DESC`;
 					return json(activeList);
 				}
 

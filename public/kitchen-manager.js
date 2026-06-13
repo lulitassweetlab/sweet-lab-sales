@@ -32,11 +32,111 @@ const KitchenManager = {
             const list = await window.api('GET', '/api/inventory?action=active_timers');
             if (list) {
                 this.dbActiveTimers = list;
+                this.syncActiveTimerUI();
                 this.updateTimerDisplays();
             }
         } catch (e) {
             console.error("Error refreshing active timers silently:", e);
         }
+    },
+
+    syncActiveTimerUI() {
+        const currentUsername = window.state?.currentUser?.name || window.state?.currentUser?.username;
+        
+        // 1. Update recipe cards expansion
+        document.querySelectorAll('.kitchen-card').forEach(card => {
+            const cardId = card.getAttribute('data-card-id');
+            if (!cardId) return;
+            const [day, recipeName] = cardId.split('_');
+            const recipe = this.recipes.find(r => r.name === recipeName);
+            if (!recipe) return;
+
+            const hasActiveStep = recipe.steps.some(step => {
+                const timerKey = `${step.id}_${day}`;
+                const localRunning = this.timers[timerKey]?.startTime;
+                const remoteRunning = (this.dbActiveTimers || []).some(x => 
+                    Number(x.step_id) === Number(step.id) && 
+                    String(x.target_date).slice(0, 10) === String(day).slice(0, 10)
+                );
+                return localRunning || remoteRunning;
+            });
+
+            if (hasActiveStep && !this.expandedRecipes.has(cardId)) {
+                this.expandedRecipes.add(cardId);
+                const container = card.querySelector('.steps-list-container');
+                const chevron = card.querySelector('.chevron');
+                if (container) {
+                    container.style.maxHeight = '2000px';
+                    container.style.opacity = '1';
+                }
+                if (chevron) {
+                    chevron.style.transform = 'rotate(180deg)';
+                }
+            }
+        });
+
+        // 2. Update step rows highlighting, badges, and blinking dots
+        document.querySelectorAll('.step-row-container').forEach(row => {
+            const stepId = row.getAttribute('data-step-id');
+            const targetDate = row.getAttribute('data-date');
+            if (!stepId || !targetDate) return;
+
+            const timerKey = `${stepId}_${targetDate}`;
+            const activeTimer = this.timers[timerKey];
+            const isRunning = activeTimer && activeTimer.startTime;
+
+            const dbTimer = (this.dbActiveTimers || []).find(x => 
+                Number(x.step_id) === Number(stepId) && 
+                String(x.target_date).slice(0, 10) === String(targetDate).slice(0, 10)
+            );
+            const isRemoteRunning = dbTimer && dbTimer.username && (!currentUsername || dbTimer.username.toLowerCase() !== currentUsername.toLowerCase());
+            const isTimerRunning = isRunning || isRemoteRunning;
+
+            const isDone = row.querySelector('strong')?.textContent.includes('✓');
+
+            if (!isDone) {
+                if (isTimerRunning) {
+                    row.style.background = '#fff5f5';
+                    row.style.border = '1px solid #fca5a5';
+                    row.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.05)';
+                } else {
+                    row.style.background = '#f8fafc';
+                    row.style.border = '1px solid #e2e8f0';
+                    row.style.boxShadow = 'none';
+                }
+            }
+
+            // Blinking dot next to the timer display
+            let dot = row.querySelector('.timer-pulse-dot');
+            if (isTimerRunning) {
+                if (!dot) {
+                    dot = document.createElement('span');
+                    dot.className = 'timer-pulse-dot';
+                    dot.style = 'width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;';
+                    const timerDisplay = row.querySelector('.timer-display');
+                    if (timerDisplay) {
+                        timerDisplay.parentElement.appendChild(dot);
+                    }
+                }
+            } else {
+                if (dot) dot.remove();
+            }
+
+            // Remote actor badge
+            const badgeContainer = row.querySelector('.remote-actor-badge-container');
+            if (badgeContainer) {
+                if (isRemoteRunning) {
+                    badgeContainer.innerHTML = `
+                        <span style="font-size:0.95rem; color:#ef4444; font-weight:700; background:rgba(239,68,68,0.08); padding:3px 8px; border-radius:8px; display:inline-flex; align-items:center; gap:6px; vertical-align:middle; animation: pulse 2s infinite;">
+                            <span style="width:6px; height:6px; background:#ef4444; border-radius:50%;"></span>
+                            ${dbTimer.username} está produciendo
+                        </span>
+                    `;
+                } else {
+                    badgeContainer.innerHTML = '';
+                }
+            }
+        });
     },
 
     bindEvents() {
@@ -1019,6 +1119,7 @@ const KitchenManager = {
                 card.style = `margin:0; padding:16px; border-radius:24px; display:flex; flex-direction:column; gap:0; border: 1px solid #f4a6b7; cursor:pointer; background:#fffdfd; transition: all 0.3s ease;`;
                 
                 const cardId = `${batch.day}_${batch.recipeName}`;
+                card.setAttribute('data-card-id', cardId);
                 let isExpanded = this.expandedRecipes.has(cardId);
                 if (!isExpanded) {
                     const hasActiveStep = recipe.steps.some(step => {
@@ -1349,7 +1450,7 @@ const KitchenManager = {
         }
 
         return `
-            <div style="position:relative; background:${isDone ? '#f0fdf4' : (isTimerRunning ? '#fff5f5' : '#f8fafc')}; border:1px solid ${isDone ? '#bbf7d0' : (isTimerRunning ? '#fca5a5' : '#e2e8f0')}; border-radius:16px; padding:16px; transition: all 0.2s ease; box-shadow: ${isTimerRunning ? '0 4px 12px rgba(239, 68, 68, 0.05)' : 'none'};">
+            <div class="step-row-container" data-step-id="${step.id}" data-date="${targetDate}" style="position:relative; background:${isDone ? '#f0fdf4' : (isTimerRunning ? '#fff5f5' : '#f8fafc')}; border:1px solid ${isDone ? '#bbf7d0' : (isTimerRunning ? '#fca5a5' : '#e2e8f0')}; border-radius:16px; padding:16px; transition: all 0.2s ease; box-shadow: ${isTimerRunning ? '0 4px 12px rgba(239, 68, 68, 0.05)' : 'none'};">
                 <div class="flex" style="margin-bottom:12px; justify-content:space-between; align-items:center; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding-right:120px;">
                         <div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">
@@ -1362,9 +1463,9 @@ const KitchenManager = {
                                     style="font-family:monospace; font-size:1.3rem; color:${isTimerRunning ? '#ef4444' : '#64748b'}; font-weight:700; letter-spacing:0.5px;">
                                     ${this.formatDuration(elapsed)}
                                 </span>
-                                ${isTimerRunning ? '<span style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
+                                ${isTimerRunning ? '<span class="timer-pulse-dot" style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
                             </div>
-                            ${remoteActorHtml ? `<div style="margin-top:2px;">${remoteActorHtml}</div>` : ''}
+                            <div class="remote-actor-badge-container" style="margin-top:2px;">${remoteActorHtml ? remoteActorHtml : ''}</div>
                         </div>
                     </div>
                     ${averageTimeHtml}
