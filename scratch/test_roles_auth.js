@@ -1,7 +1,7 @@
 import { ensureSchema, sql } from '../netlify/functions/_db.js';
 
 async function run() {
-    console.log('🔄 Initializing database schema and ensuring migration v62 runs...');
+    console.log('🔄 Initializing database schema and ensuring migration v63 runs...');
     await ensureSchema();
 
     // 1. Fetch all users and check their roles
@@ -9,12 +9,17 @@ async function run() {
     console.log('\n👤 Database Users found:');
     console.table(users);
 
-    // 2. Fetch feature permissions
+    // 2. Fetch all sellers
+    const sellers = await sql`SELECT id, name FROM sellers`;
+    console.log('\n🏪 Database Sellers found:');
+    console.table(sellers);
+
+    // 3. Fetch feature permissions
     const permissions = await sql`SELECT username, feature FROM user_feature_permissions`;
     console.log('\n🔑 Feature Permissions found:');
     console.table(permissions);
 
-    // 3. Perform validations
+    // 4. Perform validations
     console.log('\n🧪 Running validations...');
     
     // Check if any user still has the 'cocina' role
@@ -45,6 +50,15 @@ async function run() {
         process.exit(1);
     } else {
         console.log('✅ PASS: User "jaimes" has the "produccion" feature permission.');
+    }
+
+    // Check if seller 'Jaimes' exists in sellers table
+    const jaimesSeller = sellers.find(s => s.name.toLowerCase() === 'jaimes');
+    if (!jaimesSeller) {
+        console.error('❌ FAIL: Seller "Jaimes" does not exist in the database!');
+        process.exit(1);
+    } else {
+        console.log('✅ PASS: Seller "Jaimes" exists in the database.');
     }
 
     console.log('\n🎉 All role database checks passed successfully!');

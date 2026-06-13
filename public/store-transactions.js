@@ -409,6 +409,15 @@ async function showSellerSelection() {
             return;
         }
 
+        // Si es un vendedor estándar (rol 'user'), no permitimos elegir otro perfil
+        if (storeAuthUser && storeAuthUser.role === 'user') {
+            alert(`El vendedor "${storeAuthUser.username}" no tiene un perfil de vendedor registrado en la tienda.`);
+            storeAuthUser = null;
+            safeLS.removeItem('storeAuthUser');
+            updateAuthUI();
+            return;
+        }
+
         if (allSellers.length === 1) {
             setSeller(allSellers[0]);
         } else {

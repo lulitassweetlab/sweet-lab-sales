@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 62; // 62: set jaimes role to user and grant feature produccion
+const SCHEMA_VERSION = 63; // 63: seed seller Jaimes
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -729,6 +729,12 @@ export async function ensureSchema() {
 					await sql`UPDATE users SET role = 'user' WHERE username = 'jaimes'`;
 					await sql`INSERT INTO user_feature_permissions (username, feature) VALUES ('jaimes', 'produccion') ON CONFLICT (username, feature) DO NOTHING`;
 					await sql`UPDATE schema_meta SET version = 62`;
+				}
+
+				if (Number(meta[0].version) < 63) {
+					console.log('Migrating to v63: Seeding seller Jaimes...');
+					await sql`INSERT INTO sellers (name) VALUES ('Jaimes') ON CONFLICT (name) DO NOTHING`;
+					await sql`UPDATE schema_meta SET version = 63`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
