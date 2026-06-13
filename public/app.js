@@ -12029,7 +12029,29 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	bindLogin();
 	bindActiveTableSearch();
 	updateToolbarOffset();
-	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch { }
+	try {
+		const saved = localStorage.getItem('authUser');
+		if (saved) {
+			state.currentUser = JSON.parse(saved);
+		} else {
+			// Fallback: load from storeAuthUser if they have production access
+			const storeUserStr = localStorage.getItem('storeAuthUser');
+			if (storeUserStr) {
+				const storeAuthUser = JSON.parse(storeUserStr);
+				const hasProductionAccess = storeAuthUser.role === 'produccion' || (storeAuthUser.features && storeAuthUser.features.includes('produccion')) || storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin';
+				if (hasProductionAccess) {
+					state.currentUser = {
+						name: storeAuthUser.username,
+						role: storeAuthUser.role,
+						features: storeAuthUser.features || [],
+						isAdmin: storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin',
+						isSuperAdmin: storeAuthUser.role === 'superadmin'
+					};
+					localStorage.setItem('authUser', JSON.stringify(state.currentUser));
+				}
+			}
+		}
+	} catch { }
 	// Backfill role fields if missing from older sessions
 	if (state.currentUser && !state.currentUser.role) {
 		const name = state.currentUser.name;
@@ -12118,8 +12140,20 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 
 	// Route initial view (skip if we just navigated from Transfers or Embedded)
 	if (!__handledPendingFocus && !__handledEmbedded) {
+		const urlParams = new URLSearchParams(window.location.search);
+		const viewParam = urlParams.get('view');
+		const hasProductionAccess = state.currentUser && (
+			state.currentUser.role === 'produccion' ||
+			(state.currentUser.features && state.currentUser.features.includes('produccion')) ||
+			state.currentUser.role === 'admin' ||
+			state.currentUser.role === 'superadmin'
+		);
+
 		if (!state.currentUser) {
 			switchView('#view-login');
+		} else if (viewParam === 'kitchen' && hasProductionAccess) {
+			switchView('#view-kitchen');
+			if (window.KitchenManager) window.KitchenManager.init();
 		} else if ((state.currentUser.role === 'produccion' || (state.currentUser.features && state.currentUser.features.includes('produccion'))) && !['user', 'admin', 'superadmin'].includes(state.currentUser.role)) {
 			switchView('#view-kitchen');
 			if (window.KitchenManager) window.KitchenManager.init();
