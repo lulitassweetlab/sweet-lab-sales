@@ -384,12 +384,12 @@ export async function handler(event) {
 						} catch {}
 					}
 
-					if (actorRole === 'cocina') {
+					if (actorRole === 'produccion') {
 						const stepRows = await sql`SELECT dessert, step_name FROM dessert_recipes WHERE id = ${oldLog.step_id} LIMIT 1`;
 						const stepName = stepRows.length ? `${stepRows[0].dessert} - ${stepRows[0].step_name || 'General'}` : `Paso ID ${oldLog.step_id}`;
 						await notify({
 							type: 'kitchen_log_edit',
-							message: `El cocinero/a ${actor} modificó un registro del paso "${stepName}": Lote cambió de ${oldLog.qty} a ${qty}, Tiempo de ${oldLog.duration_seconds}s a ${durationSeconds}s.`,
+							message: `El personal de producción ${actor} modificó un registro del paso "${stepName}": Lote cambió de ${oldLog.qty} a ${qty}, Tiempo de ${oldLog.duration_seconds}s a ${durationSeconds}s.`,
 							actorName: actor
 						});
 					}
@@ -413,12 +413,12 @@ export async function handler(event) {
 							} catch {}
 						}
 
-						if (actorRole === 'cocina') {
+						if (actorRole === 'produccion') {
 							const stepRows = await sql`SELECT dessert, step_name FROM dessert_recipes WHERE id = ${oldLog.step_id} LIMIT 1`;
 							const stepName = stepRows.length ? `${stepRows[0].dessert} - ${stepRows[0].step_name || 'General'}` : `Paso ID ${oldLog.step_id}`;
 							await notify({
 								type: 'kitchen_log_delete',
-								message: `El cocinero/a ${actor} eliminó un registro del paso "${stepName}" (Lote: ${oldLog.qty} uds, Tiempo: ${oldLog.duration_seconds}s).`,
+								message: `El personal de producción ${actor} eliminó un registro del paso "${stepName}" (Lote: ${oldLog.qty} uds, Tiempo: ${oldLog.duration_seconds}s).`,
 								actorName: actor
 							});
 						}

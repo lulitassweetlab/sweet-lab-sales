@@ -1423,7 +1423,7 @@
             <button id="store-qr-btn" class="store-qr-btn" style="display: none;">Ver QR</button>
             <button id="store-crm-btn" class="store-crm-btn" style="display: none;">CRM</button>
             <button id="store-clients-btn" class="store-clients-btn" style="display: none;">Clientes</button>
-            <button id="store-kitchen-btn" class="store-login-btn" style="display: none; background: #e0f2fe; color: #0369a1; border-color: #0369a1; box-shadow: none;">Cocina</button>
+            <button id="store-kitchen-btn" class="store-login-btn" style="display: none; background: #e0f2fe; color: #0369a1; border-color: #0369a1; box-shadow: none;">Producción</button>
             <div id="sync-indicator" class="sync-indicator" style="display: none;">
                 <span class="sync-icon">🔄</span>
                 <span class="sync-text">Sincronizando...</span>
@@ -1859,8 +1859,9 @@
         });
 
         on('store-auth-btn', 'click', () => {
-            const isKitchenUser = storeAuthUser && (storeAuthUser.role === 'cocina' || (storeAuthUser.features && storeAuthUser.features.includes('cocina')));
-            if (isKitchenUser) {
+            const hasProductionAccess = storeAuthUser && (storeAuthUser.role === 'produccion' || (storeAuthUser.features && storeAuthUser.features.includes('produccion')));
+            const hasSalesAccess = storeAuthUser && ['user', 'admin', 'superadmin'].includes(storeAuthUser.role);
+            if (hasProductionAccess && !hasSalesAccess) {
                 if (confirm(`¿Deseas cerrar sesión de ${storeAuthUser.username}?`)) {
                     storeAuthUser = null;
                     safeLS.removeItem('storeAuthUser');
@@ -1931,7 +1932,11 @@
                 safeLS.setItem('storeAuthUser', JSON.stringify(storeAuthUser));
                 document.getElementById('store-login-modal').style.display = 'none';
                 document.getElementById('login-pass').value = '';
-                if (storeAuthUser.role === 'cocina' || (storeAuthUser.features && storeAuthUser.features.includes('cocina'))) {
+
+                const hasProductionAccess = storeAuthUser.role === 'produccion' || (storeAuthUser.features && storeAuthUser.features.includes('produccion'));
+                const hasSalesAccess = ['user', 'admin', 'superadmin'].includes(storeAuthUser.role);
+
+                if (hasProductionAccess) {
                     const authUser = {
                         name: storeAuthUser.username,
                         role: storeAuthUser.role,
@@ -1940,6 +1945,9 @@
                         isSuperAdmin: storeAuthUser.role === 'superadmin'
                     };
                     safeLS.setItem('authUser', JSON.stringify(authUser));
+                }
+
+                if (hasProductionAccess && !hasSalesAccess) {
                     window.location.href = '/index.html?view=kitchen';
                 } else {
                     await showSellerSelection();

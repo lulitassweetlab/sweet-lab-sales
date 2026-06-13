@@ -164,7 +164,7 @@ export async function handler(event) {
 					return json({ ok: true, created: true });
 				} else if (action === 'setRole') {
 					const role = (data.role || '').toString();
-					if (!role || !['user','admin','superadmin','cocina'].includes(role)) return json({ error: 'Rol inválido' }, 400);
+					if (!role || !['user','admin','superadmin','produccion'].includes(role)) return json({ error: 'Rol inválido' }, 400);
 					const rows = await sql`SELECT id FROM users WHERE lower(username) = ${username} LIMIT 1`;
 					if (!rows.length) {
 						// Create user with default password and set role

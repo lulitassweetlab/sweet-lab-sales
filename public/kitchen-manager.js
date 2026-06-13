@@ -33,10 +33,11 @@ const KitchenManager = {
         const goHomeBtn = document.getElementById('kitchen-go-home');
         if (goHomeBtn) {
             goHomeBtn.onclick = () => {
-                if (window.state?.currentUser?.role === 'cocina') {
-                    window.location.href = '/store.html';
-                } else {
+                const hasSalesAccess = window.state?.currentUser && ['user', 'admin', 'superadmin'].includes(window.state.currentUser.role);
+                if (hasSalesAccess) {
                     window.switchView('#view-select-seller');
+                } else {
+                    window.location.href = '/store.html';
                 }
             };
         }
@@ -74,7 +75,7 @@ const KitchenManager = {
             this.render();
         } catch (err) {
             console.error("Kitchen Load Error:", err);
-            window.notify.error("Error al cargar datos de cocina: " + err.message);
+            window.notify.error("Error al cargar datos de producción: " + err.message);
             if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar la bitácora.<br><small>${err.message}</small></div>`;
         }
     },
@@ -690,7 +691,7 @@ const KitchenManager = {
             this.renderHistory();
         } catch (err) {
             console.error("Render Error:", err);
-            window.showToast("Error al renderizar cocina", "error");
+            window.showToast("Error al renderizar producción", "error");
         }
     },
 

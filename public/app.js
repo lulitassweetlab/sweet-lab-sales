@@ -5945,7 +5945,7 @@ function openUsersMenu(anchorX, anchorY) {
 	});
 	b3.addEventListener('click', async () => {
 		const username = prompt('Usuario a modificar rol:'); if (!username) return;
-		const role = prompt('Nuevo rol (user, admin, superadmin, cocina):'); if (!role) return;
+		const role = prompt('Nuevo rol (user, admin, superadmin, produccion):'); if (!role) return;
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
@@ -6308,7 +6308,7 @@ async function openKitchenProductionLogsReport() {
 	header.className = 'notif-center-header';
 
 	const title = document.createElement('h2');
-	title.textContent = 'Tiempos de Producción de Cocina';
+	title.textContent = 'Tiempos de Producción';
 	header.appendChild(title);
 
 	const closeBtn = document.createElement('button');
@@ -12120,7 +12120,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	if (!__handledPendingFocus && !__handledEmbedded) {
 		if (!state.currentUser) {
 			switchView('#view-login');
-		} else if (state.currentUser.role === 'cocina' || (state.currentUser.features && state.currentUser.features.includes('cocina'))) {
+		} else if ((state.currentUser.role === 'produccion' || (state.currentUser.features && state.currentUser.features.includes('produccion'))) && !['user', 'admin', 'superadmin'].includes(state.currentUser.role)) {
 			switchView('#view-kitchen');
 			if (window.KitchenManager) window.KitchenManager.init();
 		} else if (state.currentUser.isAdmin) {

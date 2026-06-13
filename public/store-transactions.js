@@ -62,9 +62,16 @@ function updateAuthUI() {
     const storeQrBtn = document.getElementById('store-qr-btn');
     const storeKitchenBtn = document.getElementById('store-kitchen-btn');
 
-    const isKitchenUser = storeAuthUser && (storeAuthUser.role === 'cocina' || (storeAuthUser.features && storeAuthUser.features.includes('cocina')));
+    const hasProductionAccess = storeAuthUser && (
+        storeAuthUser.role === 'produccion' || 
+        (storeAuthUser.features && storeAuthUser.features.includes('produccion')) || 
+        storeAuthUser.role === 'admin' || 
+        storeAuthUser.role === 'superadmin'
+    );
+    const hasSalesAccess = storeAuthUser && ['user', 'admin', 'superadmin'].includes(storeAuthUser.role);
 
-    if (isKitchenUser) {
+    if (storeAuthUser && hasProductionAccess && !hasSalesAccess) {
+        // Solo Producción
         if (storeKitchenBtn) storeKitchenBtn.style.display = 'block';
         storeAuthBtn.textContent = storeAuthUser.username;
         storeAuthBtn.style.color = 'var(--text)';
@@ -86,7 +93,8 @@ function updateAuthUI() {
             embedContainer.style.display = 'none';
         }
     } else if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
-        if (storeKitchenBtn) storeKitchenBtn.style.display = 'none';
+        // Con acceso a ventas y vendedor seleccionado (mixto o solo ventas)
+        if (storeKitchenBtn) storeKitchenBtn.style.display = hasProductionAccess ? 'block' : 'none';
         storeAuthBtn.textContent = storeActiveSeller.name;
         storeAuthBtn.style.color = 'var(--text)';
         storeAuthBtn.style.borderColor = 'transparent';
@@ -113,7 +121,8 @@ function updateAuthUI() {
         loadSellerClients();
         loadSellerDays();
     } else if (storeAuthUser && storeAuthUser.username) {
-        if (storeKitchenBtn) storeKitchenBtn.style.display = 'none';
+        // Logueado pero sin vendedor seleccionado (mixto o solo ventas)
+        if (storeKitchenBtn) storeKitchenBtn.style.display = hasProductionAccess ? 'block' : 'none';
         // Logged in but no seller selected yet
         storeAuthBtn.textContent = 'Seleccionar Vendedor';
         storeAuthBtn.style.color = 'var(--primary)';
