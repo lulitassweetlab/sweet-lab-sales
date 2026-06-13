@@ -182,11 +182,20 @@ const KitchenManager = {
             recipeItems.forEach(it => {
                 const stepId = it.step_id;
                 if (!stepsById[stepId]) {
+                    let inst = [];
+                    if (it.instructions) {
+                        if (typeof it.instructions === 'string') {
+                            try { inst = JSON.parse(it.instructions); } catch (e) { inst = []; }
+                        } else if (Array.isArray(it.instructions)) {
+                            inst = it.instructions;
+                        }
+                    }
                     const newStep = { 
                         id: stepId,
                         name: it.step_name || 'General', 
                         produces_ingredient: it.produces_ingredient,
                         produces_unit: it.produces_unit,
+                        instructions: inst,
                         items: [] 
                     };
                     stepsById[stepId] = newStep;
