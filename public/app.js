@@ -1325,6 +1325,13 @@ window.switchView = switchView;
 function switchView(id) {
 	document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
 	$(id).classList.remove('hidden');
+
+	if (id === '#view-kitchen') {
+		if (window.KitchenManager) window.KitchenManager.startIntervals();
+	} else {
+		if (window.KitchenManager) window.KitchenManager.stopIntervals();
+	}
+
 	// Close client action bar when switching views
 	if (typeof closeClientActionBar === 'function') {
 		closeClientActionBar();

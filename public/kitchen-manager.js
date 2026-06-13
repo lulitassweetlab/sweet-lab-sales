@@ -6,6 +6,7 @@ const KitchenManager = {
     expandedRecipes: new Set(),
     timers: {}, // { "stepId_targetDate": { startTime: Date, elapsedBefore: seconds } }
     isInitialized: false,
+    lastSyncTimestamp: null,
 
     async init() {
         if (this.isInitialized) {
@@ -24,19 +25,50 @@ const KitchenManager = {
         this._timerInterval = setInterval(() => this.updateTimerDisplays(), 1000);
 
         if (this._syncInterval) clearInterval(this._syncInterval);
-        this._syncInterval = setInterval(() => this.syncActiveTimersSilently(), 15000);
+        this._syncInterval = setInterval(() => this.syncActiveTimersSilently(), 10000); // Check for updates every 10 seconds
+    },
+
+    stopIntervals() {
+        if (this._timerInterval) {
+            clearInterval(this._timerInterval);
+            this._timerInterval = null;
+        }
+        if (this._syncInterval) {
+            clearInterval(this._syncInterval);
+            this._syncInterval = null;
+        }
     },
 
     async syncActiveTimersSilently() {
         try {
-            const list = await window.api('GET', '/api/inventory?action=active_timers');
-            if (list) {
-                this.dbActiveTimers = list;
+            const check = await window.api('GET', '/api/inventory?action=production_sync_check');
+            const serverTs = check?.last_change;
+            if (!serverTs) return;
+            
+            if (this.lastSyncTimestamp && serverTs === this.lastSyncTimestamp) {
+                // No change, skip database query
+                return;
+            }
+            
+            this.lastSyncTimestamp = serverTs;
+            
+            // Reload active timers, history, and production logs in background
+            this.dbActiveTimers = await window.api('GET', '/api/inventory?action=active_timers') || [];
+            await this.loadHistory();
+            await this.loadProductionLogs();
+            
+            const isUserInteracting = document.activeElement && 
+                (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') &&
+                document.getElementById('kitchen-recipes-grid')?.contains(document.activeElement);
+                
+            if (!isUserInteracting) {
+                this.render();
+            } else {
                 this.syncActiveTimerUI();
                 this.updateTimerDisplays();
             }
         } catch (e) {
-            console.error("Error refreshing active timers silently:", e);
+            console.error("Error silently syncing production data:", e);
         }
     },
 
@@ -189,6 +221,14 @@ const KitchenManager = {
 
             // 7. Load Active Timers from DB
             this.dbActiveTimers = await window.api('GET', '/api/inventory?action=active_timers') || [];
+
+            // Initialize lastSyncTimestamp
+            try {
+                const check = await window.api('GET', '/api/inventory?action=production_sync_check');
+                this.lastSyncTimestamp = check?.last_change || new Date().toISOString();
+            } catch (e) {
+                console.error("Failed to initialize lastSyncTimestamp:", e);
+            }
 
             // Restore running timers from DB for the current user
             const currentUsername = window.state?.currentUser?.name || window.state?.currentUser?.username;

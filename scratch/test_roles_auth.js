@@ -80,7 +80,26 @@ async function run() {
         process.exit(1);
     }
 
-    console.log('\n🎉 All role and timer database checks passed successfully!');
+    // Check if table production_sync_meta exists
+    try {
+        const tableCheck = await sql`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'production_sync_meta'
+            );
+        `;
+        if (tableCheck[0]?.exists) {
+            console.log('✅ PASS: production_sync_meta table exists.');
+        } else {
+            console.error('❌ FAIL: production_sync_meta table does not exist!');
+            process.exit(1);
+        }
+    } catch (err) {
+        console.error('❌ FAIL: Error checking production_sync_meta table:', err);
+        process.exit(1);
+    }
+
+    console.log('\n🎉 All role, timer, and sync metadata database checks passed successfully!');
     process.exit(0);
 }
 

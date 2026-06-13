@@ -59,6 +59,11 @@ export async function handler(event) {
 					return json(activeList);
 				}
 
+				if (actionQuery === 'production_sync_check') {
+					const [row] = await sql`SELECT last_change FROM production_sync_meta LIMIT 1`;
+					return json({ last_change: row?.last_change || new Date().toISOString() });
+				}
+
 				// Unified Inventory List
 				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
@@ -91,10 +96,11 @@ export async function handler(event) {
 					}
 					await sql`
 						INSERT INTO active_production_timers (step_id, target_date, username, start_time, qty)
-						VALUES (${Number(step_id)}, ${target_date}, ${actor}, now(), ${Number(qty)})
+						VALUES (${Number(step_id)}, ${new Date(target_date)}, ${actor}, now(), ${Number(qty || 1)})
 						ON CONFLICT (step_id, target_date, username) 
 						DO UPDATE SET start_time = now(), qty = EXCLUDED.qty
 					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ ok: true });
 				}
 
@@ -105,8 +111,11 @@ export async function handler(event) {
 					}
 					await sql`
 						DELETE FROM active_production_timers 
-						WHERE step_id = ${Number(step_id)} AND target_date = ${target_date} AND username = ${actor}
+						WHERE step_id = ${Number(step_id)} 
+						  AND target_date = ${target_date} 
+						  AND username = ${actor}
 					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ ok: true });
 				}
 
@@ -148,6 +157,7 @@ export async function handler(event) {
 						if (result.length > 0) deletedCount++;
 					}
 					
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ ok: true, deletedCount });
 				}
 
@@ -425,6 +435,7 @@ export async function handler(event) {
 						});
 					}
 
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ ok: true });
 				}
 
@@ -456,6 +467,7 @@ export async function handler(event) {
 					}
 
 					await sql`DELETE FROM production_logs WHERE id = ${logId}`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ ok: true });
 				}
 
@@ -561,6 +573,7 @@ export async function handler(event) {
 						}
 					}
 
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ 
 						ok: true, 
 						step: step.step_name, 
