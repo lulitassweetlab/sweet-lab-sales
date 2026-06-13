@@ -124,7 +124,7 @@ function updateAuthUI() {
         // Logueado pero sin vendedor seleccionado (mixto o solo ventas)
         if (storeKitchenBtn) storeKitchenBtn.style.display = hasProductionAccess ? 'block' : 'none';
         // Logged in but no seller selected yet
-        storeAuthBtn.textContent = 'Seleccionar Vendedor';
+        storeAuthBtn.textContent = 'Ingresar';
         storeAuthBtn.style.color = 'var(--primary)';
         storeAuthBtn.style.borderColor = 'var(--primary)';
         storeAuthBtn.style.background = 'transparent';
