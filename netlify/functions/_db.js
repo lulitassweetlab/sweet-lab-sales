@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 63; // 63: seed seller Jaimes
+const SCHEMA_VERSION = 64; // 64: add active_production_timers table
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -735,6 +735,23 @@ export async function ensureSchema() {
 					console.log('Migrating to v63: Seeding seller Jaimes...');
 					await sql`INSERT INTO sellers (name) VALUES ('Jaimes') ON CONFLICT (name) DO NOTHING`;
 					await sql`UPDATE schema_meta SET version = 63`;
+				}
+
+				if (Number(meta[0].version) < 64) {
+					console.log('Migrating to v64: Creating active_production_timers table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS active_production_timers (
+							id SERIAL PRIMARY KEY,
+							step_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+							target_date DATE NOT NULL,
+							username TEXT NOT NULL,
+							start_time TIMESTAMPTZ NOT NULL,
+							qty INTEGER NOT NULL,
+							created_at TIMESTAMPTZ DEFAULT now(),
+							UNIQUE (step_id, target_date, username)
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 64`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

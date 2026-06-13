@@ -54,6 +54,11 @@ export async function handler(event) {
 					return json(list);
 				}
 
+				if (actionQuery === 'active_timers') {
+					const activeList = await sql`SELECT id, step_id, target_date, username, start_time, qty, created_at FROM active_production_timers ORDER BY start_time DESC`;
+					return json(activeList);
+				}
+
 				// Unified Inventory List
 				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
@@ -78,6 +83,32 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const action = (data.action || '').toString();
 				const actor = (data.actor_name || '').toString() || null;
+
+				if (action === 'timer.start') {
+					const { step_id, target_date, qty } = data;
+					if (!step_id || !target_date || !actor) {
+						return json({ error: 'Faltan parámetros' }, 400);
+					}
+					await sql`
+						INSERT INTO active_production_timers (step_id, target_date, username, start_time, qty)
+						VALUES (${Number(step_id)}, ${target_date}, ${actor}, now(), ${Number(qty)})
+						ON CONFLICT (step_id, target_date, username) 
+						DO UPDATE SET start_time = now(), qty = EXCLUDED.qty
+					`;
+					return json({ ok: true });
+				}
+
+				if (action === 'timer.stop') {
+					const { step_id, target_date } = data;
+					if (!step_id || !target_date || !actor) {
+						return json({ error: 'Faltan parámetros' }, 400);
+					}
+					await sql`
+						DELETE FROM active_production_timers 
+						WHERE step_id = ${Number(step_id)} AND target_date = ${target_date} AND username = ${actor}
+					`;
+					return json({ ok: true });
+				}
 
 				if (action === 'save_alias') {
 					const { alias, ingredient_name } = data;
@@ -513,6 +544,21 @@ export async function handler(event) {
 							RETURNING *
 						`;
 						results.push({ ingredient: canonProduced, qty: producedQty, movement_id: rowProduced?.id, type: 'output' });
+					}
+
+					// 3. Clean up active timer for this step and user (if active)
+					if (stepId && data.target_date && actor) {
+						try {
+							const targetDateObj = new Date(data.target_date);
+							await sql`
+								DELETE FROM active_production_timers 
+								WHERE step_id = ${stepId} 
+								  AND target_date = ${targetDateObj} 
+								  AND username = ${actor}
+							`;
+						} catch (e) {
+							console.error("Error clearing active timer in produccion_paso:", e);
+						}
 					}
 
 					return json({ 

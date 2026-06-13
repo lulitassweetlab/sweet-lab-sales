@@ -22,6 +22,21 @@ const KitchenManager = {
     startIntervals() {
         if (this._timerInterval) clearInterval(this._timerInterval);
         this._timerInterval = setInterval(() => this.updateTimerDisplays(), 1000);
+
+        if (this._syncInterval) clearInterval(this._syncInterval);
+        this._syncInterval = setInterval(() => this.syncActiveTimersSilently(), 15000);
+    },
+
+    async syncActiveTimersSilently() {
+        try {
+            const list = await window.api('GET', '/api/inventory?action=active_timers');
+            if (list) {
+                this.dbActiveTimers = list;
+                this.updateTimerDisplays();
+            }
+        } catch (e) {
+            console.error("Error refreshing active timers silently:", e);
+        }
     },
 
     bindEvents() {
@@ -72,6 +87,25 @@ const KitchenManager = {
             // 6. Load Production Logs
             await this.loadProductionLogs();
 
+            // 7. Load Active Timers from DB
+            this.dbActiveTimers = await window.api('GET', '/api/inventory?action=active_timers') || [];
+
+            // Restore running timers from DB for the current user
+            const currentUsername = window.state?.currentUser?.name || window.state?.currentUser?.username;
+            if (currentUsername) {
+                (this.dbActiveTimers || []).forEach(dbTimer => {
+                    if (dbTimer.username.toLowerCase() === currentUsername.toLowerCase()) {
+                        const key = `${dbTimer.step_id}_${dbTimer.target_date.slice(0, 10)}`;
+                        if (!this.timers[key]) {
+                            this.timers[key] = {
+                                elapsedBefore: 0,
+                                startTime: new Date(dbTimer.start_time).getTime()
+                            };
+                        }
+                    }
+                });
+            }
+
             this.render();
         } catch (err) {
             console.error("Kitchen Load Error:", err);
@@ -83,15 +117,39 @@ const KitchenManager = {
     toggleTimer(stepId, targetDate) {
         const key = `${stepId}_${targetDate}`;
         const t = this.timers[key];
+        const actorName = window.state?.currentUser?.name || window.state?.currentUser?.username;
         if (t && t.startTime) {
-            // Stop timer
+            // Stop timer (pause)
             const elapsed = Math.floor((Date.now() - t.startTime) / 1000);
             t.elapsedBefore = (t.elapsedBefore || 0) + elapsed;
             t.startTime = null;
+
+            // Delete from DB on pause
+            if (actorName) {
+                window.api('POST', '/api/inventory', {
+                    action: 'timer.stop',
+                    step_id: stepId,
+                    target_date: targetDate,
+                    actor_name: actorName
+                }).catch(e => console.error("Error pausing timer in DB:", e));
+            }
         } else {
-            // Start timer
-            if (!this.timers[key]) this.timers[key] = { elapsedBefore: 0 };
+            // Start/Resume timer
+            if (!t) this.timers[key] = { elapsedBefore: 0 };
             this.timers[key].startTime = Date.now();
+
+            // Save to DB on resume
+            const qtyInput = document.getElementById(`input-${stepId}`);
+            const qty = qtyInput ? Number(qtyInput.value) : 1;
+            if (actorName) {
+                window.api('POST', '/api/inventory', {
+                    action: 'timer.start',
+                    step_id: stepId,
+                    target_date: targetDate,
+                    qty: qty,
+                    actor_name: actorName
+                }).catch(e => console.error("Error resuming active timer in DB:", e));
+            }
         }
         this.render(); 
     },
@@ -100,18 +158,50 @@ const KitchenManager = {
         const key = `${stepId}_${targetDate}`;
         if (!this.timers[key]) this.timers[key] = { elapsedBefore: 0 };
         this.timers[key].startTime = Date.now();
+
+        // Save to DB
+        const qtyInput = document.getElementById(`input-${stepId}`);
+        const qty = qtyInput ? Number(qtyInput.value) : 1;
+        const actorName = window.state?.currentUser?.name || window.state?.currentUser?.username;
+        if (actorName) {
+            window.api('POST', '/api/inventory', {
+                action: 'timer.start',
+                step_id: stepId,
+                target_date: targetDate,
+                qty: qty,
+                actor_name: actorName
+            }).catch(e => console.error("Error starting active timer in DB:", e));
+        }
+
         this.render();
     },
 
     getElapsedSeconds(stepId, targetDate) {
         const key = `${stepId}_${targetDate}`;
         const t = this.timers[key];
-        if (!t) return 0;
-        let total = t.elapsedBefore || 0;
-        if (t.startTime) {
-            total += Math.floor((Date.now() - t.startTime) / 1000);
+        
+        // If there's a local timer running, use it
+        if (t) {
+            let total = t.elapsedBefore || 0;
+            if (t.startTime) {
+                total += Math.floor((Date.now() - t.startTime) / 1000);
+            }
+            return total;
         }
-        return total;
+
+        // Otherwise, check if there is an active timer from another user in the DB
+        if (this.dbActiveTimers) {
+            const dbTimer = this.dbActiveTimers.find(x => 
+                Number(x.step_id) === Number(stepId) && 
+                String(x.target_date).slice(0, 10) === String(targetDate).slice(0, 10)
+            );
+            if (dbTimer) {
+                const elapsed = Math.floor((Date.now() - new Date(dbTimer.start_time)) / 1000);
+                return Math.max(0, elapsed);
+            }
+        }
+
+        return 0;
     },
 
     formatDuration(seconds) {
@@ -161,7 +251,14 @@ const KitchenManager = {
             if (stepId && targetDate) {
                 const elapsed = this.getElapsedSeconds(stepId, targetDate);
                 el.textContent = this.formatDuration(elapsed);
-                if (this.timers[`${stepId}_${targetDate}`]?.startTime) {
+                
+                const hasLocalActive = this.timers[`${stepId}_${targetDate}`]?.startTime;
+                const dbTimer = this.dbActiveTimers ? this.dbActiveTimers.find(x => 
+                    Number(x.step_id) === Number(stepId) && 
+                    String(x.target_date).slice(0, 10) === String(targetDate).slice(0, 10)
+                ) : null;
+                
+                if (hasLocalActive || dbTimer) {
                     el.style.color = '#ef4444';
                 } else {
                     el.style.color = '#94a3b8';
@@ -979,11 +1076,10 @@ const KitchenManager = {
                     </div>
                 `;
 
-                card.onclick = (e) => {
-                    if (e.target.closest('input') || e.target.closest('button') || e.target.closest('.average-time-badge')) return;
+                card.querySelector('.card-header').onclick = (e) => {
                     const container = card.querySelector('.steps-list-container');
                     const chevron = card.querySelector('.chevron');
-                    const isNowExpanded = container.style.maxHeight === '0px';
+                    const isNowExpanded = container.style.maxHeight === '0px' || container.style.maxHeight === '';
                     
                     if (!isNowExpanded) {
                         container.style.maxHeight = '0px';
@@ -1039,13 +1135,13 @@ const KitchenManager = {
         // Update readonly
         cont.querySelectorAll('.ingredients-readonly .qty-calc').forEach(span => {
             const base = Number(span.getAttribute('data-base')) || 0;
-            span.textContent = (base * multiplier).toFixed(2);
+            span.textContent = Math.round(base * multiplier);
         });
         
         // Update edit mode
         cont.querySelectorAll('.ingredients-edit .ing-qty[data-base]').forEach(inp => {
             const base = Number(inp.getAttribute('data-base')) || 0;
-            inp.value = (base * multiplier).toFixed(2);
+            inp.value = Math.round(base * multiplier);
         });
 
         // Update average time dynamically if the badge exists
@@ -1103,6 +1199,25 @@ const KitchenManager = {
         cont.appendChild(row);
     },
 
+    formatInstructionWithQuantities(text, items, batchQty) {
+        if (!items || items.length === 0) return text;
+        
+        let result = text;
+        const sortedItems = [...items].sort((a, b) => b.ingredient.length - a.ingredient.length);
+        
+        sortedItems.forEach(it => {
+            const qtyNeeded = Math.round(Number(it.qty_per_unit || 0) * batchQty);
+            const formattedQty = `${qtyNeeded} ${it.unit}`;
+            
+            const escapedName = it.ingredient.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`(${escapedName})`, 'gi');
+            
+            result = result.replace(regex, `$1 <strong style="color:#db2777; font-size:1.1rem; background:rgba(219,39,119,0.06); padding:2px 6px; border-radius:6px; white-space:nowrap;">(${formattedQty})</strong>`);
+        });
+        
+        return result;
+    },
+
     renderStepRow(recipeName, step, targetDate, totalNeeded) {
         if (!step) return "";
         const inputId = `input-${step.id || Math.random().toString(36).substr(2, 9)}`;
@@ -1111,8 +1226,18 @@ const KitchenManager = {
         const timerKey = `${step.id}_${targetDate}`;
         const activeTimer = this.timers[timerKey];
         const isRunning = activeTimer && activeTimer.startTime;
+        const isLocalActiveOrPaused = activeTimer && (activeTimer.startTime || activeTimer.elapsedBefore > 0);
+
+        const currentUsername = window.state?.currentUser?.name || window.state?.currentUser?.username;
+        const dbTimer = (this.dbActiveTimers || []).find(x => 
+            Number(x.step_id) === Number(step.id) && 
+            String(x.target_date).slice(0, 10) === String(targetDate).slice(0, 10)
+        );
+        const isRemoteRunning = dbTimer && dbTimer.username && (!currentUsername || dbTimer.username.toLowerCase() !== currentUsername.toLowerCase());
+        
+        const isTimerRunning = isRunning || isRemoteRunning;
         const elapsed = this.getElapsedSeconds(step.id, targetDate);
-        const isStepActive = isRunning || elapsed > 0;
+        const isStepActive = isLocalActiveOrPaused || isRemoteRunning;
 
         const isDone = producedInWindow >= totalNeeded && totalNeeded > 0 && !isStepActive;
 
@@ -1145,6 +1270,16 @@ const KitchenManager = {
             `;
         }
 
+        let remoteActorHtml = "";
+        if (isRemoteRunning) {
+            remoteActorHtml = `
+                <span style="font-size:0.95rem; color:#ef4444; font-weight:700; background:rgba(239,68,68,0.08); padding:3px 8px; border-radius:8px; display:inline-flex; align-items:center; gap:6px; vertical-align:middle; animation: pulse 2s infinite;">
+                    <span style="width:6px; height:6px; background:#ef4444; border-radius:50%;"></span>
+                    ${dbTimer.username} está produciendo
+                </span>
+            `;
+        }
+
         let actionButtonsHtml = "";
         if (isDone) {
             actionButtonsHtml = `
@@ -1167,7 +1302,7 @@ const KitchenManager = {
                         </button>
                     </div>
                 `;
-            } else if (elapsed > 0) {
+            } else if (activeTimer && activeTimer.elapsedBefore > 0) {
                 actionButtonsHtml = `
                     <div style="display:flex; gap:8px; width:100%;">
                         <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
@@ -1195,16 +1330,19 @@ const KitchenManager = {
             <div style="position:relative; background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius:16px; padding:16px; transition: all 0.2s ease;">
                 <div class="flex" style="margin-bottom:12px; justify-content:space-between; align-items:center; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding-right:120px;">
-                        <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex:1;">
-                            <strong style="font-size:1.55rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800; display:inline-flex; align-items:center;">
-                                ${step.name || 'Proceso General'}
-                                ${producedInWindow > 0 ? `<span style="font-size:1.1rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:3px 8px; border-radius:8px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow}</span>` : ''}
-                            </strong>
-                            <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
-                                style="font-family:monospace; font-size:1.3rem; color:${isRunning ? '#ef4444' : '#64748b'}; font-weight:700; letter-spacing:0.5px;">
-                                ${this.formatDuration(elapsed)}
-                            </span>
-                            ${isRunning ? '<span style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
+                        <div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">
+                            <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex-wrap:wrap;">
+                                <strong style="font-size:1.55rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800; display:inline-flex; align-items:center;">
+                                    ${step.name || 'Proceso General'}
+                                    ${producedInWindow > 0 ? `<span style="font-size:1.1rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:3px 8px; border-radius:8px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow}</span>` : ''}
+                                </strong>
+                                <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
+                                    style="font-family:monospace; font-size:1.3rem; color:${isTimerRunning ? '#ef4444' : '#64748b'}; font-weight:700; letter-spacing:0.5px;">
+                                    ${this.formatDuration(elapsed)}
+                                </span>
+                                ${isTimerRunning ? '<span style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
+                            </div>
+                            ${remoteActorHtml ? `<div style="margin-top:2px;">${remoteActorHtml}</div>` : ''}
                         </div>
                     </div>
                     ${averageTimeHtml}
@@ -1254,7 +1392,7 @@ const KitchenManager = {
                             
                             return `<div style="display:flex; justify-content:space-between; margin-bottom:6px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
                                 <span style="font-weight:500;">• ${it.ingredient}</span>
-                                <span><span class="qty-calc" data-base="${it.qty_per_unit}" style="font-weight:700; color:#1e293b;">${Number(qtyNeeded).toFixed(2)}</span> / ${Number(currentProjected).toFixed(2)} ${it.unit}</span>
+                                <span><span class="qty-calc" data-base="${it.qty_per_unit}" style="font-weight:700; color:#1e293b;">${Math.round(qtyNeeded)}</span> / ${Math.round(currentProjected)} ${it.unit}</span>
                             </div>`;
                         }).join('')}
                     </div>
@@ -1267,7 +1405,7 @@ const KitchenManager = {
                                 <strong style="color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; font-size:1.15rem;">${it.ingredient}</strong>
                                 <input type="hidden" class="ing-name" value="${it.ingredient}">
                                 <input type="hidden" class="ing-unit" value="${it.unit}">
-                                <input type="number" class="ing-qty" data-base="${it.qty_per_unit}" value="${Number(qtyNeeded).toFixed(2)}" style="width:80px; padding:6px; border:1px solid #cbd5e1; border-radius:8px; text-align:right; font-size:1.15rem;">
+                                <input type="number" class="ing-qty" data-base="${it.qty_per_unit}" value="${Math.round(qtyNeeded)}" style="width:80px; padding:6px; border:1px solid #cbd5e1; border-radius:8px; text-align:right; font-size:1.15rem;">
                                 <span style="font-size:1.15rem;">${it.unit}</span>
                                 <button type="button" class="press-btn" onclick="this.parentElement.remove()" style="padding:6px 10px; font-size:14px; background:#f1f5f9; color:#ef4444; border:none; border-radius:8px;">❌</button>
                             </div>
@@ -1288,7 +1426,7 @@ const KitchenManager = {
                                 <input type="checkbox" ${isChecked ? 'checked' : ''} 
                                     onclick="window.KitchenManager.toggleInstructionCheck('${step.id}', '${targetDate}', ${idx}, this)"
                                     style="width:20px; height:20px; border-radius:6px; border:2px solid #cbd5e1; cursor:pointer; margin-top:2px;">
-                                <span>${idx + 1}. ${inst}</span>
+                                <span>${idx + 1}. ${this.formatInstructionWithQuantities(inst, step.items, defaultQty)}</span>
                             </label>
                             `;
                         }).join('')}

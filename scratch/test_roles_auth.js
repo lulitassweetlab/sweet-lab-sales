@@ -61,7 +61,26 @@ async function run() {
         console.log('✅ PASS: Seller "Jaimes" exists in the database.');
     }
 
-    console.log('\n🎉 All role database checks passed successfully!');
+    // Check if table active_production_timers exists
+    try {
+        const tableCheck = await sql`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'active_production_timers'
+            );
+        `;
+        if (tableCheck[0]?.exists) {
+            console.log('✅ PASS: active_production_timers table exists.');
+        } else {
+            console.error('❌ FAIL: active_production_timers table does not exist!');
+            process.exit(1);
+        }
+    } catch (err) {
+        console.error('❌ FAIL: Error checking active_production_timers table:', err);
+        process.exit(1);
+    }
+
+    console.log('\n🎉 All role and timer database checks passed successfully!');
     process.exit(0);
 }
 
