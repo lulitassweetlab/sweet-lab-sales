@@ -1019,7 +1019,22 @@ const KitchenManager = {
                 card.style = `margin:0; padding:16px; border-radius:24px; display:flex; flex-direction:column; gap:0; border: 1px solid #f4a6b7; cursor:pointer; background:#fffdfd; transition: all 0.3s ease;`;
                 
                 const cardId = `${batch.day}_${batch.recipeName}`;
-                const isExpanded = this.expandedRecipes.has(cardId);
+                let isExpanded = this.expandedRecipes.has(cardId);
+                if (!isExpanded) {
+                    const hasActiveStep = recipe.steps.some(step => {
+                        const timerKey = `${step.id}_${batch.day}`;
+                        const localRunning = this.timers[timerKey]?.startTime;
+                        const remoteRunning = (this.dbActiveTimers || []).some(x => 
+                            Number(x.step_id) === Number(step.id) && 
+                            String(x.target_date).slice(0, 10) === String(batch.day).slice(0, 10)
+                        );
+                        return localRunning || remoteRunning;
+                    });
+                    if (hasActiveStep) {
+                        isExpanded = true;
+                        this.expandedRecipes.add(cardId);
+                    }
+                }
                 
                 card.innerHTML = `
                     <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
@@ -1334,7 +1349,7 @@ const KitchenManager = {
         }
 
         return `
-            <div style="position:relative; background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius:16px; padding:16px; transition: all 0.2s ease;">
+            <div style="position:relative; background:${isDone ? '#f0fdf4' : (isTimerRunning ? '#fff5f5' : '#f8fafc')}; border:1px solid ${isDone ? '#bbf7d0' : (isTimerRunning ? '#fca5a5' : '#e2e8f0')}; border-radius:16px; padding:16px; transition: all 0.2s ease; box-shadow: ${isTimerRunning ? '0 4px 12px rgba(239, 68, 68, 0.05)' : 'none'};">
                 <div class="flex" style="margin-bottom:12px; justify-content:space-between; align-items:center; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding-right:120px;">
                         <div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">
