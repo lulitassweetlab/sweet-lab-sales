@@ -10,13 +10,20 @@ const KitchenManager = {
 
     async init() {
         if (this.isInitialized) {
-            await this.loadData();
+            const hasAccess = await this.checkAccess();
+            if (hasAccess) {
+                await this.loadData();
+            }
             return;
         }
         console.log("👨‍🍳 Initializing Kitchen Manager...");
         this.bindEvents();
-        await this.loadData();
-        this.startIntervals();
+        
+        const hasAccess = await this.checkAccess();
+        if (hasAccess) {
+            await this.loadData();
+            this.startIntervals();
+        }
         this.isInitialized = true;
     },
 
@@ -69,6 +76,11 @@ const KitchenManager = {
             }
         } catch (e) {
             console.error("Error silently syncing production data:", e);
+            if (e.message && (e.message.includes('403') || e.message.includes('production_access_denied'))) {
+                console.warn("⚠️ Production access was revoked by admin. Locking...");
+                this.stopIntervals();
+                await this.checkAccess();
+            }
         }
     },
 
@@ -188,6 +200,95 @@ const KitchenManager = {
                 }
             };
         }
+
+        // Logout button on the blocked screen
+        const blockedLogoutBtn = document.getElementById('kitchen-blocked-logout');
+        if (blockedLogoutBtn) {
+            blockedLogoutBtn.onclick = () => {
+                this.stopLockPolling();
+                this.stopIntervals();
+                window.state.currentUser = null;
+                try { localStorage.removeItem('authUser'); } catch { }
+                if (typeof window.applyAuthVisibility === 'function') window.applyAuthVisibility();
+                if (typeof window.renderSellerButtons === 'function') window.renderSellerButtons();
+                window.switchView('#view-login');
+            };
+        }
+
+        // Toggle access button for superadmin
+        const toggleAccessBtn = document.getElementById('kitchen-toggle-access');
+        if (toggleAccessBtn) {
+            toggleAccessBtn.onclick = async () => {
+                toggleAccessBtn.disabled = true;
+                try {
+                    const settings = await window.api('GET', '/api/store-settings');
+                    const currentlyApproved = settings.production_access_approved === 'true';
+                    const newApproved = !currentlyApproved;
+                    
+                    const actorName = window.state?.currentUser?.name || window.state?.currentUser?.username || '';
+                    await window.api('POST', '/api/store-settings', {
+                        production_access_approved: String(newApproved),
+                        actor_name: actorName
+                    });
+                    
+                    // Touch sync meta via a dummy timer.stop to force all clients to notice state change instantly
+                    try {
+                        await window.api('POST', '/api/inventory', {
+                            action: 'timer.stop',
+                            step_id: -99,
+                            target_date: '1970-01-01',
+                            actor_name: 'system'
+                        });
+                    } catch {}
+                } catch (err) {
+                    console.error("Error toggling kitchen access:", err);
+                    window.notify.error("Error al cambiar acceso: " + err.message);
+                } finally {
+                    toggleAccessBtn.disabled = false;
+                    await this.loadAdminControls();
+                }
+            };
+        }
+
+        // Save production date button for superadmin
+        const saveDateBtn = document.getElementById('kitchen-save-prod-date');
+        const nextProdInput = document.getElementById('kitchen-next-prod-input');
+        if (saveDateBtn && nextProdInput) {
+            saveDateBtn.onclick = async () => {
+                saveDateBtn.disabled = true;
+                const value = nextProdInput.value.trim();
+                if (!value) {
+                    window.notify.error("La fecha no puede estar vacía");
+                    saveDateBtn.disabled = false;
+                    return;
+                }
+
+                try {
+                    const actorName = window.state?.currentUser?.name || window.state?.currentUser?.username || '';
+                    await window.api('POST', '/api/store-settings', {
+                        next_production_datetime: value,
+                        actor_name: actorName
+                    });
+                    window.notify.success("Próxima producción actualizada: " + value);
+                    
+                    // Touch sync meta via a dummy timer.stop to force all clients to notice state change instantly
+                    try {
+                        await window.api('POST', '/api/inventory', {
+                            action: 'timer.stop',
+                            step_id: -99,
+                            target_date: '1970-01-01',
+                            actor_name: 'system'
+                        });
+                    } catch {}
+                } catch (err) {
+                    console.error("Error saving next production datetime:", err);
+                    window.notify.error("Error al guardar: " + err.message);
+                } finally {
+                    saveDateBtn.disabled = false;
+                    await this.loadAdminControls();
+                }
+            };
+        }
     },
 
     async loadData() {
@@ -249,8 +350,14 @@ const KitchenManager = {
             this.render();
         } catch (err) {
             console.error("Kitchen Load Error:", err);
-            window.notify.error("Error al cargar datos de producción: " + err.message);
-            if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar la bitácora.<br><small>${err.message}</small></div>`;
+            if (err.message && (err.message.includes('403') || err.message.includes('production_access_denied'))) {
+                console.warn("⚠️ Access denied during loadData. Locking...");
+                this.stopIntervals();
+                await this.checkAccess();
+            } else {
+                window.notify.error("Error al cargar datos de producción: " + err.message);
+                if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar la bitácora.<br><small>${err.message}</small></div>`;
+            }
         }
     },
 
@@ -1840,6 +1947,139 @@ const KitchenManager = {
             }
         };
         setTimeout(() => document.addEventListener('click', outside), 10);
+    },
+
+    isProductionUser() {
+        const user = window.state?.currentUser;
+        if (!user) return false;
+        return user.role === 'produccion' || (user.features && user.features.includes('produccion'));
+    },
+
+    isSuperAdmin() {
+        const user = window.state?.currentUser;
+        if (!user) return false;
+        return user.role === 'superadmin' || !!user.isSuperAdmin;
+    },
+
+    async checkAccess() {
+        if (!this.isProductionUser()) {
+            // Admin and superadmin always have access
+            document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
+            document.getElementById('kitchen-active-content')?.classList.remove('hidden');
+            
+            // Show admin controls
+            if (this.isSuperAdmin()) {
+                document.getElementById('kitchen-admin-controls')?.classList.remove('hidden');
+                await this.loadAdminControls();
+            } else {
+                document.getElementById('kitchen-admin-controls')?.classList.add('hidden');
+            }
+            return true;
+        }
+
+        // Hide admin controls for normal production users
+        document.getElementById('kitchen-admin-controls')?.classList.add('hidden');
+
+        try {
+            const settings = await window.api('GET', '/api/store-settings');
+            const approved = settings.production_access_approved === 'true';
+            const nextProduction = settings.next_production_datetime || 'Pendiente de confirmación';
+
+            if (!approved) {
+                // Show blocked screen, hide active content
+                document.getElementById('kitchen-active-content')?.classList.add('hidden');
+                document.getElementById('kitchen-blocked-content')?.classList.remove('hidden');
+                
+                // Set next production date/time message
+                const msgEl = document.getElementById('kitchen-next-production-msg');
+                if (msgEl) {
+                    msgEl.textContent = `Próxima fecha de producción: ${nextProduction}`;
+                }
+                
+                // Start lock polling if not already running
+                this.startLockPolling();
+                return false;
+            } else {
+                // Access approved, show active content and hide blocked screen
+                document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
+                document.getElementById('kitchen-active-content')?.classList.remove('hidden');
+                
+                // Stop lock polling if running
+                this.stopLockPolling();
+                return true;
+            }
+        } catch (e) {
+            console.error("Error checking production access settings:", e);
+            // Default to let it load if settings API fails
+            return true;
+        }
+    },
+
+    startLockPolling() {
+        if (this._lockPollingInterval) return;
+        console.log("🔐 Starting production access lock polling...");
+        this._lockPollingInterval = setInterval(async () => {
+            try {
+                const settings = await window.api('GET', '/api/store-settings');
+                const approved = settings.production_access_approved === 'true';
+                const nextProduction = settings.next_production_datetime || 'Pendiente de confirmación';
+                
+                const msgEl = document.getElementById('kitchen-next-production-msg');
+                if (msgEl) {
+                    msgEl.textContent = `Próxima fecha de producción: ${nextProduction}`;
+                }
+
+                if (approved) {
+                    console.log("🔓 Production access approved! Unlocking...");
+                    this.stopLockPolling();
+                    document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
+                    document.getElementById('kitchen-active-content')?.classList.remove('hidden');
+                    
+                    // Reload active kitchen data
+                    await this.loadData();
+                    // Resume normal sync checks
+                    this.startIntervals();
+                }
+            } catch (err) {
+                console.error("Lock polling error:", err);
+            }
+        }, 10000); // Poll every 10 seconds
+    },
+
+    stopLockPolling() {
+        if (this._lockPollingInterval) {
+            clearInterval(this._lockPollingInterval);
+            this._lockPollingInterval = null;
+            console.log("🔓 Stopped production access lock polling.");
+        }
+    },
+
+    async loadAdminControls() {
+        try {
+            const settings = await window.api('GET', '/api/store-settings');
+            const approved = settings.production_access_approved === 'true';
+            const nextProduction = settings.next_production_datetime || '27 de Junio, 2:00 pm';
+
+            // 1. Render toggle button
+            const toggleBtn = document.getElementById('kitchen-toggle-access');
+            if (toggleBtn) {
+                if (approved) {
+                    toggleBtn.className = 'press-btn success';
+                    toggleBtn.textContent = '🟢 Acceso Cocina: Abierto';
+                } else {
+                    toggleBtn.className = 'press-btn danger';
+                    toggleBtn.textContent = '🔴 Acceso Cocina: Cerrado';
+                }
+            }
+
+            // 2. Render input value
+            const inputEl = document.getElementById('kitchen-next-prod-input');
+            if (inputEl) {
+                inputEl.value = nextProduction;
+            }
+        } catch (err) {
+            console.error("Error loading admin production access controls:", err);
+        }
     }
 };
 

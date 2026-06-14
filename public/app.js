@@ -752,7 +752,8 @@ const API = {
 	Inventory: '/api/inventory',
 	Desserts: '/api/desserts',
 	Notifications: '/api/notifications',
-	Clients: '/api/clients'
+	Clients: '/api/clients',
+	StoreSettings: '/api/store-settings'
 };
 
 const DEFAULT_A_COSTO_MULTIPLIER = 0.55;
@@ -1327,7 +1328,14 @@ function switchView(id) {
 	$(id).classList.remove('hidden');
 
 	if (id === '#view-kitchen') {
-		if (window.KitchenManager) window.KitchenManager.startIntervals();
+		if (window.KitchenManager) {
+			const isBlocked = typeof window.KitchenManager.isProductionUser === 'function' && 
+				window.KitchenManager.isProductionUser() && 
+				document.getElementById('kitchen-active-content')?.classList.contains('hidden');
+			if (!isBlocked) {
+				window.KitchenManager.startIntervals();
+			}
+		}
 	} else {
 		if (window.KitchenManager) window.KitchenManager.stopIntervals();
 	}

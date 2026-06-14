@@ -8,6 +8,49 @@ export async function handler(event) {
 	try {
 		await ensureSchema();
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
+
+		// 🔐 Identify actor and check for production access restrictions
+		const headers = (event.headers || {});
+		const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+		let bActor = '';
+		if (event.body) {
+			try {
+				const bodyData = JSON.parse(event.body);
+				bActor = bodyData.actor_name || bodyData.username || '';
+			} catch {}
+		}
+		let qActor = '';
+		try {
+			const rawQuery = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
+			const queryParams = new URLSearchParams(rawQuery);
+			qActor = queryParams.get('actor') || '';
+		} catch {}
+		const actor = (hActor || bActor || qActor || '').trim();
+
+		let isProductionUser = false;
+		if (actor) {
+			try {
+				const userRows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+				const role = userRows.length ? userRows[0].role : 'user';
+				if (role === 'produccion') {
+					isProductionUser = true;
+				} else {
+					const fpRows = await sql`SELECT 1 FROM user_feature_permissions WHERE lower(username)=lower(${actor}) AND feature='produccion' LIMIT 1`;
+					if (fpRows.length > 0) {
+						isProductionUser = true;
+					}
+				}
+			} catch {}
+		}
+
+		if (isProductionUser) {
+			const [approvedRow] = await sql`SELECT value FROM store_settings WHERE key = 'production_access_approved' LIMIT 1`;
+			const approved = approvedRow ? approvedRow.value === 'true' : false;
+			if (!approved) {
+				return json({ error: 'production_access_denied', message: 'El acceso a la cocina está cerrado temporalmente por el administrador.' }, 403);
+			}
+		}
+
 		switch (event.httpMethod) {
 			case 'GET': {
 				const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');

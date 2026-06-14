@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 65; // 65: add production_sync_meta table
+const SCHEMA_VERSION = 66; // 66: add production access controls in store_settings
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -762,6 +762,17 @@ export async function ensureSchema() {
 					`;
 					await sql`INSERT INTO production_sync_meta (last_change) SELECT now() WHERE NOT EXISTS (SELECT 1 FROM production_sync_meta)`;
 					await sql`UPDATE schema_meta SET version = 65`;
+				}
+				if (Number(meta[0].version) < 66) {
+					console.log('Migrating to v66: Seeding production access settings...');
+					await sql`
+						INSERT INTO store_settings (key, value)
+						VALUES 
+							('production_access_approved', 'false'),
+							('next_production_datetime', '27 de Junio, 2:00 pm')
+						ON CONFLICT (key) DO NOTHING
+					`;
+					await sql`UPDATE schema_meta SET version = 66`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
