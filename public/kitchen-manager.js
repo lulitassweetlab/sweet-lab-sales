@@ -191,9 +191,10 @@ const KitchenManager = {
         
         const goHomeBtn = document.getElementById('kitchen-go-home');
         if (goHomeBtn) {
+            const isAdm = this.isSuperAdmin() || window.state?.currentUser?.role === 'admin';
+            goHomeBtn.textContent = isAdm ? 'Inicio' : 'Tienda';
             goHomeBtn.onclick = () => {
-                const hasSalesAccess = window.state?.currentUser && ['user', 'admin', 'superadmin'].includes(window.state.currentUser.role);
-                if (hasSalesAccess) {
+                if (isAdm) {
                     window.switchView('#view-select-seller');
                 } else {
                     window.location.href = '/store.html';
@@ -201,17 +202,27 @@ const KitchenManager = {
             };
         }
 
-        // Logout button on the blocked screen
-        const blockedLogoutBtn = document.getElementById('kitchen-blocked-logout');
-        if (blockedLogoutBtn) {
-            blockedLogoutBtn.onclick = () => {
-                this.stopLockPolling();
-                this.stopIntervals();
-                window.state.currentUser = null;
-                try { localStorage.removeItem('authUser'); } catch { }
-                if (typeof window.applyAuthVisibility === 'function') window.applyAuthVisibility();
-                if (typeof window.renderSellerButtons === 'function') window.renderSellerButtons();
-                window.switchView('#view-login');
+        // Recheck access button on wait screen
+        const recheckBtn = document.getElementById('kitchen-recheck-btn');
+        if (recheckBtn) {
+            recheckBtn.onclick = async () => {
+                recheckBtn.disabled = true;
+                recheckBtn.textContent = 'Verificando...';
+                try {
+                    const hasAccess = await this.checkAccess();
+                    if (hasAccess) {
+                        window.notify.success("¡Acceso abierto! Cargando producción...");
+                        await this.loadData();
+                        this.startIntervals();
+                    } else {
+                        window.notify.error("El acceso aún está cerrado.");
+                    }
+                } catch (err) {
+                    console.error("Error rechecking access:", err);
+                } finally {
+                    recheckBtn.disabled = false;
+                    recheckBtn.textContent = 'Reintentar';
+                }
             };
         }
 
@@ -1974,11 +1985,23 @@ const KitchenManager = {
             } else {
                 document.getElementById('kitchen-admin-controls')?.classList.add('hidden');
             }
+            
+            // Update exit button dynamically for admins
+            const goHomeBtn = document.getElementById('kitchen-go-home');
+            if (goHomeBtn) {
+                goHomeBtn.textContent = 'Inicio';
+            }
             return true;
         }
 
         // Hide admin controls for normal production users
         document.getElementById('kitchen-admin-controls')?.classList.add('hidden');
+
+        // Update exit button dynamically for production users
+        const goHomeBtn = document.getElementById('kitchen-go-home');
+        if (goHomeBtn) {
+            goHomeBtn.textContent = 'Tienda';
+        }
 
         try {
             const settings = await window.api('GET', '/api/store-settings');
@@ -1996,61 +2019,19 @@ const KitchenManager = {
                     msgEl.textContent = `Próxima fecha de producción: ${nextProduction}`;
                 }
                 
-                // Start lock polling if not already running
-                this.startLockPolling();
+                // Clear any running intervals so no background requests are sent
+                this.stopIntervals();
                 return false;
             } else {
                 // Access approved, show active content and hide blocked screen
                 document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
                 document.getElementById('kitchen-active-content')?.classList.remove('hidden');
-                
-                // Stop lock polling if running
-                this.stopLockPolling();
                 return true;
             }
         } catch (e) {
             console.error("Error checking production access settings:", e);
             // Default to let it load if settings API fails
             return true;
-        }
-    },
-
-    startLockPolling() {
-        if (this._lockPollingInterval) return;
-        console.log("🔐 Starting production access lock polling...");
-        this._lockPollingInterval = setInterval(async () => {
-            try {
-                const settings = await window.api('GET', '/api/store-settings');
-                const approved = settings.production_access_approved === 'true';
-                const nextProduction = settings.next_production_datetime || 'Pendiente de confirmación';
-                
-                const msgEl = document.getElementById('kitchen-next-production-msg');
-                if (msgEl) {
-                    msgEl.textContent = `Próxima fecha de producción: ${nextProduction}`;
-                }
-
-                if (approved) {
-                    console.log("🔓 Production access approved! Unlocking...");
-                    this.stopLockPolling();
-                    document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
-                    document.getElementById('kitchen-active-content')?.classList.remove('hidden');
-                    
-                    // Reload active kitchen data
-                    await this.loadData();
-                    // Resume normal sync checks
-                    this.startIntervals();
-                }
-            } catch (err) {
-                console.error("Lock polling error:", err);
-            }
-        }, 10000); // Poll every 10 seconds
-    },
-
-    stopLockPolling() {
-        if (this._lockPollingInterval) {
-            clearInterval(this._lockPollingInterval);
-            this._lockPollingInterval = null;
-            console.log("🔓 Stopped production access lock polling.");
         }
     },
 
