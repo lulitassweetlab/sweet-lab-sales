@@ -1996,7 +1996,6 @@ const KitchenManager = {
                 goHomeBtn.textContent = 'Inicio';
             }
             this.stopLockPolling();
-            this.updateWatermark();
             return true;
         }
 
@@ -2035,7 +2034,6 @@ const KitchenManager = {
                 document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
                 document.getElementById('kitchen-active-content')?.classList.remove('hidden');
                 this.stopLockPolling();
-                this.updateWatermark();
                 return true;
             }
         } catch (e) {
@@ -2066,7 +2064,6 @@ const KitchenManager = {
                     this.stopLockPolling();
                     document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
                     document.getElementById('kitchen-active-content')?.classList.remove('hidden');
-                    this.updateWatermark();
                     
                     // Reload active kitchen data
                     await this.loadData();
@@ -2126,7 +2123,7 @@ const KitchenManager = {
     },
 
     setupSecurity() {
-        // 1. Add style tag for security features (blur and watermark)
+        // 1. Add style tag for security features (blur)
         if (!document.getElementById('kitchen-security-styles')) {
             const style = document.createElement('style');
             style.id = 'kitchen-security-styles';
@@ -2136,32 +2133,6 @@ const KitchenManager = {
                     pointer-events: none;
                     user-select: none;
                     transition: filter 0.15s ease-out;
-                }
-                .kitchen-watermark-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100vw;
-                    height: 100vh;
-                    z-index: 999999;
-                    pointer-events: none;
-                    overflow: hidden;
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    grid-template-rows: repeat(6, 1fr);
-                    gap: 20px;
-                    opacity: 0.04;
-                    user-select: none;
-                }
-                .watermark-item {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.1rem;
-                    font-weight: 900;
-                    color: #000;
-                    transform: rotate(-25deg);
-                    white-space: nowrap;
                 }
             `;
             document.head.appendChild(style);
@@ -2194,32 +2165,6 @@ const KitchenManager = {
                 handleFocus();
             }
         });
-    },
-
-    updateWatermark() {
-        // Remove existing watermark if any
-        document.getElementById('kitchen-watermark')?.remove();
-
-        const activeContent = document.getElementById('kitchen-active-content');
-        if (!activeContent) return;
-
-        const username = window.state?.currentUser?.name || window.state?.currentUser?.username || 'Usuario';
-        const dateStr = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        
-        const watermarkContainer = document.createElement('div');
-        watermarkContainer.id = 'kitchen-watermark';
-        watermarkContainer.className = 'kitchen-watermark-overlay';
-
-        // Fill the grid with watermark texts
-        const totalItems = 24; // 4x6 grid
-        for (let i = 0; i < totalItems; i++) {
-            const item = document.createElement('div');
-            item.className = 'watermark-item';
-            item.textContent = `${username} - ${dateStr} - Lulitas`;
-            watermarkContainer.appendChild(item);
-        }
-
-        activeContent.appendChild(watermarkContainer);
     }
 };
 
