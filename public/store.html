@@ -1986,8 +1986,8 @@
                 const customerName = customerNameInput.value.trim();
                 if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
                 
-                const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
-                if (exactMatch) { executeCheckout(exactMatch); return; }
+                const exactMatch = storeClientList.find(c => (c.name || '').trim().toLowerCase() === customerName.toLowerCase());
+                if (exactMatch) { executeCheckout(exactMatch.name); return; }
 
                 const similar = findSimilarClients(customerName);
                 if (similar.length > 0) {
@@ -2142,7 +2142,14 @@
                     })
                 });
                 if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar cliente');
-                storeClientList.push(name);
+                storeClientList.push({
+                    name: name.trim(),
+                    stage_name: '',
+                    stage_color: '#94a3b8',
+                    custom_tags: [],
+                    debt_cents: 0,
+                    total_orders: 1
+                });
                 document.getElementById('store-new-client-modal').style.display = 'none';
                 await executeCheckout(name);
             } catch (err) {

@@ -609,8 +609,35 @@ async function syncPendingSales() {
                 safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
                 console.log(`[Sync] Successfully processed sale for ${sale.customerName}.`);
             } else {
-                console.warn(`[Sync] Failed to process sale for ${sale.customerName}. Will retry later.`);
-                break;
+                sale.attempts = (sale.attempts || 0) + 1;
+                console.warn(`[Sync] Failed to process sale for ${sale.customerName} (Attempt ${sale.attempts}/3).`);
+                
+                if (sale.attempts >= 3) {
+                    console.error(`[Sync] Permanent failure for ${sale.customerName}. Moving to failed sales storage.`);
+                    pendingSales.shift();
+                    
+                    try {
+                        const savedFailed = safeLS.getItem('failed_sales') || '[]';
+                        const failedSales = JSON.parse(savedFailed);
+                        sale.failReason = "Error al sincronizar después de 3 intentos";
+                        failedSales.push(sale);
+                        safeLS.setItem('failed_sales', JSON.stringify(failedSales));
+                    } catch (e) {
+                        console.error('Error saving to failed sales history', e);
+                    }
+                    
+                    safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
+                    
+                    const toast = document.getElementById('store-toast');
+                    if (toast) {
+                        toast.textContent = `Error al sincronizar el pedido de ${sale.customerName}. Se guardó localmente.`;
+                        toast.classList.add('show');
+                        setTimeout(() => toast.classList.remove('show'), 5000);
+                    }
+                } else {
+                    safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
+                    break;
+                }
             }
         }
     } catch (err) {
