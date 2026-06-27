@@ -897,9 +897,12 @@ const KitchenManager = {
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="font-size:0.95rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
                                 👨‍🍳 
-                                <input type="text" value="${log.actor_name || 'Cocinero'}" 
-                                    onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'actor')"
-                                    style="border:none; background:transparent; font-size:0.95rem; font-weight:700; color:#64748b; width:80px; padding:0; outline:none; text-align:left;">
+                                <select onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'actor')"
+                                    style="border:none; background:transparent; font-size:0.95rem; font-weight:700; color:#64748b; padding:0; outline:none; cursor:pointer;">
+                                    <option value="Jaimes" ${log.actor_name === 'Jaimes' ? 'selected' : ''}>Jaimes</option>
+                                    <option value="Jorge" ${log.actor_name === 'Jorge' ? 'selected' : ''}>Jorge</option>
+                                    ${(log.actor_name !== 'Jaimes' && log.actor_name !== 'Jorge') ? `<option value="${log.actor_name}" selected>${log.actor_name}</option>` : ''}
+                                </select>
                             </span>
                             <button onclick="window.KitchenManager.deleteProductionLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
                                 class="press-btn" style="border:none; background:transparent; font-size:16px; cursor:pointer; padding:2px;" title="Eliminar registro">
@@ -944,72 +947,11 @@ const KitchenManager = {
         }
         // Group logs by actor for Super Admin comparison
         let statsHeaderHtml = '';
-        if (this.isSuperAdmin() && logs.length > 0) {
-            const employeeStats = {};
-            logs.forEach(log => {
-                const actor = log.actor_name || 'Cocinero';
-                if (!employeeStats[actor]) {
-                    employeeStats[actor] = { totalSeconds: 0, totalQty: 0, count: 0 };
-                }
-                employeeStats[actor].totalSeconds += Number(log.duration_seconds || 0);
-                employeeStats[actor].totalQty += Number(log.qty || 0);
-                employeeStats[actor].count++;
-            });
-
-            let overallSeconds = 0;
-            let overallQty = 0;
-            logs.forEach(log => {
-                overallSeconds += Number(log.duration_seconds || 0);
-                overallQty += Number(log.qty || 0);
-            });
-            const overallAvg = overallQty > 0 ? (overallSeconds / overallQty) : 0;
-
-            let tableRows = '';
-            Object.keys(employeeStats).forEach(actor => {
-                const stats = employeeStats[actor];
-                const avg = stats.totalQty > 0 ? (stats.totalSeconds / stats.totalQty) : 0;
-                
-                let performanceHtml = '';
-                if (overallAvg > 0 && avg > 0) {
-                    const diffPct = Math.round(((overallAvg - avg) / overallAvg) * 100);
-                    if (diffPct > 0) {
-                        performanceHtml = `<span style="color:#16a34a; font-weight:700;">🟢 +${diffPct}% rápido</span>`;
-                    } else if (diffPct < 0) {
-                        performanceHtml = `<span style="color:#d97706; font-weight:700;">🟡 ${Math.abs(diffPct)}% lento</span>`;
-                    } else {
-                        performanceHtml = `<span style="color:#64748b; font-weight:600;">= promedio</span>`;
-                    }
-                }
-
-                tableRows += `
-                    <tr style="border-bottom:1px solid rgba(226,232,240,0.5);">
-                        <td style="padding:6px 0; font-weight:700; font-size:0.9rem;">${actor}</td>
-                        <td style="padding:6px 0; font-size:0.9rem; text-align:center;">${this.formatDuration(Math.round(avg))}/ud</td>
-                        <td style="padding:6px 0; font-size:0.85rem; text-align:center;">${stats.count} lotes</td>
-                        <td style="padding:6px 0; font-size:0.85rem; text-align:right;">${performanceHtml}</td>
-                    </tr>
-                `;
-            });
-
+        if (this.isSuperAdmin()) {
             statsHeaderHtml = `
-                <div style="background:rgba(79,70,229,0.04); border:1px solid rgba(79,70,229,0.15); border-radius:16px; padding:12px; margin-bottom:4px;">
-                    <div style="font-size:0.85rem; text-transform:uppercase; font-weight:800; color:#4f46e5; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                        📊 Comparativa de Rendimiento
-                    </div>
-                    <table style="width:100%; border-collapse:collapse; line-height:1.4;">
-                        <thead>
-                            <tr style="border-bottom:1px solid rgba(79,70,229,0.15); color:#64748b; font-size:0.75rem; text-transform:uppercase; font-weight:700;">
-                                <th style="text-align:left; padding-bottom:4px;">Empleado</th>
-                                <th style="text-align:center; padding-bottom:4px;">Promedio</th>
-                                <th style="text-align:center; padding-bottom:4px;">Sesiones</th>
-                                <th style="text-align:right; padding-bottom:4px;">Diferencia</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows}
-                        </tbody>
-                    </table>
-                </div>
+                <button type="button" class="press-btn" style="background:rgba(79,70,229,0.06); color:#4f46e5; border:1px solid rgba(79,70,229,0.15); padding:10px; border-radius:12px; font-weight:700; width:100%; text-align:center; font-size:1rem; cursor:pointer; margin-bottom:4px;">
+                    📊 Comparativa de Rendimiento
+                </button>
             `;
         }
 
