@@ -1556,36 +1556,24 @@ const KitchenManager = {
     },
 
     formatInstructionWithQuantities(text, items, batchQty) {
-        if (!items || items.length === 0) return text;
-        
-        let result = text;
-        const sortedItems = [...items].sort((a, b) => b.ingredient.length - a.ingredient.length);
-        
-        // 1. Map and temporarily replace ingredients with unique tokens
-        const tokens = [];
-        sortedItems.forEach((it, idx) => {
-            const escapedName = it.ingredient.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-            const regex = new RegExp(`(${escapedName})`, 'gi');
+        if (!text) return '';
+        if (!items || items.length === 0) {
+            return text.replace(/\{([^{}]+)\}/g, '$1');
+        }
+
+        return text.replace(/\{([^{}]+)\}/g, (match, ingName) => {
+            const trimmedName = ingName.trim();
+            const it = items.find(x => x.ingredient.trim().toLowerCase() === trimmedName.toLowerCase());
             
-            if (regex.test(result)) {
-                const tokenPlaceholder = `__ING_TOKEN_${idx}__`;
-                result = result.replace(regex, tokenPlaceholder);
-                
+            if (it) {
                 const qtyNeeded = Math.round(Number(it.qty_per_unit || 0) * batchQty);
                 const qtySpan = `<span class="inst-qty-calc" data-base-qty="${it.qty_per_unit}">${qtyNeeded}</span>`;
                 const formattedQty = `${qtySpan} ${it.unit}`;
-                const replacementHtml = `${it.ingredient} <strong style="color:#db2777; font-size:1.1rem; background:rgba(219,39,119,0.06); padding:2px 6px; border-radius:6px; white-space:nowrap;">(${formattedQty})</strong>`;
-                
-                tokens.push({ placeholder: tokenPlaceholder, html: replacementHtml });
+                return `${it.ingredient} <strong style="color:#db2777; font-size:1.1rem; background:rgba(219,39,119,0.06); padding:2px 6px; border-radius:6px; white-space:nowrap;">(${formattedQty})</strong>`;
             }
+            
+            return trimmedName;
         });
-        
-        // 2. Substitute the temporary tokens back with real formatted HTML
-        tokens.forEach(t => {
-            result = result.replace(new RegExp(t.placeholder, 'g'), t.html);
-        });
-        
-        return result;
     },
 
     renderStepRow(recipeName, step, targetDate, totalNeeded) {
