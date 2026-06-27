@@ -1485,15 +1485,28 @@ const KitchenManager = {
         let result = text;
         const sortedItems = [...items].sort((a, b) => b.ingredient.length - a.ingredient.length);
         
-        sortedItems.forEach(it => {
-            const qtyNeeded = Math.round(Number(it.qty_per_unit || 0) * batchQty);
-            const qtySpan = `<span class="inst-qty-calc" data-base-qty="${it.qty_per_unit}">${qtyNeeded}</span>`;
-            const formattedQty = `${qtySpan} ${it.unit}`;
-            
+        // 1. Map and temporarily replace ingredients with unique tokens
+        const tokens = [];
+        sortedItems.forEach((it, idx) => {
             const escapedName = it.ingredient.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
             const regex = new RegExp(`(${escapedName})`, 'gi');
             
-            result = result.replace(regex, `$1 <strong style="color:#db2777; font-size:1.1rem; background:rgba(219,39,119,0.06); padding:2px 6px; border-radius:6px; white-space:nowrap;">(${formattedQty})</strong>`);
+            if (regex.test(result)) {
+                const tokenPlaceholder = `__ING_TOKEN_${idx}__`;
+                result = result.replace(regex, tokenPlaceholder);
+                
+                const qtyNeeded = Math.round(Number(it.qty_per_unit || 0) * batchQty);
+                const qtySpan = `<span class="inst-qty-calc" data-base-qty="${it.qty_per_unit}">${qtyNeeded}</span>`;
+                const formattedQty = `${qtySpan} ${it.unit}`;
+                const replacementHtml = `${it.ingredient} <strong style="color:#db2777; font-size:1.1rem; background:rgba(219,39,119,0.06); padding:2px 6px; border-radius:6px; white-space:nowrap;">(${formattedQty})</strong>`;
+                
+                tokens.push({ placeholder: tokenPlaceholder, html: replacementHtml });
+            }
+        });
+        
+        // 2. Substitute the temporary tokens back with real formatted HTML
+        tokens.forEach(t => {
+            result = result.replace(new RegExp(t.placeholder, 'g'), t.html);
         });
         
         return result;
@@ -1706,7 +1719,7 @@ const KitchenManager = {
                             <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:1.2rem; color:${isChecked ? '#94a3b8' : '#334155'}; text-decoration:${isChecked ? 'line-through' : 'none'}; transition:all 0.2s; padding:4px 0;">
                                 <input type="checkbox" ${isChecked ? 'checked' : ''} 
                                     onclick="window.KitchenManager.toggleInstructionCheck('${step.id}', '${targetDate}', ${idx}, this)"
-                                    style="width:20px; height:20px; border-radius:6px; border:2px solid #cbd5e1; cursor:pointer; margin-top:2px;">
+                                    style="width:20px; height:20px; border-radius:6px; border:2px solid #cbd5e1; cursor:pointer; margin-top:2px; flex-shrink: 0;">
                                 <span>${idx + 1}. ${this.formatInstructionWithQuantities(inst, step.items, defaultQty)}</span>
                             </label>
                             `;
