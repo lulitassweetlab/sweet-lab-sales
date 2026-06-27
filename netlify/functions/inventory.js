@@ -448,17 +448,28 @@ export async function handler(event) {
 					const logId = Number(data.log_id || 0);
 					const qty = Number(data.qty || 0);
 					const durationSeconds = Number(data.duration_seconds || 0);
+					const logActorName = (data.log_actor_name || '').toString().trim() || null;
 					if (!logId) return json({ error: 'log_id requerido' }, 400);
 
-					const logRows = await sql`SELECT step_id, qty, duration_seconds FROM production_logs WHERE id = ${logId} LIMIT 1`;
+					const logRows = await sql`SELECT step_id, qty, duration_seconds, actor_name FROM production_logs WHERE id = ${logId} LIMIT 1`;
 					if (!logRows.length) return json({ error: 'Registro no encontrado' }, 404);
 					const oldLog = logRows[0];
 
 					await sql`
 						UPDATE production_logs 
-						SET qty = ${qty}, duration_seconds = ${durationSeconds}
+						SET qty = ${qty}, duration_seconds = ${durationSeconds}, actor_name = COALESCE(${logActorName}, actor_name)
 						WHERE id = ${logId}
 					`;
+
+					if (logActorName && oldLog.actor_name) {
+						await sql`
+							UPDATE inventory_movements 
+							SET actor_name = ${logActorName} 
+							WHERE kind = 'produccion' 
+							  AND lower(actor_name) = lower(${oldLog.actor_name})
+							  AND (metadata->>'step_id')::numeric = ${oldLog.step_id}
+						`;
+					}
 
 					let actorRole = 'user';
 					if (actor) {

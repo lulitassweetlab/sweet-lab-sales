@@ -858,7 +858,12 @@ const KitchenManager = {
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.9rem; color:#94a3b8; font-weight:600;">${dateStr}</span>
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="font-size:0.95rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px;">👨‍🍳 ${log.actor_name || 'Cocinero'}</span>
+                            <span style="font-size:0.95rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
+                                👨‍🍳 
+                                <input type="text" value="${log.actor_name || 'Cocinero'}" 
+                                    onchange="window.KitchenManager.autoSaveLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}', this.value, 'actor')"
+                                    style="border:none; background:transparent; font-size:0.95rem; font-weight:700; color:#64748b; width:80px; padding:0; outline:none; text-align:left;">
+                            </span>
                             <button onclick="window.KitchenManager.deleteProductionLog(${log.id}, ${stepId}, '${titleName.replace(/'/g, "\\'")}')" 
                                 class="press-btn" style="border:none; background:transparent; font-size:16px; cursor:pointer; padding:2px;" title="Eliminar registro">
                                 🗑️
@@ -998,6 +1003,7 @@ const KitchenManager = {
         let hours = Math.floor(duration / 3600);
         let minutes = Math.floor((duration % 3600) / 60);
         let seconds = duration % 60;
+        let logActorName = log.actor_name;
 
         if (type === 'qty') {
             qty = Number(value) || 0;
@@ -1007,6 +1013,9 @@ const KitchenManager = {
             minutes = Number(value) || 0;
         } else if (type === 'sec') {
             seconds = Number(value) || 0;
+        } else if (type === 'actor') {
+            logActorName = (value || '').toString().trim();
+            if (!logActorName) return window.showToast("Ingresa un nombre de empleado válido", "warning");
         }
         duration = (hours * 3600) + (minutes * 60) + seconds;
 
@@ -1019,17 +1028,20 @@ const KitchenManager = {
                 log_id: logId,
                 qty: qty,
                 duration_seconds: duration,
+                log_actor_name: logActorName,
                 actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
 
             if (res.ok) {
                 log.qty = qty;
                 log.duration_seconds = duration;
+                log.actor_name = logActorName;
 
                 const logIndex = (this.productionLogsRaw || []).findIndex(l => l.id === Number(logId));
                 if (logIndex !== -1) {
                     this.productionLogsRaw[logIndex].qty = qty;
                     this.productionLogsRaw[logIndex].duration_seconds = duration;
+                    this.productionLogsRaw[logIndex].actor_name = logActorName;
                 }
 
                 this.productionLogsByStep = {};
@@ -1061,6 +1073,10 @@ const KitchenManager = {
                         const perUnit = qty > 0 ? this.formatDuration(Math.round(duration / qty)) : 'N/D';
                         perUnitSpan.textContent = perUnit;
                     }
+                }
+                
+                if (type === 'actor') {
+                    setTimeout(() => this.showProductionLogsPopover(stepId, titleName), 300);
                 }
             } else {
                 throw new Error(res.error || "No se pudo actualizar");
