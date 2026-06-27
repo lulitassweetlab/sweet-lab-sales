@@ -2953,9 +2953,6 @@ tfoot td {
 		-webkit-overflow-scrolling: touch;
 	}
 
-	/* Evita encadenamiento de scroll desde contenedores internos que genera múltiples rebotes */
-	/* NOTA: NO aplicar overscroll-behavior: contain a .table-wrapper para permitir scroll vertical fácil */
-	.sales-panel,
 	.dates-section {
 		overscroll-behavior: contain;
 	}
