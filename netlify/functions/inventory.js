@@ -537,6 +537,7 @@ export async function handler(event) {
 					// 0. Log duration if provided
 					const durationSeconds = Number(data.duration_seconds || 0) || 0;
 					if (durationSeconds > 0) {
+						metadata.duration_seconds = durationSeconds;
 						await sql`
 							INSERT INTO production_logs (step_id, qty, duration_seconds, actor_name, created_at)
 							VALUES (${stepId}, ${multiplier}, ${durationSeconds}, ${actor}, ${now})

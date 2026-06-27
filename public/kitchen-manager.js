@@ -507,6 +507,11 @@ const KitchenManager = {
             const stepId = el.getAttribute('data-step-id');
             const targetDate = el.getAttribute('data-date');
             if (stepId && targetDate) {
+                const row = el.closest('.step-row-container');
+                if (row && row.getAttribute('data-is-done') === 'true') {
+                    el.style.color = '#2e7d32';
+                    return;
+                }
                 const elapsed = this.getElapsedSeconds(stepId, targetDate);
                 el.textContent = this.formatDuration(elapsed);
                 
@@ -895,8 +900,84 @@ const KitchenManager = {
                 listContainer.appendChild(card);
             });
         }
-        modal.appendChild(listContainer);
+        // Group logs by actor for Super Admin comparison
+        let statsHeaderHtml = '';
+        if (this.isSuperAdmin() && logs.length > 0) {
+            const employeeStats = {};
+            logs.forEach(log => {
+                const actor = log.actor_name || 'Cocinero';
+                if (!employeeStats[actor]) {
+                    employeeStats[actor] = { totalSeconds: 0, totalQty: 0, count: 0 };
+                }
+                employeeStats[actor].totalSeconds += Number(log.duration_seconds || 0);
+                employeeStats[actor].totalQty += Number(log.qty || 0);
+                employeeStats[actor].count++;
+            });
 
+            let overallSeconds = 0;
+            let overallQty = 0;
+            logs.forEach(log => {
+                overallSeconds += Number(log.duration_seconds || 0);
+                overallQty += Number(log.qty || 0);
+            });
+            const overallAvg = overallQty > 0 ? (overallSeconds / overallQty) : 0;
+
+            let tableRows = '';
+            Object.keys(employeeStats).forEach(actor => {
+                const stats = employeeStats[actor];
+                const avg = stats.totalQty > 0 ? (stats.totalSeconds / stats.totalQty) : 0;
+                
+                let performanceHtml = '';
+                if (overallAvg > 0 && avg > 0) {
+                    const diffPct = Math.round(((overallAvg - avg) / overallAvg) * 100);
+                    if (diffPct > 0) {
+                        performanceHtml = `<span style="color:#16a34a; font-weight:700;">🟢 +${diffPct}% rápido</span>`;
+                    } else if (diffPct < 0) {
+                        performanceHtml = `<span style="color:#d97706; font-weight:700;">🟡 ${Math.abs(diffPct)}% lento</span>`;
+                    } else {
+                        performanceHtml = `<span style="color:#64748b; font-weight:600;">= promedio</span>`;
+                    }
+                }
+
+                tableRows += `
+                    <tr style="border-bottom:1px solid rgba(226,232,240,0.5);">
+                        <td style="padding:6px 0; font-weight:700; font-size:0.9rem;">${actor}</td>
+                        <td style="padding:6px 0; font-size:0.9rem; text-align:center;">${this.formatDuration(Math.round(avg))}/ud</td>
+                        <td style="padding:6px 0; font-size:0.85rem; text-align:center;">${stats.count} lotes</td>
+                        <td style="padding:6px 0; font-size:0.85rem; text-align:right;">${performanceHtml}</td>
+                    </tr>
+                `;
+            });
+
+            statsHeaderHtml = `
+                <div style="background:rgba(79,70,229,0.04); border:1px solid rgba(79,70,229,0.15); border-radius:16px; padding:12px; margin-bottom:4px;">
+                    <div style="font-size:0.85rem; text-transform:uppercase; font-weight:800; color:#4f46e5; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                        📊 Comparativa de Rendimiento
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; line-height:1.4;">
+                        <thead>
+                            <tr style="border-bottom:1px solid rgba(79,70,229,0.15); color:#64748b; font-size:0.75rem; text-transform:uppercase; font-weight:700;">
+                                <th style="text-align:left; padding-bottom:4px;">Empleado</th>
+                                <th style="text-align:center; padding-bottom:4px;">Promedio</th>
+                                <th style="text-align:center; padding-bottom:4px;">Sesiones</th>
+                                <th style="text-align:right; padding-bottom:4px;">Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        if (statsHeaderHtml) {
+            const statsWrapper = document.createElement('div');
+            statsWrapper.innerHTML = statsHeaderHtml;
+            modal.appendChild(statsWrapper.firstElementChild);
+        }
+
+        modal.appendChild(listContainer);
         backdrop.appendChild(modal);
 
         backdrop.onclick = (e) => {
@@ -1530,10 +1611,20 @@ const KitchenManager = {
         const isRemoteRunning = dbTimer && dbTimer.username && (!currentUsername || dbTimer.username.toLowerCase() !== currentUsername.toLowerCase());
         
         const isTimerRunning = isRunning || isRemoteRunning;
-        const elapsed = this.getElapsedSeconds(step.id, targetDate);
         const isStepActive = isLocalActiveOrPaused || isRemoteRunning;
 
         const isDone = producedInWindow >= totalNeeded && totalNeeded > 0 && !isStepActive;
+
+        // Fetch duration and actor of the completed production log
+        const stepLogs = (this.productionLogsRaw || []).filter(l => 
+            Number(l.step_id) === Number(step.id) &&
+            String(l.created_at).slice(0, 10) === String(targetDate).slice(0, 10)
+        );
+        const latestLog = stepLogs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const completedDuration = latestLog ? Number(latestLog.duration_seconds || 0) : 0;
+        const completedBy = latestLog ? latestLog.actor_name : '';
+
+        const elapsed = isDone ? completedDuration : this.getElapsedSeconds(step.id, targetDate);
 
         this.customQuantities = this.customQuantities || {};
         const savedQty = this.customQuantities[timerKey];
@@ -1550,7 +1641,9 @@ const KitchenManager = {
 
         const avgSeconds = this.getAverageTimeForQty(step.id, defaultQty);
         let averageTimeHtml = "";
-        if (avgSeconds !== null) {
+        if (avgSeconds !== null || this.isSuperAdmin()) {
+            const avgValHtml = avgSeconds !== null ? this.formatDuration(avgSeconds) : 'Sin registros';
+            const baseAvgAttr = avgSeconds !== null ? `data-base-avg="${this.getAverageTimePerUnit(step.id)}"` : '';
             averageTimeHtml = `
                 <span class="average-time-badge" 
                     onclick="event.stopPropagation(); window.KitchenManager.showProductionLogsPopover(${step.id}, '${recipeName} - ${step.name || 'General'}')"
@@ -1559,7 +1652,7 @@ const KitchenManager = {
                     onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b';"
                     title="Ver historial de producción"
                     data-step-id="${step.id}">
-                    ⏱️ Promedio: <span class="avg-val" data-base-avg="${this.getAverageTimePerUnit(step.id)}">${this.formatDuration(avgSeconds)}</span>
+                    ⏱️ Promedio: <span class="avg-val" ${baseAvgAttr}>${avgValHtml}</span>
                 </span>
             `;
         }
@@ -1578,8 +1671,8 @@ const KitchenManager = {
         if (isDone) {
             actionButtonsHtml = `
                 <button onclick="window.KitchenManager.startTimerForStep('${step.id}', '${targetDate}')" 
-                    class="press-btn" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1.25rem; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
-                    ${btnTextDone}
+                    class="press-btn" style="width:100%; background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; padding:12px; border-radius:12px; font-weight:700; font-size:1.25rem; box-shadow: none;">
+                    Completado
                 </button>
             `;
         } else {
@@ -1621,17 +1714,21 @@ const KitchenManager = {
         }
 
         return `
-            <div class="step-row-container" data-step-id="${step.id}" data-date="${targetDate}" style="position:relative; background:${isDone ? '#f0fdf4' : (isTimerRunning ? '#fff5f5' : '#f8fafc')}; border:1px solid ${isDone ? '#bbf7d0' : (isTimerRunning ? '#fca5a5' : '#e2e8f0')}; border-radius:16px; padding:16px; transition: all 0.2s ease; box-shadow: ${isTimerRunning ? '0 4px 12px rgba(239, 68, 68, 0.05)' : 'none'};">
+            <div class="step-row-container" data-step-id="${step.id}" data-date="${targetDate}" data-is-done="${isDone}" style="position:relative; background:${isDone ? '#e8f5e9' : (isTimerRunning ? '#fff5f5' : '#f8fafc')}; border:1px solid ${isDone ? '#c8e6c9' : (isTimerRunning ? '#fca5a5' : '#e2e8f0')}; border-radius:16px; padding:16px; transition: all 0.2s ease; box-shadow: ${isTimerRunning ? '0 4px 12px rgba(239, 68, 68, 0.05)' : 'none'};">
                 <div class="flex" style="margin-bottom:12px; justify-content:space-between; align-items:center; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding-right:120px;">
                         <div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">
                             <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex-wrap:wrap;">
-                                <strong style="font-size:1.55rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800; display:inline-flex; align-items:center;">
+                                <strong style="font-size:1.55rem; color:${isDone ? '#2e7d32' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:800; display:inline-flex; align-items:center;">
                                     ${step.name || 'Proceso General'}
-                                    ${producedInWindow > 0 ? `<span style="font-size:1.1rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:3px 8px; border-radius:8px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow}</span>` : ''}
+                                    ${producedInWindow > 0 ? (
+                                        isDone 
+                                        ? `<span style="font-size:0.95rem; color:#2e7d32; font-weight:700; background:#e8f5e9; border:1px solid #c8e6c9; padding:3px 8px; border-radius:8px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow} completado ${completedBy ? `por ${completedBy}` : ''}</span>`
+                                        : `<span style="font-size:1.1rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:3px 8px; border-radius:8px; margin-left:8px; display:inline-block; vertical-align:middle; line-height:1;">✓ ${producedInWindow}</span>`
+                                    ) : ''}
                                 </strong>
                                 <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
-                                    style="font-family:monospace; font-size:1.3rem; color:${isTimerRunning ? '#ef4444' : '#64748b'}; font-weight:700; letter-spacing:0.5px;">
+                                    style="font-family:monospace; font-size:1.3rem; color:${isDone ? '#2e7d32' : (isTimerRunning ? '#ef4444' : '#64748b')}; font-weight:700; letter-spacing:0.5px;">
                                     ${this.formatDuration(elapsed)}
                                 </span>
                                 ${isTimerRunning ? '<span class="timer-pulse-dot" style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
@@ -1834,10 +1931,14 @@ const KitchenManager = {
                     created_at: m.created_at,
                     actor: m.actor_name,
                     target_date: m.metadata?.target_date,
+                    duration: m.metadata?.duration_seconds || 0,
                     ids: [m.id]
                 });
             } else {
                 existing.ids.push(m.id);
+                if (m.metadata?.duration_seconds) {
+                    existing.duration = (existing.duration || 0) + m.metadata.duration_seconds;
+                }
             }
         });
 
@@ -1847,6 +1948,7 @@ const KitchenManager = {
             
             const time = new Date(action.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const date = new Date(action.created_at).toLocaleDateString([], { day: '2-digit', month: 'short' });
+            const durationText = action.duration ? ` • ⏱️ ${this.formatDuration(action.duration)}` : '';
             
             row.innerHTML = `
                 <div style="display:flex; align-items:center; gap:12px;">
@@ -1856,6 +1958,7 @@ const KitchenManager = {
                         <div style="font-size:0.75rem; color:#94a3b8;">
                             ${date} ${time} • ${action.actor || 'Cocinero'} 
                             ${action.target_date ? `• <span style="color:var(--primary); font-weight:600;">Para: ${action.target_date}</span>` : ''}
+                            ${durationText}
                         </div>
                     </div>
                 </div>
