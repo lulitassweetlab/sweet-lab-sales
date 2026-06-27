@@ -63,6 +63,7 @@ const KitchenManager = {
             this.dbActiveTimers = await window.api('GET', '/api/inventory?action=active_timers') || [];
             await this.loadHistory();
             await this.loadProductionLogs();
+            await this.loadCheckedInstructions();
             
             const isUserInteracting = document.activeElement && 
                 (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') &&
@@ -331,6 +332,9 @@ const KitchenManager = {
             // 6. Load Production Logs
             await this.loadProductionLogs();
 
+            // Load Checked Instructions from DB
+            await this.loadCheckedInstructions();
+
             // 7. Load Active Timers from DB
             this.dbActiveTimers = await window.api('GET', '/api/inventory?action=active_timers') || [];
 
@@ -469,36 +473,69 @@ const KitchenManager = {
         return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     },
 
-    isInstructionChecked(stepId, targetDate, index) {
-        const key = `kitchen_checklist_${stepId}_${targetDate}`;
+    async loadCheckedInstructions() {
         try {
-            const checked = JSON.parse(localStorage.getItem(key) || '[]');
-            return checked.includes(index);
-        } catch {
-            return false;
+            const start = this.suggestionStartDate || new Date().toISOString().split('T')[0];
+            const list = await window.api('GET', `/api/inventory?action=get_checked_instructions&date_start=${start}&_t=${Date.now()}`) || [];
+            this.checkedInstructionsMap = {};
+            list.forEach(item => {
+                const key = `${item.step_id}_${item.target_date}_${item.instruction_index}`;
+                this.checkedInstructionsMap[key] = {
+                    checked_at: item.checked_at,
+                    username: item.username
+                };
+            });
+            console.log("📋 Loaded checked instructions:", list.length);
+        } catch (err) {
+            console.warn("Could not load checked instructions:", err);
+            this.checkedInstructionsMap = {};
         }
     },
 
-    toggleInstructionCheck(stepId, targetDate, index, checkbox) {
-        const key = `kitchen_checklist_${stepId}_${targetDate}`;
-        let checked = [];
-        try {
-            checked = JSON.parse(localStorage.getItem(key) || '[]');
-        } catch {}
-        
-        if (checkbox.checked) {
-            if (!checked.includes(index)) checked.push(index);
-        } else {
-            checked = checked.filter(i => i !== index);
-        }
-        
-        localStorage.setItem(key, JSON.stringify(checked));
-        
-        // Update styling of the label
+    isInstructionChecked(stepId, targetDate, index) {
+        if (!this.checkedInstructionsMap) return false;
+        const key = `${stepId}_${targetDate}_${index}`;
+        return !!this.checkedInstructionsMap[key];
+    },
+
+    async toggleInstructionCheck(stepId, targetDate, index, checkbox) {
+        const actorName = window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero";
         const label = checkbox.closest('label');
+        
         if (label) {
             label.style.color = checkbox.checked ? '#94a3b8' : '#334155';
             label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
+        }
+
+        try {
+            if (checkbox.checked) {
+                await window.api('POST', '/api/inventory', {
+                    action: 'instruction.check',
+                    step_id: stepId,
+                    target_date: targetDate,
+                    instruction_index: index,
+                    actor_name: actorName
+                });
+            } else {
+                await window.api('POST', '/api/inventory', {
+                    action: 'instruction.uncheck',
+                    step_id: stepId,
+                    target_date: targetDate,
+                    instruction_index: index
+                });
+            }
+            
+            await this.loadCheckedInstructions();
+            // Re-render UI to display printed completion hour
+            this.render();
+        } catch (err) {
+            console.error("Error toggling checklist:", err);
+            window.showToast("Error al guardar marca de paso a paso", "error");
+            checkbox.checked = !checkbox.checked;
+            if (label) {
+                label.style.color = checkbox.checked ? '#94a3b8' : '#334155';
+                label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
+            }
         }
     },
 
@@ -1827,13 +1864,24 @@ const KitchenManager = {
                     <div style="font-size:1.05rem; font-weight:700; color:#db2777; text-transform:uppercase; margin-bottom:8px;">Paso a Paso</div>
                     <div style="display:flex; flex-direction:column; gap:8px;">
                         ${step.instructions.map((inst, idx) => {
-                            const isChecked = this.isInstructionChecked(step.id, targetDate, idx);
+                            const checkKey = `${step.id}_${targetDate}_${idx}`;
+                            const checkData = this.checkedInstructionsMap && this.checkedInstructionsMap[checkKey];
+                            const isChecked = !!checkData;
+                            
+                            let timeLabel = '';
+                            if (checkData && checkData.checked_at) {
+                                const timeStr = new Date(checkData.checked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                timeLabel = `<span style="font-size:0.85rem; color:#0f766e; font-weight:700; background:#ccfbf1; padding:2px 6px; border-radius:6px; margin-left:6px; white-space:nowrap; display:inline-block; vertical-align:middle; text-decoration:none !important;">⏱️ ${timeStr} (${checkData.username || 'Cocinero'})</span>`;
+                            }
+
                             return `
                             <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:1.2rem; color:${isChecked ? '#94a3b8' : '#334155'}; text-decoration:${isChecked ? 'line-through' : 'none'}; transition:all 0.2s; padding:4px 0;">
                                 <input type="checkbox" ${isChecked ? 'checked' : ''} 
                                     onclick="window.KitchenManager.toggleInstructionCheck('${step.id}', '${targetDate}', ${idx}, this)"
                                     style="width:20px; height:20px; border-radius:6px; border:2px solid #cbd5e1; cursor:pointer; margin-top:2px; flex-shrink: 0;">
-                                <span>${idx + 1}. ${this.formatInstructionWithQuantities(inst, step.items, defaultQty)}</span>
+                                <span style="display:inline-block; line-height:1.3;">
+                                    ${idx + 1}. ${this.formatInstructionWithQuantities(inst, step.items, defaultQty)}${timeLabel}
+                                </span>
                             </label>
                             `;
                         }).join('')}

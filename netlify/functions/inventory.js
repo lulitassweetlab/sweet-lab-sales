@@ -107,6 +107,16 @@ export async function handler(event) {
 					return json({ last_change: row?.last_change || new Date().toISOString() });
 				}
 
+				if (actionQuery === 'get_checked_instructions') {
+					const dateStart = params.get('date_start') || new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0];
+					const list = await sql`
+						SELECT step_id, TO_CHAR(target_date, 'YYYY-MM-DD') AS target_date, instruction_index, checked_at, username 
+						FROM production_instructions_checked 
+						WHERE target_date >= ${dateStart}
+					`;
+					return json(list);
+				}
+
 				// Unified Inventory List
 				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
@@ -157,6 +167,36 @@ export async function handler(event) {
 						WHERE step_id = ${Number(step_id)} 
 						  AND target_date = ${target_date} 
 						  AND username = ${actor}
+					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true });
+				}
+
+				if (action === 'instruction.check') {
+					const { step_id, target_date, instruction_index } = data;
+					if (!step_id || !target_date || instruction_index === undefined || !actor) {
+						return json({ error: 'Faltan parámetros' }, 400);
+					}
+					await sql`
+						INSERT INTO production_instructions_checked (step_id, target_date, instruction_index, username, checked_at)
+						VALUES (${Number(step_id)}, ${target_date}, ${Number(instruction_index)}, ${actor}, now())
+						ON CONFLICT (step_id, target_date, instruction_index) 
+						DO UPDATE SET checked_at = now(), username = EXCLUDED.username
+					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true });
+				}
+
+				if (action === 'instruction.uncheck') {
+					const { step_id, target_date, instruction_index } = data;
+					if (!step_id || !target_date || instruction_index === undefined) {
+						return json({ error: 'Faltan parámetros' }, 400);
+					}
+					await sql`
+						DELETE FROM production_instructions_checked 
+						WHERE step_id = ${Number(step_id)} 
+						  AND target_date = ${target_date} 
+						  AND instruction_index = ${Number(instruction_index)}
 					`;
 					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ ok: true });

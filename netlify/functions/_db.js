@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 66; // 66: add production access controls in store_settings
+const SCHEMA_VERSION = 67; // 67: add production_instructions_checked table for audit times
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -773,6 +773,21 @@ export async function ensureSchema() {
 						ON CONFLICT (key) DO NOTHING
 					`;
 					await sql`UPDATE schema_meta SET version = 66`;
+				}
+				if (Number(meta[0].version) < 67) {
+					console.log('Migrating to v67: Creating production_instructions_checked table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS production_instructions_checked (
+							id SERIAL PRIMARY KEY,
+							step_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+							target_date DATE NOT NULL,
+							instruction_index INTEGER NOT NULL,
+							checked_at TIMESTAMPTZ DEFAULT now(),
+							username TEXT,
+							UNIQUE (step_id, target_date, instruction_index)
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 67`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
