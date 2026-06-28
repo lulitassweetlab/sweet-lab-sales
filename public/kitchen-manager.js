@@ -545,23 +545,33 @@ const KitchenManager = {
             const targetDate = el.getAttribute('data-date');
             if (stepId && targetDate) {
                 const row = el.closest('.step-row-container');
-                if (row && row.getAttribute('data-is-done') === 'true') {
-                    el.style.color = '#2e7d32';
-                    return;
-                }
-                const elapsed = this.getElapsedSeconds(stepId, targetDate);
-                el.textContent = this.formatDuration(elapsed);
                 
                 const hasLocalActive = this.timers[`${stepId}_${targetDate}`]?.startTime;
                 const dbTimer = this.dbActiveTimers ? this.dbActiveTimers.find(x => 
                     Number(x.step_id) === Number(stepId) && 
                     String(x.target_date).slice(0, 10) === String(targetDate).slice(0, 10)
                 ) : null;
-                
-                if (hasLocalActive || dbTimer) {
+                const isRunning = hasLocalActive || dbTimer;
+
+                if (isRunning) {
+                    const elapsed = this.getElapsedSeconds(stepId, targetDate);
+                    el.textContent = this.formatDuration(elapsed);
                     el.style.color = '#ef4444';
                 } else {
-                    el.style.color = '#94a3b8';
+                    // Timer is not running. Find the last completed log for today
+                    const stepLogs = (this.productionLogsRaw || []).filter(l => 
+                        Number(l.step_id) === Number(stepId) &&
+                        String(l.created_at).slice(0, 10) === String(targetDate).slice(0, 10)
+                    );
+                    const latestLog = stepLogs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                    const completedDuration = latestLog ? Number(latestLog.duration_seconds || 0) : 0;
+                    
+                    el.textContent = this.formatDuration(completedDuration);
+                    if (completedDuration > 0) {
+                        el.style.color = '#2e7d32';
+                    } else {
+                        el.style.color = '#94a3b8';
+                    }
                 }
             }
         });
@@ -1607,7 +1617,7 @@ const KitchenManager = {
         const completedDuration = latestLog ? Number(latestLog.duration_seconds || 0) : 0;
         const completedBy = latestLog ? latestLog.actor_name : '';
 
-        const elapsed = isDone ? completedDuration : this.getElapsedSeconds(step.id, targetDate);
+        const elapsed = isTimerRunning ? this.getElapsedSeconds(step.id, targetDate) : completedDuration;
 
         this.customQuantities = this.customQuantities || {};
         const savedQty = this.customQuantities[timerKey];
@@ -1727,7 +1737,7 @@ const KitchenManager = {
                                     ) : ''}
                                 </strong>
                                 <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
-                                    style="font-family:monospace; font-size:1.3rem; color:${isDone ? '#2e7d32' : (isTimerRunning ? '#ef4444' : '#64748b')}; font-weight:700; letter-spacing:0.5px;">
+                                    style="font-family:monospace; font-size:1.3rem; color:${isDone || (!isTimerRunning && completedDuration > 0) ? '#2e7d32' : (isTimerRunning ? '#ef4444' : '#64748b')}; font-weight:700; letter-spacing:0.5px;">
                                     ${this.formatDuration(elapsed)}
                                 </span>
                                 ${isTimerRunning ? '<span class="timer-pulse-dot" style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
