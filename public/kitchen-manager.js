@@ -1394,16 +1394,18 @@ const KitchenManager = {
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                         </div>
                     </div>
-                    <div class="steps-list-container" style="max-height:${isExpanded ? '2000px' : '0'}; overflow:hidden; transition: all 0.3s ease; opacity:${isExpanded ? '1' : '0'};">
+                    <div class="steps-list-container" style="max-height:${isExpanded ? '8000px' : '0'}; overflow:${isExpanded ? 'visible' : 'hidden'}; transition: all 0.3s ease; opacity:${isExpanded ? '1' : '0'};">
                         <div style="padding-top:16px; display:flex; flex-direction:column; gap:12px;">
                             ${batch.recipeName.toLowerCase().includes('oreo') ? (() => {
                                 // Consolidation logic ONLY for Oreo
                                 const consolidated = {};
                                 recipe.steps.forEach(s => {
                                     (s.items || []).forEach(it => {
-                                        const key = it.ingredient.trim();
-                                        if (!consolidated[key]) consolidated[key] = { qty: 0, unit: it.unit };
-                                        consolidated[key].qty += (Number(it.qty_per_unit) || 0) * totalNeeded;
+                                        if (it && it.ingredient) {
+                                            const key = it.ingredient.trim();
+                                            if (!consolidated[key]) consolidated[key] = { qty: 0, unit: it.unit };
+                                            consolidated[key].qty += (Number(it.qty_per_unit) || 0) * totalNeeded;
+                                        }
                                     });
                                 });
                                 const entries = Object.entries(consolidated);
@@ -1444,11 +1446,13 @@ const KitchenManager = {
                     if (!isNowExpanded) {
                         container.style.maxHeight = '0px';
                         container.style.opacity = '0';
+                        container.style.overflow = 'hidden';
                         chevron.style.transform = 'rotate(0deg)';
                         this.expandedRecipes.delete(cardId);
                     } else {
-                        container.style.maxHeight = '2000px';
+                        container.style.maxHeight = '8000px';
                         container.style.opacity = '1';
+                        container.style.overflow = 'visible';
                         chevron.style.transform = 'rotate(180deg)';
                         this.expandedRecipes.add(cardId);
                     }
