@@ -569,6 +569,7 @@ export async function handler(event) {
 					const stepId = Number(data.step_id || 0);
 					const multiplier = Number(data.multiplier || 1) || 1;
 					const producedQty = Number(data.produced_qty || 0) || 0;
+					const targetUsername = data.target_username ? data.target_username.toString().trim() : null;
 					if (!stepId) return json({ error: 'step_id requerido' }, 400);
 
 					const [step] = await sql`SELECT id, dessert, step_name, produces_ingredient, produces_unit FROM dessert_recipes WHERE id = ${stepId}`;
@@ -584,6 +585,7 @@ export async function handler(event) {
 					if (producedQty > 0) metadata.produced_qty = producedQty;
 
 					const now = new Date();
+					const logActor = targetUsername || actor;
 					
 					// 0. Log duration if provided
 					const durationSeconds = Number(data.duration_seconds || 0) || 0;
@@ -591,7 +593,7 @@ export async function handler(event) {
 						metadata.duration_seconds = durationSeconds;
 						await sql`
 							INSERT INTO production_logs (step_id, qty, duration_seconds, actor_name, created_at)
-							VALUES (${stepId}, ${multiplier}, ${durationSeconds}, ${actor}, ${now})
+							VALUES (${stepId}, ${multiplier}, ${durationSeconds}, ${logActor}, ${now})
 						`;
 					}
 
@@ -607,7 +609,7 @@ export async function handler(event) {
 
 							const [row] = await sql`
 								INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
-								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note + ' (Ajuste manual)'}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note + ' (Ajuste manual)'}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
 								RETURNING *
 							`;
 							results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
@@ -622,7 +624,7 @@ export async function handler(event) {
 
 							const [row] = await sql`
 								INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
-								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
 								RETURNING *
 							`;
 							results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
@@ -634,7 +636,7 @@ export async function handler(event) {
 					if (!insertedProduccion) {
 						const [row] = await sql`
 							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
-							VALUES ('- Actividad -', 'produccion', 0, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							VALUES ('- Actividad -', 'produccion', 0, ${note}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
 							RETURNING *
 						`;
 						results.push({ ingredient: '- Actividad -', qty: 0, movement_id: row?.id, type: 'activity' });
@@ -647,21 +649,21 @@ export async function handler(event) {
 						
 						const [rowProduced] = await sql`
 							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
-							VALUES (${canonProduced}, 'entrada', ${producedQty}, ${noteProduced}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							VALUES (${canonProduced}, 'entrada', ${producedQty}, ${noteProduced}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
 							RETURNING *
 						`;
 						results.push({ ingredient: canonProduced, qty: producedQty, movement_id: rowProduced?.id, type: 'output' });
 					}
 
 					// 3. Clean up active timer for this step and user (if active)
-					if (stepId && data.target_date && actor) {
+					if (stepId && data.target_date) {
 						try {
 							const targetDateObj = new Date(data.target_date);
 							await sql`
 								DELETE FROM active_production_timers 
 								WHERE step_id = ${stepId} 
 								  AND target_date = ${targetDateObj} 
-								  AND username = ${actor}
+								  AND username = ${logActor}
 							`;
 						} catch (e) {
 							console.error("Error clearing active timer in produccion_paso:", e);

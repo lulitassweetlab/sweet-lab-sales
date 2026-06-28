@@ -1685,6 +1685,22 @@ const KitchenManager = {
                         </button>
                     </div>
                 `;
+            } else if (isRemoteRunning) {
+                if (this.isSuperAdmin()) {
+                    actionButtonsHtml = `
+                        <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}', '${dbTimer.username}')" 
+                            class="press-btn" style="width:100%; background:#ef4444; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1.25rem; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);" title="Completar producción de ${dbTimer.username}">
+                            Completar
+                        </button>
+                    `;
+                } else {
+                    actionButtonsHtml = `
+                        <button disabled
+                            class="press-btn" style="width:100%; background:#64748b; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1.25rem; opacity:0.55; cursor:not-allowed;">
+                            En Producción
+                        </button>
+                    `;
+                }
             } else {
                 actionButtonsHtml = `
                     <button onclick="window.KitchenManager.startTimerForStep('${step.id}', '${targetDate}')" 
@@ -1822,7 +1838,7 @@ const KitchenManager = {
         `;
     },
 
-    async produceStep(stepId, dessertName, stepName, inputId, targetDate) {
+    async produceStep(stepId, dessertName, stepName, inputId, targetDate, targetUsername) {
         if (!stepId) return window.showToast("Esta receta no tiene ID de producción", "warning");
         const input = document.getElementById(inputId);
         const qty = Number(input.value) || 0;
@@ -1862,7 +1878,8 @@ const KitchenManager = {
                 duration_seconds: this.getElapsedSeconds(stepId, targetDate),
                 target_date: targetDate,
                 custom_ingredients: customIngredients,
-                actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
+                target_username: targetUsername || null,
+                actor_name: targetUsername || window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
 
             if (res.ok) {
