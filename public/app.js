@@ -160,7 +160,7 @@ async function openGlobalClientDetailView(clientName) {
 // Load client detail rows from all sellers the user has access to
 async function loadGlobalClientDetailRows(clientName) {
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-	const isAdmin = !!state.currentUser?.isAdmin;
+	const isAdmin = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
 
 	const allRows = [];
 	let sellersToSearch = [];
@@ -482,7 +482,7 @@ function renderClientDetailTable() {
 		// Click: first-time behaviors and shortcuts
 		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
-			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 			const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 			const locked = pm !== '' && pm !== 'entregado';
 			if (!isAdminUser && locked) return; // block for non-admins, allow when 'entregado'
@@ -512,7 +512,7 @@ function renderClientDetailTable() {
 				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 				
 				e.preventDefault();
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 				const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 				const locked = pm !== '' && pm !== 'entregado';
 				if (!isAdminUser && locked) return;
@@ -663,7 +663,7 @@ async function openEditClientNameDialog(currentName) {
 		// Determine which sellers to update
 		const isGlobalView = state._clientDetailFrom === 'global-search';
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		const isAdmin = !!state.currentUser?.isAdmin;
+		const isAdmin = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
 
 		let sellersToUpdate = [];
 
@@ -1183,7 +1183,7 @@ async function loadGlobalClientSuggestions() {
 		} catch (e) { }
 
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		const isAdmin = !!state.currentUser?.isAdmin;
+		const isAdmin = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
 
 		let resultArr = [];
 
@@ -1351,7 +1351,7 @@ function switchView(id) {
 }
 
 function applyAuthVisibility() {
-	const isAdminUser = !!state.currentUser?.isAdmin;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
@@ -1856,7 +1856,7 @@ function renderTable() {
 					sel.appendChild(opt);
 				}
 				// Lock editing for non-admins once a method is chosen, except when it's 'entregado'
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 				const pmNormalized = String(current || '').trim().toLowerCase();
 				const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado';
 				if (!isAdminUser && shouldLock) {
@@ -1881,7 +1881,7 @@ function renderTable() {
 				});
 				wrap.addEventListener('click', async (e) => {
 					e.stopPropagation();
-					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 					const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 					const locked = pm !== '' && pm !== 'entregado';
 
@@ -1908,7 +1908,7 @@ function renderTable() {
 						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 						
 						e.preventDefault();
-						const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+						const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 						const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 						const locked = pm !== '' && pm !== 'entregado';
 
@@ -1951,7 +1951,7 @@ function renderTable() {
 				input.placeholder = '';
 				input.readOnly = true;
 				
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
 				if (!isAdminUser && saleLocked) {
 					input.style.cursor = 'default';
@@ -4566,7 +4566,7 @@ async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
 	const actor = encodeURIComponent(state.currentUser?.name || '');
 	// Block delete in UI for non-admins if sale is locked
-	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 	const locked = String(prev?.pay_method || '').trim() !== '';
 	if (!isAdminUser && locked) {
 		try { notify.error('Pedido bloqueado: solo admin/superadmin puede eliminar'); } catch { }
@@ -9850,7 +9850,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
 		const sale = state.sales.find(s => s.id === saleId);
-		const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+		const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 		const locked = String(sale?.pay_method || '').trim() !== '';
 		if (!isAdminUser && locked) {
 			try { notify.error('Ya no es posible editar este pedido ya que ha sido entregado al cliente. Para editarlo por favor pide soporte.'); } catch { }
