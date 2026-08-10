@@ -74,6 +74,11 @@ export async function handler(event) {
                 const id = Number(data.id);
                 if (!id) return json({ error: 'ID requerido' }, 400);
 
+                if (data.require_whatsapp !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET require_whatsapp = ${!!data.require_whatsapp} WHERE id = ${id} RETURNING id, name, require_whatsapp`;
+                    return json(row);
+                }
+
                 if (data.whatsapp !== undefined) {
                     const [row] = await sql`UPDATE sellers SET whatsapp = ${data.whatsapp || null} WHERE id = ${id} RETURNING id, name, whatsapp`;
                     return json(row);
