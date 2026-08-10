@@ -9,12 +9,24 @@ export async function handler(event) {
         await ensureSchema();
         if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
-        async function getRole(evt) {
-            const h = evt.headers || {};
-            const actorHeader = h['X-Actor-Name'] || h['x-actor-name'] || '';
-            const actor = actorHeader.toLowerCase();
-            if (['jorge', 'jorgecordoba', 'admin', 'marcela', 'aleja', 'lulitas'].includes(actor)) return 'admin';
-            return 'user';
+        async function getRole(evt, body = null) {
+            try {
+                const h = evt.headers || {};
+                const hActor = (h['X-Actor-Name'] || h['x-actor-name'] || h['x-actor'] || '').toString();
+                let bActor = '';
+                try { if (body) bActor = (body.actor_name || body._actor_name || body.username || '').toString(); } catch {}
+                const actor = (hActor || bActor || '').trim().toLowerCase();
+                if (!actor) return 'user';
+                if (['jorge', 'jorgecordoba', 'admin', 'marcela', 'aleja', 'lulitas'].includes(actor)) return 'admin';
+                const rows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+                if (rows && rows[0] && rows[0].role) {
+                    const r = String(rows[0].role).toLowerCase();
+                    if (r === 'admin' || r === 'superadmin') return 'admin';
+                }
+                return 'user';
+            } catch {
+                return 'user';
+            }
         }
 
         switch (event.httpMethod) {
@@ -22,9 +34,26 @@ export async function handler(event) {
                 const rows = await sql`SELECT id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id FROM sellers WHERE archived_at IS NULL ORDER BY position ASC, name ASC`;
                 return json(rows);
             }
+            case 'POST': {
+                const data = JSON.parse(event.body || '{}');
+                const role = await getRole(event, data);
+                if (role !== 'admin') return json({ error: 'No autorizado' }, 403);
+
+                const name = (data.name || '').trim();
+                if (!name) return json({ error: 'Nombre requerido' }, 400);
+
+                const [row] = await sql`
+                    INSERT INTO sellers (name, archived_at) 
+                    VALUES (${name}, NULL) 
+                    ON CONFLICT (name) 
+                    DO UPDATE SET archived_at = NULL, name = EXCLUDED.name 
+                    RETURNING id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id
+                `;
+                return json(row, 201);
+            }
             case 'PATCH': {
                 const data = JSON.parse(event.body || '{}');
-                const role = await getRole(event);
+                const role = await getRole(event, data);
                 if (role !== 'admin') return json({ error: 'No autorizado' }, 403);
                 
                 // Bulk update support
