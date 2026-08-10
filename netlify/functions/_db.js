@@ -1093,6 +1093,29 @@ export async function validateWhatsAppForSeller(sellerId, rawWhatsApp, clientNam
 		}
 	}
 
+	// 4. Detect near-duplicates (changing only last 1 or 2 digits of an existing client number)
+	const existingWaList = await sql`
+		SELECT DISTINCT regexp_replace(whatsapp, '\\D', '', 'g') as wa
+		FROM clients 
+		WHERE seller_id = ${sellerId} 
+		  AND whatsapp IS NOT NULL 
+		  AND lower(name) != ${normClient}
+	`;
+
+	for (const row of existingWaList) {
+		const targetWa = row.wa;
+		if (targetWa && targetWa.length === 10) {
+			const prefixMatch = cleaned.substring(0, 8) === targetWa.substring(0, 8);
+			let diffs = 0;
+			for (let i = 0; i < 10; i++) {
+				if (cleaned[i] !== targetWa[i]) diffs++;
+			}
+			if ((prefixMatch || (diffs > 0 && diffs <= 2)) && diffs > 0) {
+				return 'Por favor ingresar el número de WhatsApp real del cliente.';
+			}
+		}
+	}
+
 	return null; // All checks passed cleanly!
 }
 
