@@ -231,6 +231,19 @@ export default async (req) => {
             // ========================
             // Standard Create / Update
             // ========================
+            if (sellerId) {
+                const [sellerObj] = await sql`SELECT require_whatsapp FROM sellers WHERE id = ${sellerId}`;
+                if (sellerObj && sellerObj.require_whatsapp) {
+                    const waInput = (whatsapp ?? '').toString().trim();
+                    let existingWa = '';
+                    const [existingClient] = await sql`SELECT whatsapp FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${name})`;
+                    if (existingClient && existingClient.whatsapp) existingWa = String(existingClient.whatsapp).trim();
+                    if (!waInput && !existingWa) {
+                        return new Response(JSON.stringify({ error: 'El número de WhatsApp es obligatorio para este vendedor.' }), { status: 400 });
+                    }
+                }
+            }
+
             // Check if client exists to either insert or update
             const [existing] = await sql`
 				SELECT id FROM clients 

@@ -2962,6 +2962,18 @@ function openNewSalePopover(anchorX, anchorY) {
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 				const sellerId = state?.currentSeller?.id;
 				if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch { } return; }
+
+				const isWaReq = !!state?.currentSeller?.require_whatsapp;
+				if (isWaReq) {
+					const clientNameVal = (clientInput.value || '').trim().toLowerCase();
+					const existingClient = (state.clients || []).find(c => (c.name || '').trim().toLowerCase() === clientNameVal);
+					const hasWa = existingClient && (existingClient.whatsapp || existingClient.phone);
+					if (!hasWa) {
+						saveBtn.disabled = false; cancelBtn.disabled = false;
+						try { notify.error('El número de WhatsApp es obligatorio para este vendedor'); } catch { }
+						return;
+					}
+				}
 				
 				// Prepare payload with CRM fields
 				const payload = { 

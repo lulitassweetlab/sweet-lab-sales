@@ -566,13 +566,33 @@ export async function handler(event) {
 				const sellerId = Number(data.seller_id);
 				let saleDayId = data.sale_day_id ? Number(data.sale_day_id) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
+
+				const clientNamePost = normalizeClientName(data.client_name ?? '');
+
+				// Validate require_whatsapp setting for seller
+				try {
+					const [sellerObj] = await sql`SELECT require_whatsapp FROM sellers WHERE id = ${sellerId}`;
+					if (sellerObj && sellerObj.require_whatsapp) {
+						const whatsappInput = (data.whatsapp ?? '').toString().trim();
+						let existingWa = '';
+						if (clientNamePost) {
+							const [existingClient] = await sql`SELECT whatsapp FROM clients WHERE seller_id = ${sellerId} AND lower(name) = lower(${clientNamePost})`;
+							if (existingClient && existingClient.whatsapp) existingWa = String(existingClient.whatsapp).trim();
+						}
+						if (!whatsappInput && !existingWa) {
+							return json({ error: 'El número de WhatsApp es obligatorio para crear pedidos con este vendedor.' }, 400);
+						}
+					}
+				} catch (valErr) {
+					console.error('Error validating seller require_whatsapp:', valErr);
+				}
+
 				if (!saleDayId) {
 					const now = new Date();
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				// Include client_name in the initial INSERT so it is stored even if PUT is never called
-				const clientNamePost = normalizeClientName(data.client_name ?? '');
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {
