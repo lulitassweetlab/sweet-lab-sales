@@ -239,7 +239,7 @@ export default async (req) => {
                     const [existingClient] = await sql`SELECT whatsapp FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${name})`;
                     if (existingClient && existingClient.whatsapp) existingWa = String(existingClient.whatsapp).trim();
                     if (!waInput && !existingWa) {
-                        return new Response(JSON.stringify({ error: 'El número de WhatsApp es obligatorio para este vendedor.' }), { status: 400 });
+                        return new Response(JSON.stringify({ error: 'Por favor ingresar el número de WhatsApp del cliente' }), { status: 400 });
                     }
                 }
             }

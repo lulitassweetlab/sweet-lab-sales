@@ -506,7 +506,7 @@ async function executeCheckout(customerName) {
 
     const isWaRequired = storeActiveSeller && (storeActiveSeller.require_whatsapp === true || storeActiveSeller.require_whatsapp === 'true' || storeActiveSeller.require_whatsapp === 1);
     if (isWaRequired && !whatsappValue.trim()) {
-        alert('El número de WhatsApp es obligatorio para subir pedidos con este vendedor.');
+        alert('Por favor ingresar el número de WhatsApp del cliente');
         if (typeof openNewClientModal === 'function') {
             openNewClientModal(customerName);
         }

@@ -2970,7 +2970,7 @@ function openNewSalePopover(anchorX, anchorY) {
 					const hasWa = existingClient && (existingClient.whatsapp || existingClient.phone);
 					if (!hasWa) {
 						saveBtn.disabled = false; cancelBtn.disabled = false;
-						try { notify.error('El número de WhatsApp es obligatorio para este vendedor'); } catch { }
+						try { notify.error('Por favor ingresar el número de WhatsApp del cliente'); } catch { }
 						return;
 					}
 				}

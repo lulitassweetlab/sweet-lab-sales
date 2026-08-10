@@ -580,7 +580,7 @@ export async function handler(event) {
 							if (existingClient && existingClient.whatsapp) existingWa = String(existingClient.whatsapp).trim();
 						}
 						if (!whatsappInput && !existingWa) {
-							return json({ error: 'El número de WhatsApp es obligatorio para crear pedidos con este vendedor.' }, 400);
+							return json({ error: 'Por favor ingresar el número de WhatsApp del cliente' }, 400);
 						}
 					}
 				} catch (valErr) {
