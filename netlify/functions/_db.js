@@ -1040,4 +1040,60 @@ export async function updateIngredientPMP(ingredientName, newQty, newUnitPrice) 
 	return newPMP;
 }
 
+/**
+ * Validates WhatsApp phone number for a seller based on business rules:
+ * 1. Must be a valid 10-digit Colombian mobile starting with '3'.
+ * 2. Cannot be a fake/repeating pattern (e.g. 3000000000, 3111111111, 3001234567, 1234567890).
+ * 3. Max 2 distinct clients per WhatsApp number for the seller.
+ * 4. Max 2 uses of the seller's own registered WhatsApp number.
+ */
+export async function validateWhatsAppForSeller(sellerId, rawWhatsApp, clientName = '') {
+	await ensureSchema();
+	const cleaned = (rawWhatsApp || '').toString().replace(/\D/g, '');
+	if (!cleaned) return null; // caller handles whether whatsapp is required or optional
+
+	// 1. Format check: Colombia mobile format (10 digits starting with 3)
+	if (cleaned.length !== 10 || !cleaned.startsWith('3')) {
+		return 'El número de WhatsApp debe tener 10 dígitos y comenzar por 3 (ej. 3001234567).';
+	}
+
+	// 2. Fake / repeated pattern check
+	const allSame = /^(\d)\1{9}$/.test(cleaned);
+	const repeatsDigits = /^3(\d)\1{8}$/.test(cleaned);
+	const sequential = '3012345678901234567890'.includes(cleaned);
+	if (allSame || repeatsDigits || sequential) {
+		return 'Por favor ingresar un número de WhatsApp real y válido.';
+	}
+
+	// 3. Fetch seller details
+	const [seller] = await sql`SELECT whatsapp, require_whatsapp FROM sellers WHERE id = ${sellerId}`;
+	const sellerWa = seller && seller.whatsapp ? String(seller.whatsapp).replace(/\D/g, '') : '';
+	const isSellerOwnNumber = sellerWa && cleaned === sellerWa;
+
+	const normClient = (clientName || '').trim().toLowerCase();
+
+	// Count how many OTHER distinct clients already have this exact whatsapp for this seller
+	const countRows = await sql`
+		SELECT COUNT(DISTINCT lower(name)) as total 
+		FROM clients 
+		WHERE seller_id = ${sellerId} 
+		  AND whatsapp IS NOT NULL 
+		  AND regexp_replace(whatsapp, '\\D', '', 'g') = ${cleaned}
+		  AND lower(name) != ${normClient}
+	`;
+	const clientCount = parseInt(countRows[0]?.total || '0', 10);
+
+	if (isSellerOwnNumber) {
+		if (clientCount >= 2) {
+			return 'Has alcanzado el límite máximo (2 veces) para usar tu número propio de vendedor.';
+		}
+	} else {
+		if (clientCount >= 2) {
+			return 'Este número de WhatsApp ya está asignado a 2 clientes diferentes. Por favor ingresa el número propio de este cliente.';
+		}
+	}
+
+	return null; // All checks passed cleanly!
+}
+
 export { sql };

@@ -1,4 +1,4 @@
-import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb, normalizeClientName } from './_db.js';
+import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb, normalizeClientName, validateWhatsAppForSeller } from './_db.js';
 import { evaluateClientStage } from './crm-automation.js';
 
 function json(body, status = 200) {
@@ -569,11 +569,11 @@ export async function handler(event) {
 
 				const clientNamePost = normalizeClientName(data.client_name ?? '');
 
-				// Validate require_whatsapp setting for seller
+				// Validate whatsapp rules for seller
 				try {
+					const whatsappInput = (data.whatsapp ?? '').toString().trim();
 					const [sellerObj] = await sql`SELECT require_whatsapp FROM sellers WHERE id = ${sellerId}`;
 					if (sellerObj && sellerObj.require_whatsapp) {
-						const whatsappInput = (data.whatsapp ?? '').toString().trim();
 						let existingWa = '';
 						if (clientNamePost) {
 							const [existingClient] = await sql`SELECT whatsapp FROM clients WHERE seller_id = ${sellerId} AND lower(name) = lower(${clientNamePost})`;
@@ -583,8 +583,12 @@ export async function handler(event) {
 							return json({ error: 'Por favor ingresar el número de WhatsApp del cliente' }, 400);
 						}
 					}
+					if (whatsappInput) {
+						const errMessage = await validateWhatsAppForSeller(sellerId, whatsappInput, clientNamePost);
+						if (errMessage) return json({ error: errMessage }, 400);
+					}
 				} catch (valErr) {
-					console.error('Error validating seller require_whatsapp:', valErr);
+					console.error('Error validating seller whatsapp rules:', valErr);
 				}
 
 				if (!saleDayId) {
