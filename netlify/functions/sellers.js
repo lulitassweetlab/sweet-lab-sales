@@ -15,7 +15,13 @@ export async function handler(event) {
                 const hActor = (h['X-Actor-Name'] || h['x-actor-name'] || h['x-actor'] || '').toString();
                 let bActor = '';
                 try { if (body) bActor = (body.actor_name || body._actor_name || body.username || '').toString(); } catch {}
-                const actor = (hActor || bActor || '').trim().toLowerCase();
+                let qActor = '';
+                try {
+                    const raw = evt.rawQuery || (evt.queryStringParameters ? new URLSearchParams(evt.queryStringParameters).toString() : '');
+                    const qs = new URLSearchParams(raw);
+                    qActor = (qs.get('actor') || '').toString();
+                } catch {}
+                const actor = (hActor || bActor || qActor || '').trim().toLowerCase();
                 if (!actor) return 'user';
                 if (['jorge', 'jorgecordoba', 'admin', 'marcela', 'aleja', 'lulitas'].includes(actor)) return 'admin';
                 const rows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;

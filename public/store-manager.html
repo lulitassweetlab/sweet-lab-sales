@@ -1111,8 +1111,11 @@
                             const url = '/api/sellers' + (actor ? '?actor=' + encodeURIComponent(actor) : '');
                             const res = await fetch(url, {
                                 method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: s.id, require_whatsapp: toggleInput.checked })
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    ...(actor ? { 'X-Actor-Name': actor } : {})
+                                },
+                                body: JSON.stringify({ id: s.id, require_whatsapp: toggleInput.checked, _actor_name: actor })
                             });
                             if (!res.ok) throw new Error('Failed');
                             
