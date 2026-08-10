@@ -1756,6 +1756,18 @@
             if (savedUser) storeAuthUser = JSON.parse(savedUser);
             const savedSeller = safeLS.getItem('storeActiveSeller');
             if (savedSeller) storeActiveSeller = JSON.parse(savedSeller);
+
+            if (storeActiveSeller) {
+                fetch('/api/sellers').then(r => r.json()).then(all => {
+                    if (Array.isArray(all)) {
+                        const fresh = all.find(s => s.id === storeActiveSeller.id || s.name.toLowerCase() === storeActiveSeller.name.toLowerCase());
+                        if (fresh) {
+                            storeActiveSeller = fresh;
+                            safeLS.setItem('storeActiveSeller', JSON.stringify(fresh));
+                        }
+                    }
+                }).catch(() => {});
+            }
         } catch (e) { console.error('Error loading session:', e); }
 
         // Compatibility Helper

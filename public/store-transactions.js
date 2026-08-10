@@ -399,6 +399,14 @@ async function showSellerSelection() {
         if (!res.ok) throw new Error('Error al cargar vendedores');
         const allSellers = await res.json();
 
+        if (storeActiveSeller) {
+            const fresh = allSellers.find(s => s.id === storeActiveSeller.id || s.name.toLowerCase() === storeActiveSeller.name.toLowerCase());
+            if (fresh) {
+                storeActiveSeller = fresh;
+                safeLS.setItem('storeActiveSeller', JSON.stringify(fresh));
+            }
+        }
+
         const matchedSeller = allSellers.find(s =>
             s.name.toLowerCase() === (storeAuthUser.username || '').toLowerCase() ||
             s.name.toLowerCase() === (storeAuthUser.name || '').toLowerCase()
@@ -486,7 +494,24 @@ async function executeCheckout(customerName) {
     // Collect all data BEFORE clearing the UI
     const customerNameInput = document.getElementById('store-customer-name');
     const newClientWhatsApp = document.getElementById('new-client-whatsapp');
-    const whatsappValue = (newClientWhatsApp ? newClientWhatsApp.value : '') || customerNameInput.dataset.whatsapp || '';
+    let whatsappValue = (newClientWhatsApp ? newClientWhatsApp.value : '') || customerNameInput.dataset.whatsapp || '';
+    
+    // Check if client exists in loaded client list and has a saved whatsapp number
+    if (!whatsappValue && typeof storeClientList !== 'undefined' && Array.isArray(storeClientList)) {
+        const clientObj = storeClientList.find(c => (c.name || '').trim().toLowerCase() === (customerName || '').trim().toLowerCase());
+        if (clientObj && (clientObj.whatsapp || clientObj.phone)) {
+            whatsappValue = (clientObj.whatsapp || clientObj.phone).toString();
+        }
+    }
+
+    const isWaRequired = storeActiveSeller && (storeActiveSeller.require_whatsapp === true || storeActiveSeller.require_whatsapp === 'true' || storeActiveSeller.require_whatsapp === 1);
+    if (isWaRequired && !whatsappValue.trim()) {
+        alert('El número de WhatsApp es obligatorio para subir pedidos con este vendedor.');
+        if (typeof openNewClientModal === 'function') {
+            openNewClientModal(customerName);
+        }
+        return;
+    }
     
     const saleItems = [];
     for (const productId in cart) {
