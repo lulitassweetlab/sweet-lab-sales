@@ -1140,10 +1140,13 @@
         <!-- MODE 1: ORDERING VIEW (Default) -->
         <div class="ordering-view" id="view-ordering">
             <div class="menu-container">
-                <!-- Category Filter Pills Bar -->
+                <!-- Category & Meal Filter Pills Bar -->
                 <div class="category-filter-bar" id="order-cat-pills">
                     <button class="cat-pill active" data-cat="Todas">Todas</button>
-                    <button class="cat-pill" data-cat="Comida">🍲 Comidas</button>
+                    <button class="cat-pill" data-cat="Desayuno">🍳 Desayunos</button>
+                    <button class="cat-pill" data-cat="Refrigerio">☕ Refrigerios</button>
+                    <button class="cat-pill" data-cat="Almuerzo">🍲 Almuerzos</button>
+                    <button class="cat-pill" data-cat="Cena">🌙 Cenas</button>
                     <button class="cat-pill" data-cat="Bebida">🥤 Bebidas</button>
                     <button class="cat-pill" data-cat="Postre">🍰 Postres</button>
                     <button class="cat-pill" data-cat="Otros">🍟 Otros</button>
@@ -1585,8 +1588,10 @@
             grid.innerHTML = '';
 
             const filtered = recipes.filter(r => {
+                if (activeOrderCategory === 'Todas') return true;
                 const cat = r.category || 'Comida';
-                return activeOrderCategory === 'Todas' || cat === activeOrderCategory;
+                const meal = r.mealType || 'Almuerzo';
+                return cat === activeOrderCategory || meal === activeOrderCategory;
             });
 
             if (filtered.length === 0) {
