@@ -1020,8 +1020,18 @@
 
                 <div class="form-grid-2">
                     <div class="form-group">
-                        <label class="form-label">URL Imagen de Encabezado</label>
-                        <input type="text" class="form-input" id="form-image" placeholder="https://images.unsplash.com/...">
+                        <label class="form-label">Imagen de la Receta</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button type="button" class="btn-secondary" id="btn-select-image" style="display: flex; align-items: center; gap: 6px; padding: 9px 14px; font-weight: 700; white-space: nowrap;">
+                                📁 Seleccionar imagen
+                            </button>
+                            <input type="file" id="form-file-input" accept="image/*" style="display: none;">
+                            <input type="text" class="form-input" id="form-image" placeholder="O pega un enlace de imagen..." style="flex: 1;">
+                        </div>
+                        <div id="image-preview-wrap" style="display: none; margin-top: 8px; position: relative; width: 110px; height: 65px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
+                            <img id="image-preview" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                            <button type="button" id="btn-remove-image" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Porciones</label>
@@ -1371,6 +1381,82 @@
             // Add Dynamic Row Actions in Modal Form
             document.getElementById('btn-add-ing-row').addEventListener('click', () => addIngRow());
             document.getElementById('btn-add-step-row').addEventListener('click', () => addStepRow());
+
+            // Image Selection & Upload Handlers
+            const btnSelectImg = document.getElementById('btn-select-image');
+            const fileInput = document.getElementById('form-file-input');
+            const imgInput = document.getElementById('form-image');
+            const btnRemoveImg = document.getElementById('btn-remove-image');
+
+            if (btnSelectImg && fileInput) {
+                btnSelectImg.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) handleImageFile(file);
+                });
+            }
+
+            if (imgInput) {
+                imgInput.addEventListener('input', (e) => {
+                    const val = e.target.value.trim();
+                    if (val) showImagePreview(val);
+                    else hideImagePreview();
+                });
+            }
+
+            if (btnRemoveImg) {
+                btnRemoveImg.addEventListener('click', () => {
+                    document.getElementById('form-image').value = '';
+                    if (fileInput) fileInput.value = '';
+                    hideImagePreview();
+                });
+            }
+        }
+
+        // Image file compression & preview helpers
+        function handleImageFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const maxW = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxW) {
+                        height = Math.round((height * maxW) / width);
+                        width = maxW;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                    document.getElementById('form-image').value = compressedBase64;
+                    showImagePreview(compressedBase64);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showImagePreview(src) {
+            const wrap = document.getElementById('image-preview-wrap');
+            const img = document.getElementById('image-preview');
+            if (wrap && img) {
+                img.src = src;
+                wrap.style.display = 'block';
+            }
+        }
+
+        function hideImagePreview() {
+            const wrap = document.getElementById('image-preview-wrap');
+            const img = document.getElementById('image-preview');
+            if (wrap && img) {
+                img.src = '';
+                wrap.style.display = 'none';
+            }
         }
 
         // Open Modal Form
@@ -1390,6 +1476,9 @@
                 document.getElementById('form-image').value = r.image || '';
                 document.getElementById('form-servings').value = r.servings || 1;
 
+                if (r.image) showImagePreview(r.image);
+                else hideImagePreview();
+
                 (r.ingredients || []).forEach(ing => addIngRow(ing.name, ing.recipeQty || ing.qty, ing.unit, ing.pkgQty, ing.pkgCost));
                 (r.steps || []).forEach(step => addStepRow(step));
             } else {
@@ -1400,6 +1489,7 @@
                 document.getElementById('form-image').value = '';
                 document.getElementById('form-servings').value = 1;
 
+                hideImagePreview();
                 addIngRow();
                 addStepRow();
             }
