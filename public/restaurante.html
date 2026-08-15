@@ -12,18 +12,19 @@
     
     <style>
         :root {
-            --primary: #f59e0b;
-            --primary-hover: #d97706;
-            --primary-light: #fef3c7;
-            --secondary: #6366f1;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --navy-dark: #0f172a;
+            --navy-header: #1e3a8a;
             --background: #f8fafc;
             --card-bg: #ffffff;
             --text: #0f172a;
             --text-muted: #64748b;
             --border: #e2e8f0;
             --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-            --shadow-md: 0 4px 20px -2px rgba(245, 158, 11, 0.1), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
-            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 4px 20px -2px rgba(37, 99, 235, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
             --radius-sm: 10px;
             --radius-md: 18px;
             --radius-lg: 24px;
@@ -51,16 +52,16 @@
             font-weight: 700;
         }
 
-        /* Header Navigation Bar */
+        /* Header Navigation Bar - Dark Navy Theme */
         header {
-            background: #ffffff;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
             padding: 16px 36px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-            box-shadow: var(--shadow-sm);
+            box-shadow: var(--shadow-md);
             z-index: 20;
+            color: white;
         }
 
         .logo-section {
@@ -73,23 +74,24 @@
             width: 44px;
             height: 44px;
             border-radius: 14px;
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-size: 24px;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .brand-name {
             font-size: 22px;
-            color: var(--text);
+            color: white;
             letter-spacing: -0.5px;
         }
 
         .brand-name span {
-            color: var(--primary);
+            color: #60a5fa;
             font-weight: 800;
         }
 
@@ -100,8 +102,8 @@
         }
 
         .page-badge {
-            background-color: var(--primary-light);
-            color: #92400e;
+            background-color: rgba(255, 255, 255, 0.12);
+            color: #e0f2fe;
             padding: 6px 14px;
             border-radius: 20px;
             font-size: 13px;
@@ -109,20 +111,21 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .badge-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background-color: var(--primary);
+            background-color: #3b82f6;
             display: inline-block;
         }
 
         .btn-back {
-            background: #ffffff;
-            border: 1px solid var(--border);
-            color: var(--text);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
             padding: 8px 18px;
             border-radius: var(--radius-sm);
             font-weight: 700;
@@ -136,8 +139,7 @@
         }
 
         .btn-back:hover {
-            border-color: var(--primary);
-            color: var(--primary-hover);
+            background: rgba(255, 255, 255, 0.2);
             transform: translateY(-1px);
         }
 
@@ -151,7 +153,7 @@
 
         /* Sidebar Panel */
         .sidebar {
-            width: 380px;
+            width: 390px;
             background-color: #ffffff;
             border-right: 1px solid var(--border);
             display: flex;
@@ -170,7 +172,7 @@
         }
 
         .btn-create {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
             color: white;
             border: none;
             padding: 12px 20px;
@@ -184,12 +186,12 @@
             justify-content: center;
             gap: 8px;
             transition: var(--transition);
-            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
         }
 
         .btn-create:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
         }
 
         .search-container {
@@ -211,7 +213,7 @@
         .search-input:focus {
             border-color: var(--primary);
             background-color: #ffffff;
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
         .search-icon {
@@ -226,7 +228,7 @@
 
         /* Filter Section (Days & Meal Categories) */
         .filter-section {
-            padding: 12px 20px;
+            padding: 14px 20px;
             border-bottom: 1px solid var(--border);
             display: flex;
             flex-direction: column;
@@ -273,10 +275,10 @@
         }
 
         .pill-btn.active {
-            background-color: var(--primary);
+            background-color: var(--navy-header);
             color: white;
-            border-color: var(--primary);
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+            border-color: var(--navy-header);
+            box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
         }
 
         /* Recipes List Sidebar */
@@ -408,9 +410,9 @@
 
         .details-hero {
             position: relative;
-            height: 320px;
+            height: 300px;
             width: 100%;
-            background-color: #1e293b;
+            background-color: #0f172a;
             overflow: hidden;
         }
 
@@ -423,7 +425,7 @@
         .details-hero-overlay {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to top, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.2) 60%, transparent 100%);
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.3) 60%, transparent 100%);
             padding: 28px 36px;
             display: flex;
             flex-direction: column;
@@ -438,14 +440,14 @@
         }
 
         .badge-tag {
-            background-color: rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(8px);
             color: white;
             padding: 6px 14px;
             border-radius: 20px;
             font-size: 13px;
             font-weight: 700;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.25);
         }
 
         .details-title {
@@ -453,18 +455,11 @@
             font-weight: 800;
             color: white;
             line-height: 1.2;
-            margin-bottom: 6px;
-        }
-
-        .details-desc {
-            font-size: 15px;
-            color: rgba(255, 255, 255, 0.85);
-            max-width: 700px;
         }
 
         /* Toolbar Actions inside Detail View */
         .details-toolbar {
-            padding: 20px 36px;
+            padding: 18px 36px;
             background-color: #ffffff;
             border-bottom: 1px solid var(--border);
             display: flex;
@@ -642,7 +637,7 @@
             height: 28px;
             border-radius: 50%;
             background-color: var(--primary-light);
-            color: #92400e;
+            color: var(--primary-hover);
             font-weight: 800;
             font-size: 13px;
             display: flex;
@@ -672,7 +667,7 @@
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background-color: rgba(15, 23, 42, 0.5);
+            background-color: rgba(15, 23, 42, 0.6);
             backdrop-filter: blur(4px);
             z-index: 100;
             display: flex;
@@ -693,8 +688,8 @@
             background-color: #ffffff;
             border-radius: var(--radius-lg);
             width: 100%;
-            max-width: 800px;
-            max-height: 90vh;
+            max-width: 860px;
+            max-height: 92vh;
             overflow-y: auto;
             box-shadow: var(--shadow-lg);
             border: 1px solid var(--border);
@@ -737,7 +732,7 @@
             color: var(--text);
         }
 
-        .form-input, .form-select, .form-textarea {
+        .form-input, .form-select {
             padding: 10px 14px;
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
@@ -748,9 +743,9 @@
             width: 100%;
         }
 
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
+        .form-input:focus, .form-select:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
         .modal-footer {
@@ -775,7 +770,7 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
             color: white;
             border: none;
             padding: 10px 24px;
@@ -785,8 +780,32 @@
             cursor: pointer;
         }
 
-        /* Dynamic Inputs Rows for Form */
-        .dynamic-row {
+        /* Dynamic Inputs Rows for Ingredients Form */
+        .ing-input-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 0.9fr 1.2fr 1.3fr auto;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+            background-color: #fafafc;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+
+        .calc-preview {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--primary-hover);
+            white-space: nowrap;
+            padding: 4px 6px;
+            background-color: var(--primary-light);
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        /* Dynamic Inputs Rows for Steps Form */
+        .step-input-row {
             display: flex;
             gap: 8px;
             align-items: center;
@@ -815,7 +834,7 @@
 </head>
 <body>
 
-    <!-- Header Navigation Bar -->
+    <!-- Header Navigation Bar (Dark Navy Theme) -->
     <header>
         <div class="logo-section">
             <div class="logo-circle">🍽️</div>
@@ -897,7 +916,6 @@
                             <span class="badge-tag" id="tag-day">📅 Lunes</span>
                         </div>
                         <h2 class="details-title" id="recipe-title">Título Receta</h2>
-                        <p class="details-desc" id="recipe-desc">Descripción de la receta...</p>
                     </div>
                 </div>
 
@@ -932,14 +950,15 @@
                 <div class="details-body">
                     <!-- Ingredients Section -->
                     <div>
-                        <h3 class="section-title">🛒 Ingredientes & Cantidades</h3>
+                        <h3 class="section-title">🛒 Ingredientes & Costos Dedito por Paquete</h3>
                         <div class="table-wrapper">
                             <table class="ing-table">
                                 <thead>
                                     <tr>
                                         <th>Ingrediente</th>
-                                        <th>Cantidad & Unidad</th>
-                                        <th style="text-align: right;">Costo estimado</th>
+                                        <th>Cant. Receta</th>
+                                        <th>Paquete Comprado</th>
+                                        <th style="text-align: right;">Costo Receta</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ing-table-body">
@@ -1010,17 +1029,22 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Descripción corta</label>
-                    <textarea class="form-textarea" id="form-desc" rows="2" placeholder="Breve descripción del menú o preparación..."></textarea>
-                </div>
-
                 <!-- Dynamic Ingredients Form List -->
                 <div class="form-group">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <label class="form-label">Ingredientes</label>
+                        <label class="form-label">Ingredientes (Cálculo Automático por Paquete Comprado)</label>
                         <button type="button" class="btn-secondary" id="btn-add-ing-row" style="padding:4px 12px; font-size:12px;">+ Agregar Ingrediente</button>
                     </div>
+                    
+                    <div style="display:grid; grid-template-columns: 2fr 1fr 0.9fr 1.2fr 1.3fr auto; gap:8px; padding:6px 10px; font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">
+                        <div>Ingrediente</div>
+                        <div>Cant. Receta</div>
+                        <div>Unidad</div>
+                        <div>Cant. Paquete</div>
+                        <div>Costo Paquete ($)</div>
+                        <div></div>
+                    </div>
+
                     <div id="form-ing-list">
                         <!-- Dynamic Ing Input Rows -->
                     </div>
@@ -1053,21 +1077,29 @@
         let activeMealFilter = 'Todas';
         let activeDayFilter = 'Todos';
 
-        // Sample initial seed data with high visual food images
+        // Helper to calculate exact ingredient cost in recipe
+        function computeIngCost(recipeQty, pkgQty, pkgCost) {
+            const rQty = Number(recipeQty) || 0;
+            const pQty = Number(pkgQty) || 1;
+            const pCost = Number(pkgCost) || 0;
+            if (pQty <= 0) return 0;
+            return Math.round((rQty / pQty) * pCost);
+        }
+
+        // Sample initial seed data with package cost calculations
         const SEED_DATA = [
             {
                 id: 'receta_pancakes',
                 name: 'Pancakes de Avena con Frutas',
-                description: 'Pancakes esponjosos acompañados de fruta fresca de temporada y miel de abejas.',
                 image: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?auto=format&fit=crop&w=800&q=80',
                 mealType: 'Desayuno',
                 day: 'Lunes',
                 servings: 1,
                 ingredients: [
-                    { name: 'Avena en hojuelas', qty: 80, unit: 'g', cost: 600 },
-                    { name: 'Banano maduro', qty: 1, unit: 'und', cost: 500 },
-                    { name: 'Huevos frescos', qty: 2, unit: 'und', cost: 1200 },
-                    { name: 'Miel de abejas', qty: 20, unit: 'ml', cost: 800 }
+                    { name: 'Avena en hojuelas', recipeQty: 80, pkgQty: 500, unit: 'g', pkgCost: 3500 },
+                    { name: 'Banano maduro', recipeQty: 1, pkgQty: 6, unit: 'und', pkgCost: 3000 },
+                    { name: 'Huevos frescos', recipeQty: 2, pkgQty: 30, unit: 'und', pkgCost: 18000 },
+                    { name: 'Miel de abejas', recipeQty: 20, pkgQty: 250, unit: 'ml', pkgCost: 10000 }
                 ],
                 steps: [
                     'Licuar la avena, el banano y los dos huevos hasta obtener una mezcla homogénea.',
@@ -1079,16 +1111,15 @@
             {
                 id: 'receta_pechuga',
                 name: 'Pechuga a la Plancha con Arroz y Ensalada',
-                description: 'Almuerzo completo con proteína magra, arroz blanco jugoso y ensalada de la casa.',
                 image: 'https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=800&q=80',
                 mealType: 'Almuerzo',
                 day: 'Lunes',
                 servings: 1,
                 ingredients: [
-                    { name: 'Pechuga de pollo', qty: 250, unit: 'g', cost: 4500 },
-                    { name: 'Arroz blanco', qty: 150, unit: 'g', cost: 800 },
-                    { name: 'Ensalada fresca', qty: 100, unit: 'g', cost: 1200 },
-                    { name: 'Papa dorada', qty: 150, unit: 'g', cost: 1000 }
+                    { name: 'Pechuga de pollo', recipeQty: 250, pkgQty: 1000, unit: 'g', pkgCost: 18000 },
+                    { name: 'Arroz blanco', recipeQty: 150, pkgQty: 1000, unit: 'g', pkgCost: 4500 },
+                    { name: 'Ensalada de vegetales', recipeQty: 100, pkgQty: 500, unit: 'g', pkgCost: 4000 },
+                    { name: 'Papa dorada', recipeQty: 150, pkgQty: 1000, unit: 'g', pkgCost: 3500 }
                 ],
                 steps: [
                     'Sazonar la pechuga de pollo con ajo, finas hierbas y sal al gusto.',
@@ -1101,15 +1132,14 @@
             {
                 id: 'receta_parfait',
                 name: 'Parfait de Yogurt Griego y Granola',
-                description: 'Refrigerio fresco y nutritivo en capas con yogurt natural, granos crujientes y frutos rojos.',
                 image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=800&q=80',
                 mealType: 'Refrigerio',
                 day: 'Martes',
                 servings: 1,
                 ingredients: [
-                    { name: 'Yogurt Griego natural', qty: 200, unit: 'g', cost: 2500 },
-                    { name: 'Granola artesanal', qty: 50, unit: 'g', cost: 1000 },
-                    { name: 'Fresas y arándanos', qty: 60, unit: 'g', cost: 1500 }
+                    { name: 'Yogurt Griego natural', recipeQty: 200, pkgQty: 1000, unit: 'g', pkgCost: 12000 },
+                    { name: 'Granola artesanal', recipeQty: 50, pkgQty: 500, unit: 'g', pkgCost: 8000 },
+                    { name: 'Fresas y arándanos', recipeQty: 60, pkgQty: 250, unit: 'g', pkgCost: 6000 }
                 ],
                 steps: [
                     'Disponer un vaso transparente alto.',
@@ -1121,15 +1151,14 @@
             {
                 id: 'receta_sopa',
                 name: 'Crema de Verduras con Crutones',
-                description: 'Cena ligera y reconfortante a base de verduras seleccionadas y tostadas crocantes.',
                 image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80',
                 mealType: 'Cena',
                 day: 'Miércoles',
                 servings: 1,
                 ingredients: [
-                    { name: 'Mix de verduras (zanahoria, ahuyama, calabacín)', qty: 300, unit: 'g', cost: 1800 },
-                    { name: 'Fondo vegetal', qty: 250, unit: 'ml', cost: 500 },
-                    { name: 'Crutones de pan', qty: 30, unit: 'g', cost: 700 }
+                    { name: 'Mix de verduras frescas', recipeQty: 300, pkgQty: 1000, unit: 'g', pkgCost: 5000 },
+                    { name: 'Fondo vegetal', recipeQty: 250, pkgQty: 1000, unit: 'ml', pkgCost: 2000 },
+                    { name: 'Crutones de pan', recipeQty: 30, pkgQty: 200, unit: 'g', pkgCost: 4000 }
                 ],
                 steps: [
                     'Cocinar las verduras en el fondo vegetal aromático hasta que estén suaves.',
@@ -1170,6 +1199,14 @@
             }
         }
 
+        // Calculate recipe total cost
+        function getRecipeTotalCost(r) {
+            return (r.ingredients || []).reduce((acc, ing) => {
+                const c = computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0);
+                return acc + c;
+            }, 0);
+        }
+
         // Filter and Render Recipes Sidebar List
         function renderRecipesList() {
             const listEl = document.getElementById('recipes-list');
@@ -1178,7 +1215,7 @@
             const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
 
             const filtered = recipes.filter(r => {
-                const matchSearch = r.name.toLowerCase().includes(searchQuery) || (r.description && r.description.toLowerCase().includes(searchQuery));
+                const matchSearch = r.name.toLowerCase().includes(searchQuery);
                 const matchMeal = activeMealFilter === 'Todas' || r.mealType === activeMealFilter;
                 const matchDay = activeDayFilter === 'Todos' || r.day === activeDayFilter || r.day === 'Todos';
                 return matchSearch && matchMeal && matchDay;
@@ -1193,7 +1230,7 @@
                 const item = document.createElement('div');
                 item.className = `recipe-card-item ${r.id === selectedRecipeId ? 'active' : ''}`;
                 
-                const totalCost = (r.ingredients || []).reduce((acc, ing) => acc + (Number(ing.cost) || 0), 0);
+                const totalCost = getRecipeTotalCost(r);
                 const mealIcon = r.mealType === 'Desayuno' ? '🍳' : r.mealType === 'Refrigerio' ? '☕' : r.mealType === 'Almuerzo' ? '🍲' : '🌙';
 
                 item.innerHTML = `
@@ -1234,7 +1271,6 @@
             // Populate Hero
             document.getElementById('hero-img').src = recipe.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80';
             document.getElementById('recipe-title').textContent = recipe.name;
-            document.getElementById('recipe-desc').textContent = recipe.description || 'Sin descripción disponible.';
 
             const mealIcon = recipe.mealType === 'Desayuno' ? '🍳' : recipe.mealType === 'Refrigerio' ? '☕' : recipe.mealType === 'Almuerzo' ? '🍲' : '🌙';
             document.getElementById('tag-meal').textContent = `${mealIcon} ${recipe.mealType || 'General'}`;
@@ -1242,7 +1278,7 @@
             document.getElementById('recipe-servings-info').textContent = `🥣 ${recipe.servings || 1} Porción(es) individual(es)`;
 
             // Calculate Costs
-            const totalCost = (recipe.ingredients || []).reduce((acc, ing) => acc + (Number(ing.cost) || 0), 0);
+            const totalCost = getRecipeTotalCost(recipe);
             const servings = Number(recipe.servings) || 1;
             const portionCost = Math.round(totalCost / servings);
 
@@ -1254,11 +1290,17 @@
             const tbody = document.getElementById('ing-table-body');
             tbody.innerHTML = '';
             (recipe.ingredients || []).forEach(ing => {
+                const rQty = Number(ing.recipeQty || ing.qty) || 0;
+                const pQty = Number(ing.pkgQty || ing.recipeQty || 1) || 1;
+                const pCost = Number(ing.pkgCost || ing.cost || 0);
+                const calcCost = computeIngCost(rQty, pQty, pCost);
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="font-weight:600;">${escapeHtml(ing.name)}</td>
-                    <td style="color:var(--text-muted);">${escapeHtml(ing.qty.toString())} ${escapeHtml(ing.unit)}</td>
-                    <td class="ing-cost">$${(Number(ing.cost) || 0).toLocaleString('es-CO')}</td>
+                    <td style="font-weight:700; color:var(--primary-hover);">${rQty} ${escapeHtml(ing.unit || 'g')}</td>
+                    <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(ing.unit || 'g')} ($${pCost.toLocaleString('es-CO')})</td>
+                    <td class="ing-cost">$${calcCost.toLocaleString('es-CO')}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1347,9 +1389,8 @@
                 document.getElementById('form-day').value = r.day || 'Lunes';
                 document.getElementById('form-image').value = r.image || '';
                 document.getElementById('form-servings').value = r.servings || 1;
-                document.getElementById('form-desc').value = r.description || '';
 
-                (r.ingredients || []).forEach(ing => addIngRow(ing.name, ing.qty, ing.unit, ing.cost));
+                (r.ingredients || []).forEach(ing => addIngRow(ing.name, ing.recipeQty || ing.qty, ing.unit, ing.pkgQty, ing.pkgCost));
                 (r.steps || []).forEach(step => addStepRow(step));
             } else {
                 titleEl.textContent = 'Nueva Receta';
@@ -1358,7 +1399,6 @@
                 document.getElementById('form-day').value = 'Lunes';
                 document.getElementById('form-image').value = '';
                 document.getElementById('form-servings').value = 1;
-                document.getElementById('form-desc').value = '';
 
                 addIngRow();
                 addStepRow();
@@ -1371,26 +1411,36 @@
             document.getElementById('editor-modal').classList.remove('active');
         }
 
-        // Form Row Helpers
-        function addIngRow(name = '', qty = '', unit = 'g', cost = '') {
+        // Form Row Helpers with Auto-Calculation
+        function addIngRow(name = '', recipeQty = '', unit = 'g', pkgQty = '', pkgCost = '') {
             const container = document.getElementById('form-ing-list');
             const row = document.createElement('div');
-            row.className = 'dynamic-row';
+            row.className = 'ing-input-row';
+
+            const calcCost = computeIngCost(recipeQty, pkgQty, pkgCost);
+
             row.innerHTML = `
-                <input type="text" class="form-input ing-name" placeholder="Nombre ingrediente" value="${escapeHtml(name)}" style="flex:2;">
-                <input type="number" class="form-input ing-qty" placeholder="Cant." value="${qty}" style="flex:1;">
-                <input type="text" class="form-input ing-unit" placeholder="Unidad (g, ml, und)" value="${escapeHtml(unit)}" style="flex:1;">
-                <input type="number" class="form-input ing-cost" placeholder="Costo ($)" value="${cost}" style="flex:1.2;">
+                <input type="text" class="form-input ing-name" placeholder="Nombre ingrediente" value="${escapeHtml(name)}">
+                <input type="number" class="form-input ing-r-qty" placeholder="Cant. Receta" value="${recipeQty}">
+                <input type="text" class="form-input ing-unit" placeholder="Unidad" value="${escapeHtml(unit)}">
+                <input type="number" class="form-input ing-p-qty" placeholder="Cant. Paquete" value="${pkgQty}">
+                <input type="number" class="form-input ing-p-cost" placeholder="Costo Paquete ($)" value="${pkgCost}">
                 <button type="button" class="btn-remove-row">✕</button>
             `;
-            row.querySelector('.btn-remove-row').addEventListener('click', () => row.remove());
+
+            const rQtyInput = row.querySelector('.ing-r-qty');
+            const pQtyInput = row.querySelector('.ing-p-qty');
+            const pCostInput = row.querySelector('.ing-p-cost');
+            const btnRemove = row.querySelector('.btn-remove-row');
+
+            btnRemove.addEventListener('click', () => row.remove());
             container.appendChild(row);
         }
 
         function addStepRow(text = '') {
             const container = document.getElementById('form-steps-list');
             const row = document.createElement('div');
-            row.className = 'dynamic-row';
+            row.className = 'step-input-row';
             row.innerHTML = `
                 <input type="text" class="form-input step-input" placeholder="Instrucción de preparación..." value="${escapeHtml(text)}" style="flex:1;">
                 <button type="button" class="btn-remove-row">✕</button>
@@ -1411,22 +1461,22 @@
             const day = document.getElementById('form-day').value;
             const image = document.getElementById('form-image').value.trim();
             const servings = Number(document.getElementById('form-servings').value) || 1;
-            const description = document.getElementById('form-desc').value.trim();
 
             const ingredients = [];
-            document.querySelectorAll('#form-ing-list .dynamic-row').forEach(row => {
+            document.querySelectorAll('#form-ing-list .ing-input-row').forEach(row => {
                 const ingName = row.querySelector('.ing-name').value.trim();
-                const qty = Number(row.querySelector('.ing-qty').value) || 0;
+                const recipeQty = Number(row.querySelector('.ing-r-qty').value) || 0;
                 const unit = row.querySelector('.ing-unit').value.trim() || 'g';
-                const cost = Number(row.querySelector('.ing-cost').value) || 0;
+                const pkgQty = Number(row.querySelector('.ing-p-qty').value) || recipeQty || 1;
+                const pkgCost = Number(row.querySelector('.ing-p-cost').value) || 0;
 
                 if (ingName) {
-                    ingredients.push({ name: ingName, qty, unit, cost });
+                    ingredients.push({ name: ingName, recipeQty, pkgQty, unit, pkgCost });
                 }
             });
 
             const steps = [];
-            document.querySelectorAll('#form-steps-list .dynamic-row').forEach(row => {
+            document.querySelectorAll('#form-steps-list .step-input-row').forEach(row => {
                 const stepText = row.querySelector('.step-input').value.trim();
                 if (stepText) steps.push(stepText);
             });
@@ -1435,11 +1485,11 @@
             if (modalTitle.includes('Editar') && selectedRecipeId) {
                 const rIdx = recipes.findIndex(rec => rec.id === selectedRecipeId);
                 if (rIdx !== -1) {
-                    recipes[rIdx] = { ...recipes[rIdx], name, mealType, day, image, servings, description, ingredients, steps };
+                    recipes[rIdx] = { ...recipes[rIdx], name, mealType, day, image, servings, ingredients, steps };
                 }
             } else {
                 const newId = 'receta_' + Date.now();
-                recipes.unshift({ id: newId, name, mealType, day, image, servings, description, ingredients, steps });
+                recipes.unshift({ id: newId, name, mealType, day, image, servings, ingredients, steps });
                 selectedRecipeId = newId;
             }
 
