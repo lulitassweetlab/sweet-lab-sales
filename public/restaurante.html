@@ -1319,7 +1319,12 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Nombre del Ítem / Receta</label>
-                    <input type="text" class="form-input" id="form-name" placeholder="Ej: Pechuga a la Plancha o Limonada de Coco">
+                    <input type="text" class="form-input" id="form-name" placeholder="Ej: Pechuga a la Plancha o Arroz Blanco preparado">
+                </div>
+
+                <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; background: var(--primary-light); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                    <input type="checkbox" id="form-is-base-recipe" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
+                    <label for="form-is-base-recipe" class="form-label" style="cursor: pointer; margin: 0; font-size: 13px;">🧪 Es una Preparación Base / Sub-Receta Reutilizable (ej: Arroz preparado, Vinagreta, Salsa)</label>
                 </div>
 
                 <div class="form-grid-2">
@@ -1440,19 +1445,66 @@
             return Math.round((rQty / pQty) * pCost);
         }
 
+        // Helper to calculate sub-recipe unit cost per serving recursively
+        function getSubRecipeUnitCost(subId, visited = new Set()) {
+            if (!subId || visited.has(subId)) return 0;
+            visited.add(subId);
+            const sub = recipes.find(r => r.id === subId);
+            if (!sub) return 0;
+            const totalSubCost = (sub.ingredients || []).reduce((acc, ing) => {
+                if (ing.isSubRecipe && ing.subRecipeId) {
+                    const subUnitCost = getSubRecipeUnitCost(ing.subRecipeId, new Set(visited));
+                    return acc + Math.round(subUnitCost * (Number(ing.recipeQty) || 1));
+                } else {
+                    return acc + computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0);
+                }
+            }, 0);
+            const servings = Number(sub.servings) || 1;
+            return Math.round(totalSubCost / servings);
+        }
+
         // Calculate total cost for an item
-        function getItemTotalCost(r) {
+        function getItemTotalCost(r, visited = new Set()) {
+            if (!r || !r.ingredients) return 0;
+            if (r.id) visited.add(r.id);
             return (r.ingredients || []).reduce((acc, ing) => {
-                const c = computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0);
-                return acc + c;
+                if (ing.isSubRecipe && ing.subRecipeId) {
+                    const subUnitCost = getSubRecipeUnitCost(ing.subRecipeId, new Set(visited));
+                    return acc + Math.round(subUnitCost * (Number(ing.recipeQty) || 1));
+                } else {
+                    return acc + computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0);
+                }
             }, 0);
         }
 
-        // Sample Seed Data featuring Comida, Bebida, Postre, Otros
+        // Sample Seed Data featuring Comida, Bebida, Postre, Otros y Sub-Recetas
         const SEED_DATA = [
+            {
+                id: 'sub_arroz_blanco',
+                name: 'Arroz Blanco Tradicional (Preparación Base)',
+                isBaseRecipe: true,
+                category: 'Otros',
+                image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=800&q=80',
+                mealType: 'Almuerzo',
+                day: 'Todos',
+                servings: 10,
+                ingredients: [
+                    { name: 'Arroz crudo', recipeQty: 1000, pkgQty: 1000, unit: 'g', pkgCost: 4500 },
+                    { name: 'Aceite vegetal', recipeQty: 50, pkgQty: 1000, unit: 'ml', pkgCost: 8000 },
+                    { name: 'Sal fina', recipeQty: 20, pkgQty: 1000, unit: 'g', pkgCost: 2000 },
+                    { name: 'Cebolla de rama', recipeQty: 50, pkgQty: 500, unit: 'g', pkgCost: 3000 }
+                ],
+                steps: [
+                    'Sofrreír la cebolla de rama picada en el aceite caliente.',
+                    'Agregar el arroz crudo y dorar por 2 minutos.',
+                    'Verter el doble de agua con la sal, dejar secar a fuego medio.',
+                    'Tapar y bajar el fuego al mínimo por 15 minutos hasta que esté en su punto.'
+                ]
+            },
             {
                 id: 'receta_pechuga',
                 name: 'Pechuga a la Plancha con Arroz y Ensalada',
+                isBaseRecipe: false,
                 category: 'Comida',
                 image: 'https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=800&q=80',
                 mealType: 'Almuerzo',
@@ -1460,13 +1512,13 @@
                 servings: 1,
                 ingredients: [
                     { name: 'Pechuga de pollo', recipeQty: 250, pkgQty: 1000, unit: 'g', pkgCost: 18000 },
-                    { name: 'Arroz blanco', recipeQty: 150, pkgQty: 1000, unit: 'g', pkgCost: 4500 },
+                    { name: 'Arroz Blanco Tradicional', isSubRecipe: true, subRecipeId: 'sub_arroz_blanco', recipeQty: 1, unit: 'porción' },
                     { name: 'Ensalada de vegetales', recipeQty: 100, pkgQty: 500, unit: 'g', pkgCost: 4000 },
                     { name: 'Papa dorada', recipeQty: 150, pkgQty: 1000, unit: 'g', pkgCost: 3500 }
                 ],
                 steps: [
                     'Sazonar la pechuga de pollo con ajo, finas hierbas y sal al gusto.',
-                    'Cocinar el arroz blanco y dorar las papas en cascos.',
+                    'Disponer 1 porción del Arroz Blanco Tradicional previamente preparado.',
                     'Preparar la ensalada fresca mezclando vegetales crujientes.',
                     'Asar la pechuga en la plancha a fuego vivo hasta que esté jugosa.'
                 ]
@@ -1787,20 +1839,68 @@
 
             const tbody = document.getElementById('ing-table-body');
             tbody.innerHTML = '';
-            (recipe.ingredients || []).forEach(ing => {
-                const rQty = Number(ing.recipeQty || ing.qty) || 0;
-                const pQty = Number(ing.pkgQty || ing.recipeQty || 1) || 1;
-                const pCost = Number(ing.pkgCost || ing.cost || 0);
-                const calcCost = computeIngCost(rQty, pQty, pCost);
-
+            (recipe.ingredients || []).forEach((ing, ingIdx) => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight:600;">${escapeHtml(ing.name)}</td>
-                    <td style="font-weight:700; color:var(--primary-hover);">${rQty} ${escapeHtml(ing.unit || 'g')}</td>
-                    <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(ing.unit || 'g')} ($${pCost.toLocaleString('es-CO')})</td>
-                    <td class="ing-cost">$${calcCost.toLocaleString('es-CO')}</td>
-                `;
-                tbody.appendChild(tr);
+                
+                if (ing.isSubRecipe && ing.subRecipeId) {
+                    const subUnitCost = getSubRecipeUnitCost(ing.subRecipeId);
+                    const rQty = Number(ing.recipeQty) || 1;
+                    const calcCost = Math.round(subUnitCost * rQty);
+                    const subObj = recipes.find(r => r.id === ing.subRecipeId);
+                    const subName = subObj ? subObj.name : ing.name;
+
+                    tr.innerHTML = `
+                        <td style="font-weight:700;">
+                            <div>${escapeHtml(subName)} <span class="cat-badge" style="background:#dbeafe; color:#1e40af; font-size:10px;">🧪 Preparación Base</span></div>
+                            <button type="button" class="btn-toggle-sub" data-sub="${ingIdx}" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:700; cursor:pointer; padding:2px 0; margin-top:2px;">
+                                🔍 Ver sub-ingredientes ▼
+                            </button>
+                        </td>
+                        <td style="font-weight:700; color:var(--primary-hover);">${rQty} ${escapeHtml(ing.unit || 'porción')}</td>
+                        <td style="color:var(--text-muted); font-size:13px;">Sub-receta ($${subUnitCost.toLocaleString('es-CO')}/u)</td>
+                        <td class="ing-cost">$${calcCost.toLocaleString('es-CO')}</td>
+                    `;
+                    tbody.appendChild(tr);
+
+                    // Add nested sub-ingredients row
+                    if (subObj && subObj.ingredients && subObj.ingredients.length > 0) {
+                        const subTr = document.createElement('tr');
+                        subTr.id = `sub-row-${ingIdx}`;
+                        subTr.style.display = 'none';
+                        subTr.style.backgroundColor = '#f8fafc';
+                        
+                        let subDetailsHtml = `<div style="padding:10px 16px; border-left:3px solid var(--primary); font-size:13px;">
+                            <div style="font-weight:800; color:var(--text); margin-bottom:6px;">Ingredientes de ${escapeHtml(subObj.name)}:</div>
+                            <ul style="margin:0; padding-left:20px; color:var(--text-muted);">`;
+                        subObj.ingredients.forEach(subIng => {
+                            subDetailsHtml += `<li><strong>${escapeHtml(subIng.name)}:</strong> ${subIng.recipeQty || subIng.qty} ${escapeHtml(subIng.unit || 'g')} (Paquete ${subIng.pkgQty || 1} ${escapeHtml(subIng.unit || 'g')} = $${(subIng.pkgCost || 0).toLocaleString('es-CO')})</li>`;
+                        });
+                        subDetailsHtml += `</ul></div>`;
+
+                        subTr.innerHTML = `<td colspan="4">${subDetailsHtml}</td>`;
+                        tbody.appendChild(subTr);
+
+                        const toggleBtn = tr.querySelector('.btn-toggle-sub');
+                        toggleBtn.addEventListener('click', () => {
+                            const isHidden = subTr.style.display === 'none';
+                            subTr.style.display = isHidden ? 'table-row' : 'none';
+                            toggleBtn.textContent = isHidden ? '🙈 Ocultar sub-ingredientes ▲' : '🔍 Ver sub-ingredientes ▼';
+                        });
+                    }
+                } else {
+                    const rQty = Number(ing.recipeQty || ing.qty) || 0;
+                    const pQty = Number(ing.pkgQty || ing.recipeQty || 1) || 1;
+                    const pCost = Number(ing.pkgCost || ing.cost || 0);
+                    const calcCost = computeIngCost(rQty, pQty, pCost);
+
+                    tr.innerHTML = `
+                        <td style="font-weight:600;">${escapeHtml(ing.name)}</td>
+                        <td style="font-weight:700; color:var(--primary-hover);">${rQty} ${escapeHtml(ing.unit || 'g')}</td>
+                        <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(ing.unit || 'g')} ($${pCost.toLocaleString('es-CO')})</td>
+                        <td class="ing-cost">$${calcCost.toLocaleString('es-CO')}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
             });
 
             const stepsList = document.getElementById('steps-list');
@@ -1997,6 +2097,7 @@
                 const r = recipes.find(rec => rec.id === id);
                 titleEl.textContent = 'Editar Ítem / Receta';
                 document.getElementById('form-name').value = r.name || '';
+                document.getElementById('form-is-base-recipe').checked = r.isBaseRecipe || false;
                 document.getElementById('form-category').value = r.category || 'Comida';
                 document.getElementById('form-meal').value = r.mealType || 'Almuerzo';
                 document.getElementById('form-day').value = r.day || 'Lunes';
@@ -2006,11 +2107,12 @@
                 if (r.image) showImagePreview(r.image);
                 else hideImagePreview();
 
-                (r.ingredients || []).forEach(ing => addIngRow(ing.name, ing.recipeQty || ing.qty, ing.unit, ing.pkgQty, ing.pkgCost));
+                (r.ingredients || []).forEach(ing => addIngRow(ing.name, ing.recipeQty || ing.qty, ing.unit, ing.pkgQty, ing.pkgCost, ing.isSubRecipe, ing.subRecipeId));
                 (r.steps || []).forEach(step => addStepRow(step));
             } else {
                 titleEl.textContent = 'Nueva Receta / Ítem';
                 document.getElementById('form-name').value = '';
+                document.getElementById('form-is-base-recipe').checked = false;
                 document.getElementById('form-category').value = 'Comida';
                 document.getElementById('form-meal').value = 'Almuerzo';
                 document.getElementById('form-day').value = 'Lunes';
@@ -2029,12 +2131,15 @@
             document.getElementById('editor-modal').classList.remove('active');
         }
 
-        function addIngRow(name = '', recipeQty = '', unit = 'g', pkgQty = '', pkgCost = '') {
+        function addIngRow(name = '', recipeQty = '', unit = 'g', pkgQty = '', pkgCost = '', isSubRecipe = false, subRecipeId = '') {
             const container = document.getElementById('form-ing-list');
             const row = document.createElement('div');
             row.className = 'ing-input-row';
+            row.setAttribute('data-subrecipe-id', subRecipeId || '');
+            row.setAttribute('data-is-subrecipe', isSubRecipe ? 'true' : 'false');
+
             row.innerHTML = `
-                <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Nombre ingrediente" value="${escapeHtml(name)}">
+                <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Nombre ingrediente o sub-receta" value="${escapeHtml(name)}">
                 <input type="number" class="form-input ing-r-qty" placeholder="Cant. Receta" value="${recipeQty}">
                 <input type="text" class="form-input ing-unit" placeholder="Unidad" value="${escapeHtml(unit)}">
                 <input type="number" class="form-input ing-p-qty" placeholder="Cant. Paquete" value="${pkgQty}">
@@ -2049,6 +2154,23 @@
 
             nameInput.addEventListener('input', () => {
                 const val = nameInput.value.trim().toLowerCase();
+                
+                // Check if matching a Sub-Recipe (isBaseRecipe = true)
+                const baseMatch = recipes.find(r => r.isBaseRecipe && r.name.trim().toLowerCase() === val);
+                if (baseMatch) {
+                    row.setAttribute('data-is-subrecipe', 'true');
+                    row.setAttribute('data-subrecipe-id', baseMatch.id);
+                    if (unitInput && !unitInput.value) unitInput.value = 'porción';
+                    const unitCost = getSubRecipeUnitCost(baseMatch.id);
+                    if (pQtyInput) pQtyInput.value = 1;
+                    if (pCostInput) pCostInput.value = unitCost;
+                    return;
+                } else {
+                    row.setAttribute('data-is-subrecipe', 'false');
+                    row.setAttribute('data-subrecipe-id', '');
+                }
+
+                // Check in raw ingredients catalog
                 const catalog = getRestaurantIngredientsCatalog();
                 if (catalog[val]) {
                     const match = catalog[val];
@@ -2081,6 +2203,7 @@
                 return;
             }
 
+            const isBaseRecipe = document.getElementById('form-is-base-recipe').checked;
             const category = document.getElementById('form-category').value;
             const mealType = document.getElementById('form-meal').value;
             const day = document.getElementById('form-day').value;
@@ -2095,8 +2218,11 @@
                 const pkgQty = Number(row.querySelector('.ing-p-qty').value) || recipeQty || 1;
                 const pkgCost = Number(row.querySelector('.ing-p-cost').value) || 0;
 
+                const isSubRecipe = row.getAttribute('data-is-subrecipe') === 'true';
+                const subRecipeId = row.getAttribute('data-subrecipe-id') || '';
+
                 if (ingName) {
-                    ingredients.push({ name: ingName, recipeQty, pkgQty, unit, pkgCost });
+                    ingredients.push({ name: ingName, recipeQty, pkgQty, unit, pkgCost, isSubRecipe, subRecipeId });
                 }
             });
 
@@ -2110,11 +2236,11 @@
             if (modalTitle.includes('Editar') && selectedRecipeId) {
                 const rIdx = recipes.findIndex(rec => rec.id === selectedRecipeId);
                 if (rIdx !== -1) {
-                    recipes[rIdx] = { ...recipes[rIdx], name, category, mealType, day, image, servings, ingredients, steps };
+                    recipes[rIdx] = { ...recipes[rIdx], name, isBaseRecipe, category, mealType, day, image, servings, ingredients, steps };
                 }
             } else {
                 const newId = 'receta_' + Date.now();
-                recipes.unshift({ id: newId, name, category, mealType, day, image, servings, ingredients, steps });
+                recipes.unshift({ id: newId, name, isBaseRecipe, category, mealType, day, image, servings, ingredients, steps });
                 selectedRecipeId = newId;
             }
 
