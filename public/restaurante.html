@@ -1149,7 +1149,7 @@
                     <button class="cat-pill" data-cat="Cena">🌙 Cenas</button>
                     <button class="cat-pill" data-cat="Bebida">🥤 Bebidas</button>
                     <button class="cat-pill" data-cat="Postre">🍰 Postres</button>
-                    <button class="cat-pill" data-cat="Otros">🍟 Otros</button>
+                    <button class="cat-pill" data-cat="Adicionales">🍟 Adicionales</button>
                 </div>
 
                 <!-- Menu Cards Grid -->
@@ -1204,18 +1204,6 @@
                         <button class="pill-btn" data-meal="Almuerzo">🍲 Almuerzo</button>
                         <button class="pill-btn" data-meal="Cena">🌙 Cena</button>
                     </div>
-
-                    <div class="filter-label" style="margin-top: 6px;">Día</div>
-                    <div class="pills-row" id="day-pills">
-                        <button class="pill-btn active" data-day="Todos">Todos</button>
-                        <button class="pill-btn" data-day="Lunes">Lun</button>
-                        <button class="pill-btn" data-day="Martes">Mar</button>
-                        <button class="pill-btn" data-day="Miércoles">Mié</button>
-                        <button class="pill-btn" data-day="Jueves">Jue</button>
-                        <button class="pill-btn" data-day="Viernes">Vie</button>
-                        <button class="pill-btn" data-day="Sábado">Sáb</button>
-                        <button class="pill-btn" data-day="Domingo">Dom</button>
-                    </div>
                 </div>
 
                 <!-- Recipes Cards List -->
@@ -1241,7 +1229,6 @@
                         <div class="details-hero-overlay">
                             <div class="hero-tags">
                                 <span class="badge-tag" id="tag-meal">🍳 Desayuno</span>
-                                <span class="badge-tag" id="tag-day">📅 Lunes</span>
                             </div>
                             <h2 class="details-title" id="recipe-title">Título Receta</h2>
                         </div>
@@ -1334,12 +1321,13 @@
                             <option value="Comida">🍲 Comida</option>
                             <option value="Bebida">🥤 Bebida</option>
                             <option value="Postre">🍰 Postre</option>
-                            <option value="Otros">🍟 Otros</option>
+                            <option value="Adicionales">🍟 Adicionales</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Momento de Comida</label>
                         <select class="form-select" id="form-meal">
+                            <option value="Cualquiera">Cualquiera</option>
                             <option value="Almuerzo">🍲 Almuerzo</option>
                             <option value="Desayuno">🍳 Desayuno</option>
                             <option value="Refrigerio">☕ Refrigerio</option>
@@ -1349,19 +1337,6 @@
                 </div>
 
                 <div class="form-grid-2">
-                    <div class="form-group">
-                        <label class="form-label">Día de la semana</label>
-                        <select class="form-select" id="form-day">
-                            <option value="Todos">Cualquier día</option>
-                            <option value="Lunes">Lunes</option>
-                            <option value="Martes">Martes</option>
-                            <option value="Miércoles">Miércoles</option>
-                            <option value="Jueves">Jueves</option>
-                            <option value="Viernes">Viernes</option>
-                            <option value="Sábado">Sábado</option>
-                            <option value="Domingo">Domingo</option>
-                        </select>
-                    </div>
                     <div class="form-group">
                         <label class="form-label">Porciones</label>
                         <input type="number" class="form-input" id="form-servings" value="1" min="1">
@@ -1483,10 +1458,9 @@
                 id: 'sub_arroz_blanco',
                 name: 'Arroz Blanco Tradicional (Preparación Base)',
                 isBaseRecipe: true,
-                category: 'Otros',
+                category: 'Adicionales',
                 image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=800&q=80',
-                mealType: 'Almuerzo',
-                day: 'Todos',
+                mealType: 'Cualquiera',
                 servings: 10,
                 ingredients: [
                     { name: 'Arroz crudo', recipeQty: 1000, pkgQty: 1000, unit: 'g', pkgCost: 4500 },
@@ -1508,7 +1482,6 @@
                 category: 'Comida',
                 image: 'https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=800&q=80',
                 mealType: 'Almuerzo',
-                day: 'Lunes',
                 servings: 1,
                 ingredients: [
                     { name: 'Pechuga de pollo', recipeQty: 250, pkgQty: 1000, unit: 'g', pkgCost: 18000 },
@@ -1528,8 +1501,7 @@
                 name: 'Limonada Natural de Coco',
                 category: 'Bebida',
                 image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80',
-                mealType: 'Almuerzo',
-                day: 'Todos',
+                mealType: 'Cualquiera',
                 servings: 1,
                 ingredients: [
                     { name: 'Limones frescos', recipeQty: 3, pkgQty: 12, unit: 'und', pkgCost: 3000 },
@@ -1548,7 +1520,6 @@
                 category: 'Postre',
                 image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=800&q=80',
                 mealType: 'Refrigerio',
-                day: 'Martes',
                 servings: 1,
                 ingredients: [
                     { name: 'Yogurt Griego natural', recipeQty: 200, pkgQty: 1000, unit: 'g', pkgCost: 12000 },
@@ -1564,10 +1535,9 @@
             {
                 id: 'item_papas_cascos',
                 name: 'Papas Doradas en Cascos',
-                category: 'Otros',
+                category: 'Adicionales',
                 image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=800&q=80',
-                mealType: 'Almuerzo',
-                day: 'Todos',
+                mealType: 'Cualquiera',
                 servings: 1,
                 ingredients: [
                     { name: 'Papas amarillas', recipeQty: 250, pkgQty: 1000, unit: 'g', pkgCost: 4000 },
@@ -1653,7 +1623,7 @@
 
             filtered.forEach(item => {
                 const cost = getItemTotalCost(item);
-                const catIcon = item.category === 'Bebida' ? '🥤' : item.category === 'Postre' ? '🍰' : item.category === 'Otros' ? '🍟' : '🍲';
+                const catIcon = item.category === 'Bebida' ? '🥤' : item.category === 'Postre' ? '🍰' : (item.category === 'Adicionales' || item.category === 'Otros') ? '🍟' : '🍲';
                 
                 const card = document.createElement('div');
                 card.className = 'menu-card';
@@ -1770,9 +1740,8 @@
 
             const filtered = recipes.filter(r => {
                 const matchSearch = r.name.toLowerCase().includes(searchQuery);
-                const matchMeal = activeMealFilter === 'Todas' || r.mealType === activeMealFilter;
-                const matchDay = activeDayFilter === 'Todos' || r.day === activeDayFilter || r.day === 'Todos';
-                return matchSearch && matchMeal && matchDay;
+                const matchMeal = activeMealFilter === 'Todas' || r.mealType === activeMealFilter || r.mealType === 'Cualquiera';
+                return matchSearch && matchMeal;
             });
 
             if (filtered.length === 0) {
@@ -1785,15 +1754,15 @@
                 item.className = `recipe-card-item ${r.id === selectedRecipeId ? 'active' : ''}`;
                 
                 const totalCost = getItemTotalCost(r);
-                const mealIcon = r.mealType === 'Desayuno' ? '🍳' : r.mealType === 'Refrigerio' ? '☕' : r.mealType === 'Almuerzo' ? '🍲' : '🌙';
+                const mealIcon = r.mealType === 'Desayuno' ? '🍳' : r.mealType === 'Refrigerio' ? '☕' : r.mealType === 'Almuerzo' ? '🍲' : r.mealType === 'Cena' ? '🌙' : '🍽️';
 
                 item.innerHTML = `
                     <img src="${r.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=300&q=80'}" class="recipe-item-thumb" alt="${r.name}">
                     <div class="recipe-item-content">
                         <div class="recipe-item-title">${escapeHtml(r.name)}</div>
                         <div class="recipe-item-tags">
-                            <span class="mini-tag">${mealIcon} ${r.mealType || 'General'}</span>
-                            <span class="mini-tag">📅 ${r.day || 'Cualquier día'}</span>
+                            ${r.isBaseRecipe ? '<span class="mini-tag" style="background:#dbeafe; color:#1e40af; font-weight:700;">🧪 Sub-Receta</span>' : ''}
+                            <span class="mini-tag">${mealIcon} ${r.mealType || 'Cualquiera'}</span>
                         </div>
                         <div class="recipe-item-cost">$${totalCost.toLocaleString('es-CO')}</div>
                     </div>
@@ -1824,9 +1793,8 @@
             document.getElementById('hero-img').src = recipe.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80';
             document.getElementById('recipe-title').textContent = recipe.name;
 
-            const mealIcon = recipe.mealType === 'Desayuno' ? '🍳' : recipe.mealType === 'Refrigerio' ? '☕' : recipe.mealType === 'Almuerzo' ? '🍲' : '🌙';
-            document.getElementById('tag-meal').textContent = `${mealIcon} ${recipe.mealType || 'General'}`;
-            document.getElementById('tag-day').textContent = `📅 ${recipe.day || 'Cualquier día'}`;
+            const mealIcon = recipe.mealType === 'Desayuno' ? '🍳' : recipe.mealType === 'Refrigerio' ? '☕' : recipe.mealType === 'Almuerzo' ? '🍲' : recipe.mealType === 'Cena' ? '🌙' : '🍽️';
+            document.getElementById('tag-meal').textContent = recipe.isBaseRecipe ? '🧪 Preparación Base / Sub-Receta' : `${mealIcon} ${recipe.mealType || 'Cualquiera'}`;
             document.getElementById('recipe-servings-info').textContent = `🥣 ${recipe.servings || 1} Porción(es) individual(es)`;
 
             const totalCost = getItemTotalCost(recipe);
@@ -2099,8 +2067,7 @@
                 document.getElementById('form-name').value = r.name || '';
                 document.getElementById('form-is-base-recipe').checked = r.isBaseRecipe || false;
                 document.getElementById('form-category').value = r.category || 'Comida';
-                document.getElementById('form-meal').value = r.mealType || 'Almuerzo';
-                document.getElementById('form-day').value = r.day || 'Lunes';
+                document.getElementById('form-meal').value = r.mealType || 'Cualquiera';
                 document.getElementById('form-image').value = r.image || '';
                 document.getElementById('form-servings').value = r.servings || 1;
 
@@ -2114,8 +2081,7 @@
                 document.getElementById('form-name').value = '';
                 document.getElementById('form-is-base-recipe').checked = false;
                 document.getElementById('form-category').value = 'Comida';
-                document.getElementById('form-meal').value = 'Almuerzo';
-                document.getElementById('form-day').value = 'Lunes';
+                document.getElementById('form-meal').value = 'Cualquiera';
                 document.getElementById('form-image').value = '';
                 document.getElementById('form-servings').value = 1;
 
@@ -2206,7 +2172,6 @@
             const isBaseRecipe = document.getElementById('form-is-base-recipe').checked;
             const category = document.getElementById('form-category').value;
             const mealType = document.getElementById('form-meal').value;
-            const day = document.getElementById('form-day').value;
             const image = document.getElementById('form-image').value.trim();
             const servings = Number(document.getElementById('form-servings').value) || 1;
 
@@ -2236,11 +2201,11 @@
             if (modalTitle.includes('Editar') && selectedRecipeId) {
                 const rIdx = recipes.findIndex(rec => rec.id === selectedRecipeId);
                 if (rIdx !== -1) {
-                    recipes[rIdx] = { ...recipes[rIdx], name, isBaseRecipe, category, mealType, day, image, servings, ingredients, steps };
+                    recipes[rIdx] = { ...recipes[rIdx], name, isBaseRecipe, category, mealType, image, servings, ingredients, steps };
                 }
             } else {
                 const newId = 'receta_' + Date.now();
-                recipes.unshift({ id: newId, name, isBaseRecipe, category, mealType, day, image, servings, ingredients, steps });
+                recipes.unshift({ id: newId, name, isBaseRecipe, category, mealType, image, servings, ingredients, steps });
                 selectedRecipeId = newId;
             }
 
