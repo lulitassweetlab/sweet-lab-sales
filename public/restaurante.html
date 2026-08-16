@@ -1953,8 +1953,40 @@
             }
         }
 
+        // Isolated Restaurant Ingredients Catalog & Autocomplete Helpers
+        function getRestaurantIngredientsCatalog() {
+            const catalog = {};
+            (recipes || []).forEach(r => {
+                (r.ingredients || []).forEach(ing => {
+                    if (ing && ing.name) {
+                        const key = ing.name.trim().toLowerCase();
+                        catalog[key] = {
+                            name: ing.name.trim(),
+                            unit: ing.unit || 'g',
+                            pkgQty: ing.pkgQty || 1,
+                            pkgCost: ing.pkgCost || 0
+                        };
+                    }
+                });
+            });
+            return catalog;
+        }
+
+        function updateIngredientsDatalist() {
+            const datalist = document.getElementById('restaurant-ingredients-list');
+            if (!datalist) return;
+            datalist.innerHTML = '';
+            const catalog = getRestaurantIngredientsCatalog();
+            Object.values(catalog).forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.name;
+                datalist.appendChild(opt);
+            });
+        }
+
         // Open Modal Form
         function openModal(id = null) {
+            updateIngredientsDatalist();
             const modal = document.getElementById('editor-modal');
             const titleEl = document.getElementById('modal-title');
             
@@ -2002,13 +2034,30 @@
             const row = document.createElement('div');
             row.className = 'ing-input-row';
             row.innerHTML = `
-                <input type="text" class="form-input ing-name" placeholder="Nombre ingrediente" value="${escapeHtml(name)}">
+                <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Nombre ingrediente" value="${escapeHtml(name)}">
                 <input type="number" class="form-input ing-r-qty" placeholder="Cant. Receta" value="${recipeQty}">
                 <input type="text" class="form-input ing-unit" placeholder="Unidad" value="${escapeHtml(unit)}">
                 <input type="number" class="form-input ing-p-qty" placeholder="Cant. Paquete" value="${pkgQty}">
                 <input type="number" class="form-input ing-p-cost" placeholder="Costo Paquete ($)" value="${pkgCost}">
                 <button type="button" class="btn-remove-row">✕</button>
             `;
+
+            const nameInput = row.querySelector('.ing-name');
+            const unitInput = row.querySelector('.ing-unit');
+            const pQtyInput = row.querySelector('.ing-p-qty');
+            const pCostInput = row.querySelector('.ing-p-cost');
+
+            nameInput.addEventListener('input', () => {
+                const val = nameInput.value.trim().toLowerCase();
+                const catalog = getRestaurantIngredientsCatalog();
+                if (catalog[val]) {
+                    const match = catalog[val];
+                    if (unitInput) unitInput.value = match.unit || 'g';
+                    if (pQtyInput) pQtyInput.value = match.pkgQty || '';
+                    if (pCostInput) pCostInput.value = match.pkgCost || '';
+                }
+            });
+
             row.querySelector('.btn-remove-row').addEventListener('click', () => row.remove());
             container.appendChild(row);
         }
@@ -2070,6 +2119,7 @@
             }
 
             saveRecipes();
+            updateIngredientsDatalist();
             closeModal();
 
             if (currentMode === 'order') {
@@ -2101,5 +2151,8 @@
                 .replace(/'/g, '&#039;');
         }
     </script>
+    <!-- Datalist for Isolated Restaurant Ingredients Autocomplete -->
+    <datalist id="restaurant-ingredients-list"></datalist>
+
 </body>
 </html>
