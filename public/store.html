@@ -1264,13 +1264,15 @@
         /* CRM Tags Styles */
         .tag-selection-wrapper {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            flex-direction: column;
+            gap: 8px;
             padding: 10px 0;
             justify-content: center;
             align-items: center;
             min-height: 36px;
             margin-bottom: 8px;
+            max-height: 220px;
+            overflow-y: auto;
         }
 
         .tag-button {
@@ -1478,19 +1480,31 @@
     </div>
 
     <div class="modal-overlay" id="store-similar-client-modal">
-        <div class="modal-content" style="max-width: 350px; text-align: center;">
-            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Cliente no encontrado</h3>
-            <p style="font-size: 0.9rem; margin-bottom: 16px;">¿Quisiste decir alguno de estos clientes?</p>
+        <div class="modal-content" style="max-width: 360px; text-align: center; padding: 28px 22px;">
+            <!-- Botón Principal Destacado y Central -->
+            <div style="margin-bottom: 24px;">
+                <button id="similar-client-new-btn"
+                    style="width: 100%; padding: 18px 20px; font-weight: 700; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); color: white; border: none; border-radius: 16px; font-size: 1.05rem; box-shadow: 0 8px 20px rgba(244, 166, 183, 0.45); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; line-height: 1.35;">
+                    ✨ Registrar a "<span id="similar-client-typed-name"></span>" como cliente nuevo
+                </button>
+            </div>
+
+            <!-- Título sutil y secundario -->
+            <div style="text-align: center; margin-bottom: 10px; opacity: 0.65;">
+                <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">¿O deseas seleccionar uno ya registrado?</span>
+            </div>
+
+            <!-- Botones secundarios discretos -->
             <div id="similar-clients-container"
-                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 200px; overflow-y: auto;">
+                style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; max-height: 150px; overflow-y: auto; padding: 4px;">
                 <!-- Botones dinamicos de clientes similares -->
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button id="similar-client-new-btn" class="internal-checkout-btn"
-                    style="background: var(--surface); color: var(--text); border: 1px solid var(--border);">No,
-                    registrar nuevo cliente</button>
-                <button id="similar-client-cancel-btn" class="internal-checkout-btn" style="padding: 8px;">Cancelar
-                    pedido</button>
+
+            <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 14px;">
+                <button id="similar-client-cancel-btn"
+                    style="background: none; border: none; color: #94a3b8; font-size: 0.8rem; font-weight: 500; cursor: pointer; text-decoration: underline; padding: 4px 12px;">
+                    Cancelar
+                </button>
             </div>
         </div>
     </div>
@@ -1694,23 +1708,28 @@
                     return btn;
                 };
 
-                // Show top 6 sorted by frequency
-                const top = tags.slice(0, 6);
-                const others = tags.slice(6);
-                top.forEach(t => container.appendChild(renderBtn(t)));
+                // Group tags by color to display each color group in its own row
+                const colorGroups = {};
+                tags.forEach(t => {
+                    const colorKey = (t.color || '#818cf8').toLowerCase();
+                    if (!colorGroups[colorKey]) colorGroups[colorKey] = [];
+                    colorGroups[colorKey].push(t);
+                });
 
-                if (others.length > 0) {
-                    const expand = document.createElement('button');
-                    expand.type = 'button';
-                    expand.className = 'tag-expand-btn';
-                    expand.textContent = '+';
-                    expand.onclick = (e) => {
-                        e.stopPropagation();
-                        expand.remove();
-                        others.forEach(t => container.appendChild(renderBtn(t)));
-                    };
-                    container.appendChild(expand);
-                }
+                Object.keys(colorGroups).forEach(colorKey => {
+                    const row = document.createElement('div');
+                    row.className = 'tag-color-row';
+                    row.style.display = 'flex';
+                    row.style.flexWrap = 'wrap';
+                    row.style.gap = '6px';
+                    row.style.justifyContent = 'center';
+                    row.style.width = '100%';
+
+                    colorGroups[colorKey].forEach(t => {
+                        row.appendChild(renderBtn(t));
+                    });
+                    container.appendChild(row);
+                });
             } catch (err) { 
                 console.error('[CRM Tags] Error:', err);
                 container.innerHTML = '<p style="font-size:0.7rem; color:var(--danger);">Error al cargar etiquetas</p>';
@@ -1732,10 +1751,15 @@
             document.getElementById('new-client-error').style.display = 'none';
             document.getElementById('store-new-client-modal').style.display = 'flex';
 
-            // Automatic Location Capture
+            // Automatic Location Capture (only if required by seller configuration)
             newClientCoords = null;
             document.getElementById('new-client-geo-status').style.display = 'none';
-            if (navigator.geolocation) {
+            const isLocationRequired = storeActiveSeller && (
+                storeActiveSeller.require_location === true || 
+                storeActiveSeller.require_location === 'true' || 
+                storeActiveSeller.require_location === 1
+            );
+            if (isLocationRequired && navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         newClientCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
@@ -1748,6 +1772,10 @@
             }
             
             loadStoreTags();
+            setTimeout(() => {
+                const waEl = document.getElementById('new-client-whatsapp');
+                if (waEl) waEl.focus();
+            }, 50);
         };
 
         // Initialize state from localStorage
@@ -2003,14 +2031,20 @@
 
                 const similar = findSimilarClients(customerName);
                 if (similar.length > 0) {
+                    const typedNameSpan = document.getElementById('similar-client-typed-name');
+                    if (typedNameSpan) typedNameSpan.textContent = customerName;
+
                     const container = document.getElementById('similar-clients-container');
                     container.innerHTML = '';
                     similar.forEach(simName => {
                         const btn = document.createElement('button');
                         btn.className = 'internal-checkout-btn';
-                        btn.style.background = 'var(--surface)';
-                        btn.style.color = 'var(--text)';
-                        btn.style.border = '1px solid var(--border)';
+                        btn.style.background = '#f8fafc';
+                        btn.style.color = '#475569';
+                        btn.style.border = '1px solid #e2e8f0';
+                        btn.style.fontSize = '0.85rem';
+                        btn.style.padding = '8px 12px';
+                        btn.style.fontWeight = '500';
                         btn.textContent = simName;
                         btn.addEventListener('click', () => {
                             document.getElementById('store-similar-client-modal').style.display = 'none';
@@ -2070,20 +2104,28 @@
             if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
             if (!storeActiveSeller || !storeAuthUser) { alert('No hay un vendedor activo seleccionado o no has ingresado.'); return; }
 
-            // Robust find in the new object-oriented storeClientList
+            const isExplicit = customerNameInput.dataset.isExplicitSelection === 'true';
             const exactMatch = storeClientList.find(c => (c.name || '').trim().toLowerCase() === customerName.toLowerCase());
-            if (exactMatch) { await executeCheckout(exactMatch.name); return; }
+
+            // Only bypass modal if user explicitly picked from dropdown list
+            if (exactMatch && isExplicit) { await executeCheckout(exactMatch.name); return; }
 
             const similar = findSimilarClients(customerName);
             if (similar.length > 0) {
+                const typedNameSpan = document.getElementById('similar-client-typed-name');
+                if (typedNameSpan) typedNameSpan.textContent = customerName;
+
                 const container = document.getElementById('similar-clients-container');
                 container.innerHTML = '';
                 similar.forEach(simName => {
                     const btn = document.createElement('button');
                     btn.className = 'internal-checkout-btn';
-                    btn.style.background = 'var(--surface)';
-                    btn.style.color = 'var(--text)';
-                    btn.style.border = '1px solid var(--border)';
+                    btn.style.background = '#f8fafc';
+                    btn.style.color = '#475569';
+                    btn.style.border = '1px solid #e2e8f0';
+                    btn.style.fontSize = '0.85rem';
+                    btn.style.padding = '8px 12px';
+                    btn.style.fontWeight = '500';
                     btn.textContent = simName;
                     btn.addEventListener('click', () => {
                         document.getElementById('store-similar-client-modal').style.display = 'none';

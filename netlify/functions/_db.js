@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 67; // 67: add production_instructions_checked table for audit times
+const SCHEMA_VERSION = 68; // 68: add require_location column to sellers table
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -688,11 +688,10 @@ export async function ensureSchema() {
 						CREATE TABLE IF NOT EXISTS store_visits (
 							id SERIAL PRIMARY KEY,
 							visited_at TIMESTAMPTZ DEFAULT now(),
-							session_id VARCHAR(50) NOT NULL,
-							ip_hash VARCHAR(64),
+							ip TEXT,
 							user_agent TEXT,
-							is_seller BOOLEAN DEFAULT false,
-							seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL
+							seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+							referrer TEXT
 						)
 					`;
 					await sql`CREATE INDEX IF NOT EXISTS idx_store_visits_date ON store_visits(visited_at)`;
@@ -788,6 +787,12 @@ export async function ensureSchema() {
 						)
 					`;
 					await sql`UPDATE schema_meta SET version = 67`;
+				}
+
+				if (Number(meta[0].version) < 68) {
+					console.log('Migrating to v68: Adding require_location to sellers...');
+					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS require_location BOOLEAN NOT NULL DEFAULT false`;
+					await sql`UPDATE schema_meta SET version = 68`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

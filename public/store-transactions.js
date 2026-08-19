@@ -338,7 +338,7 @@ function setupClientAutocomplete() {
             const tagContainer = document.createElement('div');
             tagContainer.className = 'autocomplete-tag-container';
             
-            // 1. Custom Tags (CRM Personal tags always first)
+            // Custom Tags ONLY (Piso 4, Piso 9, Ventas, etc. - exclude CRM stage/debt tags)
             if (client.custom_tags && client.custom_tags.length > 0) {
                 client.custom_tags.forEach(t => {
                     const cTag = document.createElement('span');
@@ -349,31 +349,6 @@ function setupClientAutocomplete() {
                 });
             }
 
-            // 2. Stage Tag OR Prospecto Fallback
-            if (client.stage_name && client.stage_name.length > 0) {
-                const sTag = document.createElement('span');
-                sTag.className = 'autocomplete-tag';
-                sTag.textContent = client.stage_name;
-                sTag.style.background = client.stage_color;
-                tagContainer.appendChild(sTag);
-            } else if (tagContainer.childNodes.length === 0 && client.total_orders === 0) {
-                // If NO custom tags AND NO stage AND 0 orders -> Real prospecto
-                const pTag = document.createElement('span');
-                pTag.className = 'autocomplete-tag';
-                pTag.textContent = 'PROSPECTO';
-                pTag.style.background = '#94a3b8'; // CRM Gray
-                tagContainer.appendChild(pTag);
-            }
-
-            // 3. Debt Tag
-            if (client.debt_cents > 0) {
-                const dTag = document.createElement('span');
-                dTag.className = 'autocomplete-tag';
-                dTag.textContent = 'DEUDA';
-                dTag.style.background = 'var(--danger)';
-                tagContainer.appendChild(dTag);
-            }
-
             if (tagContainer.hasChildNodes()) {
                 li.appendChild(tagContainer);
             }
@@ -381,6 +356,12 @@ function setupClientAutocomplete() {
             li.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 input.value = client.name;
+                input.dataset.isExplicitSelection = 'true';
+                if (client.whatsapp || client.phone) {
+                    input.dataset.whatsapp = (client.whatsapp || client.phone).toString();
+                } else {
+                    delete input.dataset.whatsapp;
+                }
                 dropdown.classList.remove('show');
             });
             dropdown.appendChild(li);
@@ -389,7 +370,10 @@ function setupClientAutocomplete() {
     }
 
     input.addEventListener('focus', () => renderDropdown(input.value));
-    input.addEventListener('input', () => renderDropdown(input.value));
+    input.addEventListener('input', () => {
+        delete input.dataset.isExplicitSelection;
+        renderDropdown(input.value);
+    });
     input.addEventListener('blur', () => dropdown.classList.remove('show'));
 }
 
@@ -500,7 +484,7 @@ function findSimilarClients(name) {
     const lowerName = name.toLowerCase().trim();
     const threshold = 3;
     const matches = storeClientList.map(c => {
-        const lowerC = c.name.toLowerCase();
+        const lowerC = c.name.toLowerCase().trim();
         const dist = levenshteinDistance(lowerName, lowerC);
         return { client: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
     }).filter(m => m.dist <= threshold || m.includes)
@@ -527,7 +511,6 @@ async function executeCheckout(customerName) {
 
     const isWaRequired = storeActiveSeller && (storeActiveSeller.require_whatsapp === true || storeActiveSeller.require_whatsapp === 'true' || storeActiveSeller.require_whatsapp === 1);
     if (isWaRequired && !whatsappValue.trim()) {
-        alert('Por favor ingresar el número de WhatsApp del cliente');
         if (typeof openNewClientModal === 'function') {
             openNewClientModal(customerName);
         }
