@@ -37,7 +37,7 @@ export async function handler(event) {
 
         switch (event.httpMethod) {
             case 'GET': {
-                const rows = await sql`SELECT id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id FROM sellers WHERE archived_at IS NULL ORDER BY position ASC, name ASC`;
+                const rows = await sql`SELECT id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id, require_whatsapp, require_location FROM sellers WHERE archived_at IS NULL ORDER BY position ASC, name ASC`;
                 return json(rows);
             }
             case 'POST': {
@@ -58,7 +58,7 @@ export async function handler(event) {
                     VALUES (${name}, NULL) 
                     ON CONFLICT (name) 
                     DO UPDATE SET archived_at = NULL, name = EXCLUDED.name 
-                    RETURNING id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id
+                    RETURNING id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id, require_whatsapp, require_location
                 `;
                 return json(row, 201);
             }
@@ -87,6 +87,11 @@ export async function handler(event) {
 
                 if (data.require_whatsapp !== undefined) {
                     const [row] = await sql`UPDATE sellers SET require_whatsapp = ${!!data.require_whatsapp} WHERE id = ${id} RETURNING id, name, require_whatsapp`;
+                    return json(row);
+                }
+
+                if (data.require_location !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET require_location = ${!!data.require_location} WHERE id = ${id} RETURNING id, name, require_location`;
                     return json(row);
                 }
 

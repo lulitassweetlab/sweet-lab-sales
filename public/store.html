@@ -1732,10 +1732,15 @@
             document.getElementById('new-client-error').style.display = 'none';
             document.getElementById('store-new-client-modal').style.display = 'flex';
 
-            // Automatic Location Capture
+            // Automatic Location Capture (only if required by seller configuration)
             newClientCoords = null;
             document.getElementById('new-client-geo-status').style.display = 'none';
-            if (navigator.geolocation) {
+            const isLocationRequired = storeActiveSeller && (
+                storeActiveSeller.require_location === true || 
+                storeActiveSeller.require_location === 'true' || 
+                storeActiveSeller.require_location === 1
+            );
+            if (isLocationRequired && navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         newClientCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
