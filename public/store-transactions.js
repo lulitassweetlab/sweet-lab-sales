@@ -356,6 +356,12 @@ function setupClientAutocomplete() {
             li.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 input.value = client.name;
+                input.dataset.isExplicitSelection = 'true';
+                if (client.whatsapp || client.phone) {
+                    input.dataset.whatsapp = (client.whatsapp || client.phone).toString();
+                } else {
+                    delete input.dataset.whatsapp;
+                }
                 dropdown.classList.remove('show');
             });
             dropdown.appendChild(li);
@@ -364,7 +370,10 @@ function setupClientAutocomplete() {
     }
 
     input.addEventListener('focus', () => renderDropdown(input.value));
-    input.addEventListener('input', () => renderDropdown(input.value));
+    input.addEventListener('input', () => {
+        delete input.dataset.isExplicitSelection;
+        renderDropdown(input.value);
+    });
     input.addEventListener('blur', () => dropdown.classList.remove('show'));
 }
 
@@ -477,8 +486,8 @@ function findSimilarClients(name) {
     const matches = storeClientList.map(c => {
         const lowerC = c.name.toLowerCase().trim();
         const dist = levenshteinDistance(lowerName, lowerC);
-        return { client: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC), exact: lowerC === lowerName };
-    }).filter(m => !m.exact && (m.dist <= threshold || m.includes))
+        return { client: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
+    }).filter(m => m.dist <= threshold || m.includes)
         .sort((a, b) => a.dist - b.dist)
         .slice(0, 3);
     return matches.map(m => m.client.name);

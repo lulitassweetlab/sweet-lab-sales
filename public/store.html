@@ -2090,9 +2090,11 @@
             if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
             if (!storeActiveSeller || !storeAuthUser) { alert('No hay un vendedor activo seleccionado o no has ingresado.'); return; }
 
-            // Robust find in the new object-oriented storeClientList
+            const isExplicit = customerNameInput.dataset.isExplicitSelection === 'true';
             const exactMatch = storeClientList.find(c => (c.name || '').trim().toLowerCase() === customerName.toLowerCase());
-            if (exactMatch) { await executeCheckout(exactMatch.name); return; }
+
+            // Only bypass modal if user explicitly picked from dropdown list
+            if (exactMatch && isExplicit) { await executeCheckout(exactMatch.name); return; }
 
             const similar = findSimilarClients(customerName);
             if (similar.length > 0) {
