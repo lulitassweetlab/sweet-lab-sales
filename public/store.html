@@ -1478,27 +1478,28 @@
     </div>
 
     <div class="modal-overlay" id="store-similar-client-modal">
-        <div class="modal-content" style="max-width: 350px; text-align: center;">
-            <div style="margin-bottom: 16px;">
+        <div class="modal-content" style="max-width: 350px; text-align: center; padding: 24px 20px;">
+            <div style="margin-bottom: 20px;">
                 <button id="similar-client-new-btn" class="internal-checkout-btn"
-                    style="width: 100%; padding: 12px 16px; font-weight: bold; background: var(--primary); color: white; border: none; font-size: 0.95rem;">
-                    ✨ Registrar "<span id="similar-client-typed-name"></span>" como nuevo
+                    style="width: 100%; padding: 14px 16px; font-weight: bold; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(244, 166, 183, 0.3); cursor: pointer;">
+                    Registrar a <span id="similar-client-typed-name"></span> como cliente nuevo
                 </button>
             </div>
 
-            <div style="display: flex; align-items: center; margin: 16px 0 12px 0;">
-                <div style="flex: 1; height: 1px; background: var(--border);"></div>
-                <span style="font-size: 0.8rem; color: var(--text-muted); padding: 0 10px; font-weight: 500;">¿Quisiste decir alguno de estos?</span>
-                <div style="flex: 1; height: 1px; background: var(--border);"></div>
+            <div style="text-align: center; margin-bottom: 12px;">
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Clientes ya registrados:</span>
             </div>
 
             <div id="similar-clients-container"
-                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 200px; overflow-y: auto;">
+                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; max-height: 180px; overflow-y: auto;">
                 <!-- Botones dinamicos de clientes similares -->
             </div>
 
-            <div>
-                <button id="similar-client-cancel-btn" class="internal-checkout-btn" style="width: 100%; padding: 8px; background: transparent; color: var(--text-muted); border: 1px solid var(--border);">Cancelar</button>
+            <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 14px;">
+                <button id="similar-client-cancel-btn"
+                    style="background: none; border: none; color: #888; font-size: 0.82rem; font-weight: 500; cursor: pointer; text-decoration: underline; padding: 4px 12px;">
+                    Cancelar
+                </button>
             </div>
         </div>
     </div>
