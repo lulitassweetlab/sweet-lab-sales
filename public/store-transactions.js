@@ -475,10 +475,10 @@ function findSimilarClients(name) {
     const lowerName = name.toLowerCase().trim();
     const threshold = 3;
     const matches = storeClientList.map(c => {
-        const lowerC = c.name.toLowerCase();
+        const lowerC = c.name.toLowerCase().trim();
         const dist = levenshteinDistance(lowerName, lowerC);
-        return { client: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
-    }).filter(m => m.dist <= threshold || m.includes)
+        return { client: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC), exact: lowerC === lowerName };
+    }).filter(m => !m.exact && (m.dist <= threshold || m.includes))
         .sort((a, b) => a.dist - b.dist)
         .slice(0, 3);
     return matches.map(m => m.client.name);

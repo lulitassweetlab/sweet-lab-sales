@@ -2020,6 +2020,9 @@
 
                 const similar = findSimilarClients(customerName);
                 if (similar.length > 0) {
+                    const typedNameSpan = document.getElementById('similar-client-typed-name');
+                    if (typedNameSpan) typedNameSpan.textContent = customerName;
+
                     const container = document.getElementById('similar-clients-container');
                     container.innerHTML = '';
                     similar.forEach(simName => {
