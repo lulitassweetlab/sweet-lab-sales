@@ -338,7 +338,7 @@ function setupClientAutocomplete() {
             const tagContainer = document.createElement('div');
             tagContainer.className = 'autocomplete-tag-container';
             
-            // 1. Custom Tags (CRM Personal tags always first)
+            // Custom Tags ONLY (Piso 4, Piso 9, Ventas, etc. - exclude CRM stage/debt tags)
             if (client.custom_tags && client.custom_tags.length > 0) {
                 client.custom_tags.forEach(t => {
                     const cTag = document.createElement('span');
@@ -347,31 +347,6 @@ function setupClientAutocomplete() {
                     cTag.style.background = t.color || t.COLOR || '#818cf8';
                     tagContainer.appendChild(cTag);
                 });
-            }
-
-            // 2. Stage Tag OR Prospecto Fallback
-            if (client.stage_name && client.stage_name.length > 0) {
-                const sTag = document.createElement('span');
-                sTag.className = 'autocomplete-tag';
-                sTag.textContent = client.stage_name;
-                sTag.style.background = client.stage_color;
-                tagContainer.appendChild(sTag);
-            } else if (tagContainer.childNodes.length === 0 && client.total_orders === 0) {
-                // If NO custom tags AND NO stage AND 0 orders -> Real prospecto
-                const pTag = document.createElement('span');
-                pTag.className = 'autocomplete-tag';
-                pTag.textContent = 'PROSPECTO';
-                pTag.style.background = '#94a3b8'; // CRM Gray
-                tagContainer.appendChild(pTag);
-            }
-
-            // 3. Debt Tag
-            if (client.debt_cents > 0) {
-                const dTag = document.createElement('span');
-                dTag.className = 'autocomplete-tag';
-                dTag.textContent = 'DEUDA';
-                dTag.style.background = 'var(--danger)';
-                tagContainer.appendChild(dTag);
             }
 
             if (tagContainer.hasChildNodes()) {
