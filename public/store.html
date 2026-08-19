@@ -1479,18 +1479,26 @@
 
     <div class="modal-overlay" id="store-similar-client-modal">
         <div class="modal-content" style="max-width: 350px; text-align: center;">
-            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Cliente no encontrado</h3>
-            <p style="font-size: 0.9rem; margin-bottom: 16px;">¿Quisiste decir alguno de estos clientes?</p>
+            <div style="margin-bottom: 16px;">
+                <button id="similar-client-new-btn" class="internal-checkout-btn"
+                    style="width: 100%; padding: 12px 16px; font-weight: bold; background: var(--primary); color: white; border: none; font-size: 0.95rem;">
+                    ✨ Registrar "<span id="similar-client-typed-name"></span>" como nuevo
+                </button>
+            </div>
+
+            <div style="display: flex; align-items: center; margin: 16px 0 12px 0;">
+                <div style="flex: 1; height: 1px; background: var(--border);"></div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); padding: 0 10px; font-weight: 500;">¿Quisiste decir alguno de estos?</span>
+                <div style="flex: 1; height: 1px; background: var(--border);"></div>
+            </div>
+
             <div id="similar-clients-container"
                 style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 200px; overflow-y: auto;">
                 <!-- Botones dinamicos de clientes similares -->
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button id="similar-client-new-btn" class="internal-checkout-btn"
-                    style="background: var(--surface); color: var(--text); border: 1px solid var(--border);">No,
-                    registrar nuevo cliente</button>
-                <button id="similar-client-cancel-btn" class="internal-checkout-btn" style="padding: 8px;">Cancelar
-                    pedido</button>
+
+            <div>
+                <button id="similar-client-cancel-btn" class="internal-checkout-btn" style="width: 100%; padding: 8px; background: transparent; color: var(--text-muted); border: 1px solid var(--border);">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1753,6 +1761,10 @@
             }
             
             loadStoreTags();
+            setTimeout(() => {
+                const waEl = document.getElementById('new-client-whatsapp');
+                if (waEl) waEl.focus();
+            }, 50);
         };
 
         // Initialize state from localStorage
@@ -2081,6 +2093,9 @@
 
             const similar = findSimilarClients(customerName);
             if (similar.length > 0) {
+                const typedNameSpan = document.getElementById('similar-client-typed-name');
+                if (typedNameSpan) typedNameSpan.textContent = customerName;
+
                 const container = document.getElementById('similar-clients-container');
                 container.innerHTML = '';
                 similar.forEach(simName => {
