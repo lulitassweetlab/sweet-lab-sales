@@ -417,12 +417,33 @@ async function showSellerSelection() {
             return;
         }
 
-        // Si es un vendedor estándar (rol 'user'), no permitimos elegir otro perfil
-        if (storeAuthUser && storeAuthUser.role === 'user') {
-            alert(`El vendedor "${storeAuthUser.username}" no tiene un perfil de vendedor registrado en la tienda.`);
-            storeAuthUser = null;
-            safeLS.removeItem('storeAuthUser');
-            updateAuthUI();
+        // Si se autenticó correctamente pero aún no tiene perfil en la tabla de vendedores, crearlo automáticamente
+        if (storeAuthUser && storeAuthUser.username) {
+            try {
+                const createRes = await fetch('/api/sellers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-actor-name': storeAuthUser.username
+                    },
+                    body: JSON.stringify({ name: storeAuthUser.username, actor_name: storeAuthUser.username })
+                });
+                if (createRes.ok) {
+                    const newSeller = await createRes.json();
+                    if (newSeller && newSeller.name) {
+                        setSeller(newSeller);
+                        return;
+                    }
+                }
+            } catch (createErr) {
+                console.error('Error auto-creando perfil de vendedor:', createErr);
+            }
+        }
+
+        // Si es un vendedor estándar (rol 'user') y por alguna razón falló la auto-creación, usar perfil virtual
+        if (storeAuthUser && storeAuthUser.username) {
+            const fallbackSeller = { id: storeAuthUser.username, name: storeAuthUser.username };
+            setSeller(fallbackSeller);
             return;
         }
 
