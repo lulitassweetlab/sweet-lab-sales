@@ -43,10 +43,15 @@ export async function handler(event) {
             case 'POST': {
                 const data = JSON.parse(event.body || '{}');
                 const role = await getRole(event, data);
-                if (role !== 'admin') return json({ error: 'No autorizado' }, 403);
 
                 const name = (data.name || '').trim();
                 if (!name) return json({ error: 'Nombre requerido' }, 400);
+
+                const headers = event.headers || {};
+                const actorName = (headers['X-Actor-Name'] || headers['x-actor-name'] || headers['x-actor'] || data.actor_name || '').toString().trim().toLowerCase();
+                const isSelfRegistration = actorName && actorName === name.toLowerCase();
+
+                if (role !== 'admin' && !isSelfRegistration) return json({ error: 'No autorizado' }, 403);
 
                 const [row] = await sql`
                     INSERT INTO sellers (name, archived_at) 
