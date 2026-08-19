@@ -148,6 +148,7 @@
 						<button id="purchases-button" class="press-btn report-btn btn-primary">Compras</button>
 						<button id="kitchen-button" class="press-btn report-btn btn-primary">Producción</button>
 						<button id="visits-button" class="press-btn report-btn btn-primary">Visitas</button>
+						<button id="restaurant-button" class="press-btn report-btn btn-primary" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none;">Restaurante</button>
 					</div>
 				</div>
 				<input id="report-date" type="date" class="hidden" />
@@ -906,6 +907,12 @@
 			if(purchasesBtn) {
 				purchasesBtn.addEventListener('click', () => {
 					window.location.href = '/purchases.html?auth=admin';
+				});
+			}
+			const restaurantBtn = document.getElementById('restaurant-button');
+			if(restaurantBtn) {
+				restaurantBtn.addEventListener('click', () => {
+					window.location.href = '/restaurante.html';
 				});
 			}
 		});
