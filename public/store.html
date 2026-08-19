@@ -1264,13 +1264,15 @@
         /* CRM Tags Styles */
         .tag-selection-wrapper {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            flex-direction: column;
+            gap: 8px;
             padding: 10px 0;
             justify-content: center;
             align-items: center;
             min-height: 36px;
             margin-bottom: 8px;
+            max-height: 220px;
+            overflow-y: auto;
         }
 
         .tag-button {
@@ -1706,23 +1708,28 @@
                     return btn;
                 };
 
-                // Show top 6 sorted by frequency
-                const top = tags.slice(0, 6);
-                const others = tags.slice(6);
-                top.forEach(t => container.appendChild(renderBtn(t)));
+                // Group tags by color to display each color group in its own row
+                const colorGroups = {};
+                tags.forEach(t => {
+                    const colorKey = (t.color || '#818cf8').toLowerCase();
+                    if (!colorGroups[colorKey]) colorGroups[colorKey] = [];
+                    colorGroups[colorKey].push(t);
+                });
 
-                if (others.length > 0) {
-                    const expand = document.createElement('button');
-                    expand.type = 'button';
-                    expand.className = 'tag-expand-btn';
-                    expand.textContent = '+';
-                    expand.onclick = (e) => {
-                        e.stopPropagation();
-                        expand.remove();
-                        others.forEach(t => container.appendChild(renderBtn(t)));
-                    };
-                    container.appendChild(expand);
-                }
+                Object.keys(colorGroups).forEach(colorKey => {
+                    const row = document.createElement('div');
+                    row.className = 'tag-color-row';
+                    row.style.display = 'flex';
+                    row.style.flexWrap = 'wrap';
+                    row.style.gap = '6px';
+                    row.style.justifyContent = 'center';
+                    row.style.width = '100%';
+
+                    colorGroups[colorKey].forEach(t => {
+                        row.appendChild(renderBtn(t));
+                    });
+                    container.appendChild(row);
+                });
             } catch (err) { 
                 console.error('[CRM Tags] Error:', err);
                 container.innerHTML = '<p style="font-size:0.7rem; color:var(--danger);">Error al cargar etiquetas</p>';
