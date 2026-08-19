@@ -1169,6 +1169,16 @@
                     <!-- Dynamic cart items -->
                 </div>
 
+                <!-- Dynamic Smart Recommendations Panel -->
+                <div class="cart-recommendations" id="cart-recommendations" style="display: none; padding: 14px 18px; background: var(--primary-light); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+                    <div style="font-size: 12px; font-weight: 800; color: var(--navy-header); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                        💡 ¿Deseas acompañar tu pedido con?
+                    </div>
+                    <div id="recommendations-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Dynamic recommendation cards -->
+                    </div>
+                </div>
+
                 <div class="cart-footer">
                     <div class="cart-total-row">
                         <span>Total Pedido:</span>
@@ -1533,6 +1543,56 @@
                 ]
             },
             {
+                id: 'item_huevos_revueltos',
+                name: 'Huevos Revueltos o Pericos',
+                category: 'Comida',
+                image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80',
+                mealType: 'Desayuno',
+                servings: 1,
+                ingredients: [
+                    { name: 'Huevos A', recipeQty: 2, pkgQty: 30, unit: 'und', pkgCost: 18000 },
+                    { name: 'Tomate & Cebolla picados', recipeQty: 40, pkgQty: 500, unit: 'g', pkgCost: 3000 },
+                    { name: 'Mantequilla', recipeQty: 10, pkgQty: 250, unit: 'g', pkgCost: 5000 }
+                ],
+                steps: [
+                    'Batir suavemente los huevos frescos.',
+                    'Sofrreír el tomate y la cebolla en mantequilla.',
+                    'Cocinar a fuego lento revolviendo hasta lograr una textura cremosa.'
+                ]
+            },
+            {
+                id: 'item_pan_mermelada',
+                name: 'Pan Tostado con Mermelada',
+                category: 'Adicionales',
+                image: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&w=800&q=80',
+                mealType: 'Desayuno',
+                servings: 1,
+                ingredients: [
+                    { name: 'Pan tajado artesanal', recipeQty: 2, pkgQty: 20, unit: 'tajadas', pkgCost: 8000 },
+                    { name: 'Mermelada de mora casera', recipeQty: 30, pkgQty: 300, unit: 'g', pkgCost: 6000 }
+                ],
+                steps: [
+                    'Dorar las tajadas de pan en tostadora o sartén.',
+                    'Esparcir generosamente la mermelada de mora.'
+                ]
+            },
+            {
+                id: 'item_pan_mani',
+                name: 'Pan Tostado con Mantequilla de Maní',
+                category: 'Adicionales',
+                image: 'https://images.unsplash.com/photo-1588137378633-dea1336ce1e2?auto=format&fit=crop&w=800&q=80',
+                mealType: 'Desayuno',
+                servings: 1,
+                ingredients: [
+                    { name: 'Pan tajado artesanal', recipeQty: 2, pkgQty: 20, unit: 'tajadas', pkgCost: 8000 },
+                    { name: 'Mantequilla de maní natural', recipeQty: 35, pkgQty: 350, unit: 'g', pkgCost: 12000 }
+                ],
+                steps: [
+                    'Tostar el pan fino hasta quedar crujiente.',
+                    'Untar la mantequilla de maní suavemente.'
+                ]
+            },
+            {
                 id: 'item_papas_cascos',
                 name: 'Papas Doradas en Cascos',
                 category: 'Adicionales',
@@ -1551,9 +1611,91 @@
             }
         ];
 
+        // --- PAIRING LEARNING & RECOMMENDATIONS ENGINE ---
+        const PAIRING_KEY = 'sweetlab_restaurante_pairings';
+        let pairingsMemory = {};
+
+        function loadPairingsMemory() {
+            try {
+                const stored = localStorage.getItem(PAIRING_KEY);
+                if (stored) pairingsMemory = JSON.parse(stored);
+                else pairingsMemory = {};
+            } catch(e) {
+                pairingsMemory = {};
+            }
+        }
+
+        function savePairingsMemory() {
+            try {
+                localStorage.setItem(PAIRING_KEY, JSON.stringify(pairingsMemory));
+            } catch(e) {}
+        }
+
+        function learnPairingsFromOrder(cartItemIds) {
+            if (!cartItemIds || cartItemIds.length < 2) return;
+            cartItemIds.forEach(idA => {
+                if (!pairingsMemory[idA]) pairingsMemory[idA] = {};
+                cartItemIds.forEach(idB => {
+                    if (idA !== idB) {
+                        pairingsMemory[idA][idB] = (pairingsMemory[idA][idB] || 0) + 1;
+                    }
+                });
+            });
+            savePairingsMemory();
+        }
+
+        function getRecommendedItems() {
+            const cartIds = Object.keys(cart);
+            if (cartIds.length === 0) return [];
+
+            const scores = {};
+
+            // 1. Score from historical co-occurrences in pairingsMemory
+            cartIds.forEach(idA => {
+                const memoryForA = pairingsMemory[idA] || {};
+                Object.keys(memoryForA).forEach(idB => {
+                    if (!cartIds.includes(idB)) {
+                        scores[idB] = (scores[idB] || 0) + memoryForA[idB] * 5;
+                    }
+                });
+            });
+
+            // 2. Intelligent culinary defaults
+            const cartItems = cartIds.map(id => recipes.find(r => r.id === id)).filter(Boolean);
+            const hasEggOrBreakfast = cartItems.some(r => {
+                const n = r.name.toLowerCase();
+                return r.mealType === 'Desayuno' || n.includes('huevo') || n.includes('desayuno');
+            });
+
+            recipes.forEach(r => {
+                if (cartIds.includes(r.id) || r.isBaseRecipe) return;
+                const nameLower = r.name.toLowerCase();
+                
+                if (hasEggOrBreakfast) {
+                    if (nameLower.includes('mermelada') || nameLower.includes('maní') || nameLower.includes('tostado') || nameLower.includes('pan')) {
+                        scores[r.id] = (scores[r.id] || 0) + 15;
+                    }
+                    if (r.category === 'Bebida') {
+                        scores[r.id] = (scores[r.id] || 0) + 8;
+                    }
+                    if (r.category === 'Adicionales') {
+                        scores[r.id] = (scores[r.id] || 0) + 6;
+                    }
+                } else {
+                    if (r.category === 'Adicionales' || r.category === 'Bebida' || r.category === 'Postre') {
+                        scores[r.id] = (scores[r.id] || 0) + 5;
+                    }
+                }
+            });
+
+            const sortedIds = Object.keys(scores).sort((a, b) => scores[b] - scores[a]);
+            return sortedIds.map(id => recipes.find(r => r.id === id)).filter(Boolean).slice(0, 3);
+        }
+
         // Initialize App
         document.addEventListener('DOMContentLoaded', () => {
             loadRecipes();
+            loadPairingsMemory();
             setupEventListeners();
             switchMode('order');
         });
@@ -1661,7 +1803,10 @@
 
         function renderCart() {
             const list = document.getElementById('cart-items-list');
+            const recsWrap = document.getElementById('cart-recommendations');
+            const recsList = document.getElementById('recommendations-list');
             list.innerHTML = '';
+            if (recsList) recsList.innerHTML = '';
 
             let totalAmount = 0;
             let totalItemsCount = 0;
@@ -1671,6 +1816,7 @@
                 list.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin-top:40px; font-size:13px;">Tu pedido está vacío.<br>Agrega platos o bebidas del menú.</div>';
                 document.getElementById('cart-item-count').textContent = '0 ítems';
                 document.getElementById('cart-total-amount').textContent = '$0';
+                if (recsWrap) recsWrap.style.display = 'none';
                 return;
             }
 
@@ -1703,6 +1849,32 @@
 
             document.getElementById('cart-item-count').textContent = `${totalItemsCount} ítem(s)`;
             document.getElementById('cart-total-amount').textContent = `$${totalAmount.toLocaleString('es-CO')}`;
+
+            // Render Smart Recommendations
+            const recItems = getRecommendedItems();
+            if (recItems.length > 0 && recsWrap && recsList) {
+                recsWrap.style.display = 'block';
+                recItems.forEach(rec => {
+                    const cost = getItemTotalCost(rec);
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; background:white; padding:8px 10px; border-radius:10px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.04);';
+                    row.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0; padding-right:6px;">
+                            <img src="${rec.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=100&q=80'}" style="width:34px; height:34px; border-radius:8px; object-fit:cover;">
+                            <div style="min-width:0;">
+                                <div style="font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(rec.name)}</div>
+                                <div style="font-size:11px; font-weight:800; color:var(--primary-hover);">$${cost.toLocaleString('es-CO')}</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-add-order" onclick="addToCart('${rec.id}')" style="padding:4px 10px; font-size:11px;">
+                            + Añadir
+                        </button>
+                    `;
+                    recsList.appendChild(row);
+                });
+            } else if (recsWrap) {
+                recsWrap.style.display = 'none';
+            }
         }
 
         function submitOrder() {
@@ -1711,6 +1883,9 @@
                 alert('El pedido está vacío. Agrega al menos un elemento.');
                 return;
             }
+
+            // Learn pairings from this order!
+            learnPairingsFromOrder(ids);
 
             let summary = '✅ ¡PEDIDO REGISTRADO EXITOSAMENTE!\n\nResumen del Pedido:\n';
             let total = 0;
@@ -1724,7 +1899,7 @@
                 summary += `• ${qty}x ${item.name} - $${cost.toLocaleString('es-CO')}\n`;
             });
 
-            summary += `\nTOTAL PEDIDO: $${total.toLocaleString('es-CO')}`;
+            summary += `\nTOTAL PEDIDO: $${total.toLocaleString('es-CO')}\n\n💡 El sistema ha aprendido esta combinación para mejorar sus recomendaciones futuras.`;
             alert(summary);
 
             cart = {};
