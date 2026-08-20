@@ -1700,17 +1700,50 @@
             switchMode('order');
         });
 
-        function loadRecipes() {
+        async function loadRecipes() {
+            try {
+                const res = await fetch('/api/restaurant-recipes');
+                if (res.ok) {
+                    const remoteData = await res.json();
+                    if (Array.isArray(remoteData) && remoteData.length > 0) {
+                        recipes = remoteData;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+                        refreshCurrentModeView();
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error('[Restaurante] Error cargando desde Neon:', err);
+            }
+
+            // Fallback to localStorage or SEED_DATA if Neon is empty or offline
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
                 if (stored) {
                     recipes = JSON.parse(stored);
                 } else {
                     recipes = SEED_DATA;
-                    saveRecipes();
                 }
             } catch (e) {
                 recipes = SEED_DATA;
+            }
+
+            // Seed Neon asynchronously if initial remote load was empty
+            if (recipes.length > 0) {
+                saveRecipesToNeon(recipes);
+            }
+            refreshCurrentModeView();
+        }
+
+        async function saveRecipesToNeon(data) {
+            try {
+                await fetch('/api/restaurant-recipes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } catch (err) {
+                console.error('[Restaurante] Error guardando en Neon:', err);
             }
         }
 
@@ -1718,7 +1751,18 @@
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
             } catch (e) {
-                alert('No se pudo guardar localmente.');
+                console.error('No se pudo guardar localmente.');
+            }
+            saveRecipesToNeon(recipes);
+        }
+
+        function refreshCurrentModeView() {
+            updateIngredientsDatalist();
+            if (currentMode === 'order') {
+                renderOrderingMenu();
+            } else {
+                renderRecipesList();
+                if (selectedRecipeId) selectRecipe(selectedRecipeId);
             }
         }
 
@@ -2396,13 +2440,19 @@
             }
         }
 
-        function deleteRecipe() {
+        async function deleteRecipe() {
             if (!selectedRecipeId) return;
             if (!confirm('¿Estás seguro de eliminar este ítem?')) return;
 
-            recipes = recipes.filter(r => r.id !== selectedRecipeId);
+            const deletedId = selectedRecipeId;
+            recipes = recipes.filter(r => r.id !== deletedId);
             selectedRecipeId = null;
             saveRecipes();
+            try {
+                await fetch(`/api/restaurant-recipes?id=${encodeURIComponent(deletedId)}`, { method: 'DELETE' });
+            } catch (err) {
+                console.error('[Restaurante] Error eliminando en Neon:', err);
+            }
             renderRecipesList();
             selectRecipe(null);
         }
