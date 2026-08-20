@@ -2404,6 +2404,14 @@
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecipes();
+            loadPairingsMemory();
+            setupEventListeners();
+            switchMode('order');
+        });
     </script>
     <!-- Datalist for Isolated Restaurant Ingredients Autocomplete -->
     <datalist id="restaurant-ingredients-list"></datalist>
