@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 68; // 68: add require_location column to sellers table
+const SCHEMA_VERSION = 69; // 69: add restaurant_recipes table for isolated restaurant menu
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -793,6 +793,27 @@ export async function ensureSchema() {
 					console.log('Migrating to v68: Adding require_location to sellers...');
 					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS require_location BOOLEAN NOT NULL DEFAULT false`;
 					await sql`UPDATE schema_meta SET version = 68`;
+				}
+
+				if (Number(meta[0].version) < 69) {
+					console.log('Migrating to v69: Creating restaurant_recipes table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS restaurant_recipes (
+							id TEXT PRIMARY KEY,
+							name TEXT NOT NULL,
+							is_base_recipe BOOLEAN DEFAULT false,
+							category TEXT DEFAULT 'Comida',
+							meal_type TEXT DEFAULT 'Almuerzo',
+							image TEXT DEFAULT '',
+							servings INTEGER DEFAULT 1,
+							ingredients JSONB DEFAULT '[]'::jsonb,
+							steps JSONB DEFAULT '[]'::jsonb,
+							position INTEGER DEFAULT 0,
+							created_at TIMESTAMPTZ DEFAULT now(),
+							updated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 69`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
