@@ -1462,14 +1462,102 @@
             }, 0);
         }
 
-        const SEED_DATA = [];
+        const SEED_DATA = [
+  {
+    "id": "receta_sudado_de_pollo",
+    "name": "Sudado de Pollo",
+    "isBaseRecipe": false,
+    "category": "Comida",
+    "mealType": "Almuerzo",
+    "servings": 1,
+    "image": "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80",
+    "ingredients": [
+      {
+        "name": "Pollo (muslo)",
+        "recipeQty": 250,
+        "pkgQty": 1000,
+        "unit": "g",
+        "pkgCost": 12000
+      },
+      {
+        "name": "Papa",
+        "recipeQty": 150,
+        "pkgQty": 1000,
+        "unit": "g",
+        "pkgCost": 3500
+      },
+      {
+        "name": "Yuca",
+        "recipeQty": 100,
+        "pkgQty": 1000,
+        "unit": "g",
+        "pkgCost": 4000
+      },
+      {
+        "name": "Tomate",
+        "recipeQty": 80,
+        "pkgQty": 1000,
+        "unit": "g",
+        "pkgCost": 4500
+      },
+      {
+        "name": "Cebolla blanca",
+        "recipeQty": 50,
+        "pkgQty": 1000,
+        "unit": "g",
+        "pkgCost": 3000
+      },
+      {
+        "name": "Ajo",
+        "recipeQty": 5,
+        "pkgQty": 250,
+        "unit": "g",
+        "pkgCost": 4000
+      },
+      {
+        "name": "Aceite",
+        "recipeQty": 15,
+        "pkgQty": 1000,
+        "unit": "ml",
+        "pkgCost": 10000
+      },
+      {
+        "name": "Cilantro",
+        "recipeQty": 5,
+        "pkgQty": 100,
+        "unit": "g",
+        "pkgCost": 2000
+      },
+      {
+        "name": "Sal",
+        "recipeQty": 5,
+        "pkgQty": 500,
+        "unit": "g",
+        "pkgCost": 2500
+      }
+    ],
+    "steps": [
+      "Paso 1: Picar finamente el tomate, la cebolla y el ajo para preparar la base del guiso (hogao).",
+      "Paso 2: En una olla a fuego medio, calentar el aceite y sofreír el tomate, la cebolla y el ajo junto con la sal, el comino y el color durante 5 a 8 minutos hasta que suelten sus jugos.",
+      "Paso 3: Incorporar la porción de pollo a la olla y sofreír ligeramente por todos los lados para que se impregne bien de los sabores del guiso.",
+      "Paso 4: Agregar la papa y la yuca (previamente peladas y cortadas en trozos medianos) colocándolas encima y a los lados del pollo.",
+      "Paso 5: Verter agua caliente o caldo (aproximadamente 150 ml) sin llegar a cubrir completamente los ingredientes. Tapar la olla y dejar cocinar a fuego medio-bajo durante 25 a 30 minutos.",
+      "Paso 6: Verificar que el pollo esté bien cocido, la papa y la yuca estén blandas, y la salsa haya reducido y espesado. Retirar del fuego y espolvorear el cilantro fresco picado justo antes de servir."
+    ]
+  }
+];
 
         async function loadRecipes() {
             try {
                 const res = await fetch('/api/restaurant-recipes');
                 if (res.ok) {
                     const remoteData = await res.json();
-                    recipes = Array.isArray(remoteData) ? remoteData : [];
+                    if (Array.isArray(remoteData) && remoteData.length > 0) {
+                        recipes = remoteData;
+                    } else {
+                        recipes = SEED_DATA;
+                        saveRecipesToNeon(SEED_DATA);
+                    }
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
                     refreshCurrentModeView();
                     return;
@@ -1481,9 +1569,9 @@
             // Fallback to localStorage if Neon is offline
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
-                recipes = stored ? JSON.parse(stored) : [];
+                recipes = stored ? JSON.parse(stored) : SEED_DATA;
             } catch (e) {
-                recipes = [];
+                recipes = SEED_DATA;
             }
             refreshCurrentModeView();
         }
