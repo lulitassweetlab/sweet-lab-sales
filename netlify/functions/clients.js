@@ -1,4 +1,4 @@
-import { ensureSchema, sql, normalizeClientName } from './_db.js';
+import { ensureSchema, sql, normalizeClientName, validateWhatsAppForSeller } from './_db.js';
 
 export default async (req) => {
     try {
@@ -231,6 +231,25 @@ export default async (req) => {
             // ========================
             // Standard Create / Update
             // ========================
+            if (sellerId) {
+                const waInput = (whatsapp ?? '').toString().trim();
+                const [sellerObj] = await sql`SELECT require_whatsapp FROM sellers WHERE id = ${sellerId}`;
+                if (sellerObj && sellerObj.require_whatsapp) {
+                    let existingWa = '';
+                    const [existingClient] = await sql`SELECT whatsapp FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${name})`;
+                    if (existingClient && existingClient.whatsapp) existingWa = String(existingClient.whatsapp).trim();
+                    if (!waInput && !existingWa) {
+                        return new Response(JSON.stringify({ error: 'Por favor ingresar el número de WhatsApp del cliente' }), { status: 400 });
+                    }
+                }
+                if (waInput) {
+                    const errMsg = await validateWhatsAppForSeller(sellerId, waInput, name);
+                    if (errMsg) {
+                        return new Response(JSON.stringify({ error: errMsg }), { status: 400 });
+                    }
+                }
+            }
+
             // Check if client exists to either insert or update
             const [existing] = await sql`
 				SELECT id FROM clients 
@@ -248,9 +267,9 @@ export default async (req) => {
 						whatsapp = COALESCE(${whatsapp}, whatsapp),
 						birth_date = COALESCE(${birthDate}, birth_date),
                         description = COALESCE(${description}, description),
-                        address = ${address},
-                        latitude = ${latitude},
-                        longitude = ${longitude}
+                        address = COALESCE(${address}, address),
+                        latitude = COALESCE(${latitude}, latitude),
+                        longitude = COALESCE(${longitude}, longitude)
 					WHERE id = ${existing.id}
 					RETURNING *
 				`;

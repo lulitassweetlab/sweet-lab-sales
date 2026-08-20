@@ -7,7 +7,8 @@
     <title>Tienda Lulitas Sweet Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" /></noscript>
     <style>
         :root {
             --bg: #fdf7f8;
@@ -125,10 +126,42 @@
             /* Default height to prevent flash of huge image */
             width: auto;
             object-fit: contain;
+            margin-top: 40px;
+        }
+
+        /* Splash Screen */
+        .store-splash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg, #fdf7f8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            opacity: 1;
+            transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.6s;
+            visibility: visible;
+        }
+
+        .store-splash.fade-out {
             opacity: 0;
-            /* Hidden initially until settings load */
-            transition: opacity 0.5s ease;
-			margin-top: 40px;
+            visibility: hidden;
+        }
+
+        .splash-logo {
+            width: min(50vw, 50vh);
+            height: auto;
+            object-fit: contain;
+            animation: splashPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes splashPulse {
+            0% { transform: scale(0.95); opacity: 0.85; }
+            50% { transform: scale(1.03); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.85; }
         }
 
         main {
@@ -778,6 +811,30 @@
             .internal-checkout-input {
                 font-size: 0.85rem;
             }
+            .floating-cart, .floating-cart.visible {
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 8px 12px !important;
+                padding: 12px 16px !important;
+                border-radius: 20px !important;
+                width: calc(100vw - 32px) !important;
+                max-width: 380px !important;
+            }
+            .cart-info {
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+                border-bottom: 1px solid var(--border) !important;
+                padding-bottom: 6px !important;
+                margin-bottom: 2px !important;
+            }
+            .cart-checkout-btn {
+                flex: 1 !important;
+                text-align: center !important;
+                padding: 8px !important;
+                font-size: 0.85rem !important;
+            }
         }
 
         .internal-checkout-btn,
@@ -1207,13 +1264,15 @@
         /* CRM Tags Styles */
         .tag-selection-wrapper {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            flex-direction: column;
+            gap: 8px;
             padding: 10px 0;
             justify-content: center;
             align-items: center;
             min-height: 36px;
             margin-bottom: 8px;
+            max-height: 220px;
+            overflow-y: auto;
         }
 
         .tag-button {
@@ -1264,13 +1323,98 @@
             border-color: var(--primary);
             color: var(--primary);
         }
+
+        /* Contenedor de tarjetas de fecha en Checkout */
+        .store-date-cards-wrapper {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            overflow-x: auto;
+            padding: 2px 0;
+            scrollbar-width: none;
+        }
+        .store-date-cards-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Tarjeta individual */
+        .store-date-card {
+            flex: 1;
+            min-width: 90px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .store-date-card:hover {
+            border-color: var(--primary);
+            background: rgba(226, 122, 144, 0.04);
+        }
+
+        .store-date-card.active {
+            border-color: var(--primary);
+            background: rgba(226, 122, 144, 0.08);
+            outline: 1.5px solid var(--primary);
+        }
+
+        .store-date-card-day {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: capitalize;
+        }
+
+        .store-date-card-date {
+            font-size: 9px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Premium Splash Screen -->
+    <div id="store-splash" class="store-splash">
+        <img src="/logo.png" alt="Lulitas Sweet Lab Logo" class="splash-logo" id="splash-logo" />
+        <script>
+            (function() {
+                try {
+                    const cached = localStorage.getItem('store_settings_cache');
+                    if (cached) {
+                        const settings = JSON.parse(cached);
+                        const logo = document.getElementById('splash-logo');
+                        if (settings.logo_base64) logo.src = settings.logo_base64;
+                    }
+                } catch (e) {}
+            })();
+        </script>
+    </div>
+
     <header>
         <div class="header-left">
-            <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" />
+            <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" id="store-logo" />
+            <script>
+                (function() {
+                    try {
+                        const cached = localStorage.getItem('store_settings_cache');
+                        if (cached) {
+                            const settings = JSON.parse(cached);
+                            const logo = document.getElementById('store-logo');
+                            if (settings.logo_base64) logo.src = settings.logo_base64;
+                            if (settings.logo_height) logo.style.height = settings.logo_height + 'px';
+                        }
+                    } catch (e) {}
+                })();
+            </script>
         </div>
         <div class="header-center">
             <h1 id="store-title-display" class="store-title">Menú de Postres</h1>
@@ -1281,6 +1425,7 @@
             <button id="store-qr-btn" class="store-qr-btn" style="display: none;">Ver QR</button>
             <button id="store-crm-btn" class="store-crm-btn" style="display: none;">CRM</button>
             <button id="store-clients-btn" class="store-clients-btn" style="display: none;">Clientes</button>
+            <button id="store-kitchen-btn" class="store-login-btn" style="display: none; background: #e0f2fe; color: #0369a1; border-color: #0369a1; box-shadow: none;">Producción</button>
             <div id="sync-indicator" class="sync-indicator" style="display: none;">
                 <span class="sync-icon">🔄</span>
                 <span class="sync-text">Sincronizando...</span>
@@ -1291,44 +1436,6 @@
 
     <main>
         <div class="product-grid" id="product-grid">
-            <!-- Loading Skeletons -->
-            <!-- Detailed Skeletons -->
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
         </div>
         <!-- Contenedor Banners Publicitarios -->
         <div id="promo-banners-container"></div>
@@ -1373,26 +1480,38 @@
     </div>
 
     <div class="modal-overlay" id="store-similar-client-modal">
-        <div class="modal-content" style="max-width: 350px; text-align: center;">
-            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Cliente no encontrado</h3>
-            <p style="font-size: 0.9rem; margin-bottom: 16px;">¿Quisiste decir alguno de estos clientes?</p>
+        <div class="modal-content" style="max-width: 360px; text-align: center; padding: 28px 22px;">
+            <!-- Botón Principal Destacado y Central -->
+            <div style="margin-bottom: 24px;">
+                <button id="similar-client-new-btn"
+                    style="width: 100%; padding: 18px 20px; font-weight: 700; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); color: white; border: none; border-radius: 16px; font-size: 1.05rem; box-shadow: 0 8px 20px rgba(244, 166, 183, 0.45); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; line-height: 1.35;">
+                    ✨ Registrar a "<span id="similar-client-typed-name"></span>" como cliente nuevo
+                </button>
+            </div>
+
+            <!-- Título sutil y secundario -->
+            <div style="text-align: center; margin-bottom: 10px; opacity: 0.65;">
+                <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">¿O deseas seleccionar uno ya registrado?</span>
+            </div>
+
+            <!-- Botones secundarios discretos -->
             <div id="similar-clients-container"
-                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 200px; overflow-y: auto;">
+                style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; max-height: 150px; overflow-y: auto; padding: 4px;">
                 <!-- Botones dinamicos de clientes similares -->
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button id="similar-client-new-btn" class="internal-checkout-btn"
-                    style="background: var(--surface); color: var(--text); border: 1px solid var(--border);">No,
-                    registrar nuevo cliente</button>
-                <button id="similar-client-cancel-btn" class="internal-checkout-btn" style="padding: 8px;">Cancelar
-                    pedido</button>
+
+            <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 14px;">
+                <button id="similar-client-cancel-btn"
+                    style="background: none; border: none; color: #94a3b8; font-size: 0.8rem; font-weight: 500; cursor: pointer; text-decoration: underline; padding: 4px 12px;">
+                    Cancelar
+                </button>
             </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="store-new-client-modal">
         <div class="modal-content" style="max-width: 320px; text-align: center;">
-            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Nuevo Cliente</h3>
+            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Nuevo Cliente <span id="new-client-geo-status" title="Ubicación capturada" style="display:none; cursor: help;">📍</span></h3>
             <p style="font-size: 0.9rem; margin-bottom: 16px;">Registra los datos de <b
                     id="new-client-name-display"></b></p>
 
@@ -1451,11 +1570,12 @@
         <div class="internal-checkout-container" id="internal-checkout-container">
             <input type="text" id="store-customer-name" class="internal-checkout-input"
                 placeholder="Nombre de tu cliente" autocomplete="off">
+            <div id="store-order-date-container" class="store-date-cards-wrapper" style="display: none; margin-top: 6px;"></div>
             <ul id="store-client-dropdown" class="custom-client-dropdown"></ul>
         </div>
 
         <div class="cart-info">
-            <span class="cart-items" id="cart-items-count">0 artículos</span>
+            <span class="cart-items" id="cart-items-count">0 postres</span>
             <span class="cart-total" id="cart-total-price">$ 0</span>
         </div>
 
@@ -1521,6 +1641,7 @@
         let storeClientList = [];
         let currentGalleryItems = [];
         let loginStep = 1;
+        let newClientCoords = null;
 
         // QR Modal Logic
         const storeQrModal = document.getElementById('store-qr-modal');
@@ -1587,23 +1708,28 @@
                     return btn;
                 };
 
-                // Show top 6 sorted by frequency
-                const top = tags.slice(0, 6);
-                const others = tags.slice(6);
-                top.forEach(t => container.appendChild(renderBtn(t)));
+                // Group tags by color to display each color group in its own row
+                const colorGroups = {};
+                tags.forEach(t => {
+                    const colorKey = (t.color || '#818cf8').toLowerCase();
+                    if (!colorGroups[colorKey]) colorGroups[colorKey] = [];
+                    colorGroups[colorKey].push(t);
+                });
 
-                if (others.length > 0) {
-                    const expand = document.createElement('button');
-                    expand.type = 'button';
-                    expand.className = 'tag-expand-btn';
-                    expand.textContent = '+';
-                    expand.onclick = (e) => {
-                        e.stopPropagation();
-                        expand.remove();
-                        others.forEach(t => container.appendChild(renderBtn(t)));
-                    };
-                    container.appendChild(expand);
-                }
+                Object.keys(colorGroups).forEach(colorKey => {
+                    const row = document.createElement('div');
+                    row.className = 'tag-color-row';
+                    row.style.display = 'flex';
+                    row.style.flexWrap = 'wrap';
+                    row.style.gap = '6px';
+                    row.style.justifyContent = 'center';
+                    row.style.width = '100%';
+
+                    colorGroups[colorKey].forEach(t => {
+                        row.appendChild(renderBtn(t));
+                    });
+                    container.appendChild(row);
+                });
             } catch (err) { 
                 console.error('[CRM Tags] Error:', err);
                 container.innerHTML = '<p style="font-size:0.7rem; color:var(--danger);">Error al cargar etiquetas</p>';
@@ -1624,8 +1750,32 @@
 
             document.getElementById('new-client-error').style.display = 'none';
             document.getElementById('store-new-client-modal').style.display = 'flex';
+
+            // Automatic Location Capture (only if required by seller configuration)
+            newClientCoords = null;
+            document.getElementById('new-client-geo-status').style.display = 'none';
+            const isLocationRequired = storeActiveSeller && (
+                storeActiveSeller.require_location === true || 
+                storeActiveSeller.require_location === 'true' || 
+                storeActiveSeller.require_location === 1
+            );
+            if (isLocationRequired && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        newClientCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+                        document.getElementById('new-client-geo-status').style.display = 'inline';
+                        console.log('[Geo] Location captured for new client');
+                    },
+                    (err) => console.warn('[Geo] Could not capture location automatically', err),
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            }
             
             loadStoreTags();
+            setTimeout(() => {
+                const waEl = document.getElementById('new-client-whatsapp');
+                if (waEl) waEl.focus();
+            }, 50);
         };
 
         // Initialize state from localStorage
@@ -1634,6 +1784,18 @@
             if (savedUser) storeAuthUser = JSON.parse(savedUser);
             const savedSeller = safeLS.getItem('storeActiveSeller');
             if (savedSeller) storeActiveSeller = JSON.parse(savedSeller);
+
+            if (storeActiveSeller) {
+                fetch('/api/sellers').then(r => r.json()).then(all => {
+                    if (Array.isArray(all)) {
+                        const fresh = all.find(s => s.id === storeActiveSeller.id || s.name.toLowerCase() === storeActiveSeller.name.toLowerCase());
+                        if (fresh) {
+                            storeActiveSeller = fresh;
+                            safeLS.setItem('storeActiveSeller', JSON.stringify(fresh));
+                        }
+                    }
+                }).catch(() => {});
+            }
         } catch (e) { console.error('Error loading session:', e); }
 
         // Compatibility Helper
@@ -1644,18 +1806,47 @@
 
         // Core Event Listeners (Some remain here for direct DOM interaction)
         document.addEventListener('DOMContentLoaded', async () => {
-            // Initial UI Sync
-            if (typeof updateAuthUI === 'function') updateAuthUI();
+            // Initial UI Sync (Critical cart UI first)
             if (typeof updateCartUI === 'function') updateCartUI();
-            if (typeof setupClientAutocomplete === 'function') setupClientAutocomplete();
 
-            // Parallel Data Fetching
+            // Defer non-critical setup to idle time or next tick
+            setTimeout(() => {
+                if (typeof updateAuthUI === 'function') updateAuthUI();
+                if (typeof setupClientAutocomplete === 'function') setupClientAutocomplete();
+            }, 100);
+
+            // Parallel Data Fetching with Splash Screen dismissal
+            const splashStartTime = Date.now();
+            
+            // Safety timeout: dismiss splash after 3 seconds in all cases
+            const safetyTimeout = setTimeout(dismissSplash, 3000);
+            
+            function dismissSplash() {
+                clearTimeout(safetyTimeout);
+                const splash = document.getElementById('store-splash');
+                if (splash) {
+                    if (splash.classList.contains('fade-out')) return; // already dismissing
+                    splash.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (splash.parentNode) splash.parentNode.removeChild(splash);
+                    }, 600);
+                }
+            }
+
             try {
                 await Promise.all([
                     typeof loadSettings === 'function' ? loadSettings() : Promise.resolve(),
                     typeof loadStore === 'function' ? loadStore() : Promise.resolve()
                 ]);
-            } catch (err) { console.error('Initialization error:', err); }
+                
+                // Enforce a minimum display time of 1000ms for smooth, premium welcome animation
+                const elapsed = Date.now() - splashStartTime;
+                const remaining = Math.max(0, 1000 - elapsed);
+                setTimeout(dismissSplash, remaining);
+            } catch (err) { 
+                console.error('Initialization error:', err);
+                dismissSplash();
+            }
 
             // URL Params support
             const urlParams = new URLSearchParams(window.location.search);
@@ -1664,11 +1855,60 @@
                 const input = document.getElementById('store-customer-name');
                 if (input) input.value = crmName;
             }
+
+            // Visits Tracking
+            (async function() {
+                try {
+                    let sessionId = sessionStorage.getItem('store_session_id');
+                    if (!sessionId) {
+                        sessionId = 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+                        sessionStorage.setItem('store_session_id', sessionId);
+                    }
+                    
+                    let isSeller = false;
+                    let sellerId = null;
+                    try {
+                        const savedSeller = localStorage.getItem('storeActiveSeller');
+                        if (savedSeller) {
+                            const sellerObj = JSON.parse(savedSeller);
+                            if (sellerObj && sellerObj.id) {
+                                isSeller = true;
+                                sellerId = sellerObj.id;
+                            }
+                        }
+                    } catch (e) {}
+
+                    await fetch('/api/visits', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: sessionId,
+                            is_seller: isSeller,
+                            seller_id: sellerId
+                        })
+                    });
+                } catch (err) {
+                    console.error('Error tracking visit:', err);
+                }
+            })();
         });
 
         // Bridge Listeners (connecting HTML elements to logic in external files)
+        on('store-kitchen-btn', 'click', () => {
+            window.location.href = '/index.html?view=kitchen';
+        });
+
         on('store-auth-btn', 'click', () => {
-            if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
+            const hasProductionAccess = storeAuthUser && (storeAuthUser.role === 'produccion' || (storeAuthUser.features && storeAuthUser.features.includes('produccion')));
+            const hasSalesAccess = storeAuthUser && ['user', 'admin', 'superadmin'].includes(storeAuthUser.role);
+            if (hasProductionAccess && !hasSalesAccess) {
+                if (confirm(`¿Deseas cerrar sesión de ${storeAuthUser.username}?`)) {
+                    storeAuthUser = null;
+                    safeLS.removeItem('storeAuthUser');
+                    safeLS.removeItem('authUser');
+                    window.location.reload();
+                }
+            } else if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
                 // Fully active: offer logout
                 if (confirm(`¿Deseas cerrar sesión de ${storeActiveSeller.name}?`)) {
                     storeAuthUser = null;
@@ -1732,7 +1972,26 @@
                 safeLS.setItem('storeAuthUser', JSON.stringify(storeAuthUser));
                 document.getElementById('store-login-modal').style.display = 'none';
                 document.getElementById('login-pass').value = '';
-                await showSellerSelection();
+
+                const hasProductionAccess = storeAuthUser.role === 'produccion' || (storeAuthUser.features && storeAuthUser.features.includes('produccion'));
+                const hasSalesAccess = ['user', 'admin', 'superadmin'].includes(storeAuthUser.role);
+
+                if (hasProductionAccess) {
+                    const authUser = {
+                        name: storeAuthUser.username,
+                        role: storeAuthUser.role,
+                        features: storeAuthUser.features || [],
+                        isAdmin: storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin',
+                        isSuperAdmin: storeAuthUser.role === 'superadmin'
+                    };
+                    safeLS.setItem('authUser', JSON.stringify(authUser));
+                }
+
+                if (hasProductionAccess && !hasSalesAccess) {
+                    window.location.href = '/index.html?view=kitchen';
+                } else {
+                    await showSellerSelection();
+                }
             } catch (err) {
                 errDiv.textContent = String(err.message || err);
                 errDiv.style.display = 'block';
@@ -1767,19 +2026,25 @@
                 const customerName = customerNameInput.value.trim();
                 if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
                 
-                const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
-                if (exactMatch) { executeCheckout(exactMatch); return; }
+                const exactMatch = storeClientList.find(c => (c.name || '').trim().toLowerCase() === customerName.toLowerCase());
+                if (exactMatch) { executeCheckout(exactMatch.name); return; }
 
                 const similar = findSimilarClients(customerName);
                 if (similar.length > 0) {
+                    const typedNameSpan = document.getElementById('similar-client-typed-name');
+                    if (typedNameSpan) typedNameSpan.textContent = customerName;
+
                     const container = document.getElementById('similar-clients-container');
                     container.innerHTML = '';
                     similar.forEach(simName => {
                         const btn = document.createElement('button');
                         btn.className = 'internal-checkout-btn';
-                        btn.style.background = 'var(--surface)';
-                        btn.style.color = 'var(--text)';
-                        btn.style.border = '1px solid var(--border)';
+                        btn.style.background = '#f8fafc';
+                        btn.style.color = '#475569';
+                        btn.style.border = '1px solid #e2e8f0';
+                        btn.style.fontSize = '0.85rem';
+                        btn.style.padding = '8px 12px';
+                        btn.style.fontWeight = '500';
                         btn.textContent = simName;
                         btn.addEventListener('click', () => {
                             document.getElementById('store-similar-client-modal').style.display = 'none';
@@ -1839,20 +2104,28 @@
             if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
             if (!storeActiveSeller || !storeAuthUser) { alert('No hay un vendedor activo seleccionado o no has ingresado.'); return; }
 
-            // Robust find in the new object-oriented storeClientList
+            const isExplicit = customerNameInput.dataset.isExplicitSelection === 'true';
             const exactMatch = storeClientList.find(c => (c.name || '').trim().toLowerCase() === customerName.toLowerCase());
-            if (exactMatch) { await executeCheckout(exactMatch.name); return; }
+
+            // Only bypass modal if user explicitly picked from dropdown list
+            if (exactMatch && isExplicit) { await executeCheckout(exactMatch.name); return; }
 
             const similar = findSimilarClients(customerName);
             if (similar.length > 0) {
+                const typedNameSpan = document.getElementById('similar-client-typed-name');
+                if (typedNameSpan) typedNameSpan.textContent = customerName;
+
                 const container = document.getElementById('similar-clients-container');
                 container.innerHTML = '';
                 similar.forEach(simName => {
                     const btn = document.createElement('button');
                     btn.className = 'internal-checkout-btn';
-                    btn.style.background = 'var(--surface)';
-                    btn.style.color = 'var(--text)';
-                    btn.style.border = '1px solid var(--border)';
+                    btn.style.background = '#f8fafc';
+                    btn.style.color = '#475569';
+                    btn.style.border = '1px solid #e2e8f0';
+                    btn.style.fontSize = '0.85rem';
+                    btn.style.padding = '8px 12px';
+                    btn.style.fontWeight = '500';
                     btn.textContent = simName;
                     btn.addEventListener('click', () => {
                         document.getElementById('store-similar-client-modal').style.display = 'none';
@@ -1887,7 +2160,7 @@
 
             if (storeActiveSeller && storeActiveSeller.require_whatsapp) {
                 if (!whatsapp) {
-                    errDiv.textContent = 'El número de WhatsApp es obligatorio.';
+                    errDiv.textContent = 'Por favor ingresar el número de WhatsApp del cliente';
                     errDiv.style.display = 'block';
                     document.getElementById('new-client-whatsapp').focus();
                     return;
@@ -1917,11 +2190,20 @@
                         name, 
                         short_name: short_name || null, 
                         whatsapp: whatsapp || null,
-                        tag_ids: typeof selectedTagIds !== 'undefined' ? Array.from(selectedTagIds) : []
+                        tag_ids: typeof selectedTagIds !== 'undefined' ? Array.from(selectedTagIds) : [],
+                        latitude: newClientCoords ? newClientCoords.latitude : null,
+                        longitude: newClientCoords ? newClientCoords.longitude : null
                     })
                 });
                 if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar cliente');
-                storeClientList.push(name);
+                storeClientList.push({
+                    name: name.trim(),
+                    stage_name: '',
+                    stage_color: '#94a3b8',
+                    custom_tags: [],
+                    debt_cents: 0,
+                    total_orders: 1
+                });
                 document.getElementById('store-new-client-modal').style.display = 'none';
                 await executeCheckout(name);
             } catch (err) {

@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 44; // 44: Add game_enabled column to sellers
+const SCHEMA_VERSION = 69; // 69: add restaurant_recipes table for isolated restaurant menu
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -11,14 +11,15 @@ export async function ensureSchema() {
 
 	schemaCheckPromise = (async () => {
 		try {
-			// 1) FAST PATH: Version Check
+			let meta = [];
 			try {
-				const meta = await sql`SELECT version FROM schema_meta LIMIT 1`;
+				meta = await sql`SELECT version FROM schema_meta LIMIT 1`;
 				if (meta.length > 0 && Number(meta[0].version) >= SCHEMA_VERSION) {
 					schemaEnsured = true;
 					return;
 				}
-			} catch (err) { /* schema_meta may not exist, proceed */ }
+			} catch (err) { /* proceed */ }
+			if (!meta.length) meta = [{ version: 0 }];
 
 			// 2) SLOW PATH: Full Migration
 			await sql`
@@ -268,7 +269,112 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_sale ON crm_activities(related_sale_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_client ON crm_client_sales(client_id)`;
 
+			// 40: Inventory Master and Movements
+			await sql`
+				CREATE TABLE IF NOT EXISTS inventory_items (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT UNIQUE NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					category VARCHAR(20) DEFAULT 'ingrediente',
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					updated_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS inventory_movements (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT NOT NULL,
+					kind TEXT NOT NULL, -- ingreso, ajuste, produccion
+					qty NUMERIC NOT NULL,
+					note TEXT,
+					actor_name TEXT,
+					metadata JSONB DEFAULT '{}'::jsonb,
+					created_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
 
+			// 41: Recipes System
+			await sql`
+				CREATE TABLE IF NOT EXISTS dessert_recipes (
+					id SERIAL PRIMARY KEY,
+					dessert TEXT NOT NULL,
+					step_name TEXT NOT NULL,
+					position INTEGER DEFAULT 0,
+					produces_ingredient TEXT,
+					produces_unit TEXT,
+					created_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS dessert_recipe_items (
+					id SERIAL PRIMARY KEY,
+					recipe_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+					ingredient TEXT NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					adjustment NUMERIC DEFAULT 0,
+					position INTEGER DEFAULT 0
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS extras_items (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					position INTEGER DEFAULT 0
+				)
+			`;
+			await sql`CREATE TABLE IF NOT EXISTS dessert_order (dessert TEXT PRIMARY KEY, position INTEGER)`;
+
+			// 53: Accounting
+			await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+				id SERIAL PRIMARY KEY,
+				kind TEXT NOT NULL,
+				entry_date DATE NOT NULL,
+				description TEXT NOT NULL DEFAULT '',
+				amount_cents INTEGER NOT NULL DEFAULT 0,
+				actor_name TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
+				id SERIAL PRIMARY KEY,
+				entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
+				file_base64 TEXT NOT NULL,
+				mime_type TEXT,
+				file_name TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS inventory_alias (
+				id SERIAL PRIMARY KEY,
+				alias TEXT NOT NULL,
+				ingredient_name TEXT NOT NULL,
+				vendor TEXT,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE(alias, vendor)
+			)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS inventory_conversions (
+				id SERIAL PRIMARY KEY,
+				ingredient_name TEXT UNIQUE NOT NULL,
+				factor NUMERIC DEFAULT 1
+			)`;
+			
+			await sql`CREATE TABLE IF NOT EXISTS production_logs (
+				id SERIAL PRIMARY KEY,
+				step_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+				qty NUMERIC NOT NULL,
+				duration_seconds INTEGER NOT NULL,
+				actor_name TEXT,
+				metadata JSONB DEFAULT '{}'::jsonb,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
 
 			// Seed default desserts if empty
 			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
@@ -341,6 +447,25 @@ export async function ensureSchema() {
 				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
 				await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_dashboard_check TIMESTAMPTZ`;
 				await sql`ALTER TABLE crm_tags ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0`;
+				if (Number(meta[0].version) < 48) {
+					console.log('Migrating to v48: parent_id...');
+					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS parent_id INTEGER`;
+					await sql`UPDATE schema_meta SET version = 48`;
+				}
+
+				if (Number(meta[0].version) < 49) {
+					console.log('Migrating to v49: financial_snapshots...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS financial_snapshots (
+							month TEXT PRIMARY KEY,
+							data JSONB NOT NULL,
+							calculated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 49`;
+				}
+
+				// Dynamic columns (keep them fast)
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS whatsapp TEXT`;
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS game_enabled BOOLEAN DEFAULT TRUE`;
 
@@ -368,7 +493,330 @@ export async function ensureSchema() {
 				}
 			} catch (mErr) { console.error('Migration error for dynamic columns:', mErr); }
 
-			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
+			// Migration 47: Definitive sweep for historical prices (April 13th and earlier)
+			try {
+				const dList = await sql`SELECT id, short_code FROM desserts`;
+				const dMap = {}; dList.forEach(d => dMap[d.short_code] = d.id);
+				const histMap = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+				const nuteId = dMap['nute'];
+
+				if (nuteId) {
+					// 1. Force-migrate legacy column sales on or before April 13th
+					const legacyToMigrate = await sql`
+						SELECT s.id, s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute 
+						FROM sales s
+						JOIN sale_days sd ON sd.id = s.sale_day_id
+						WHERE sd.day <= '2026-04-13'
+						  AND (s.qty_arco > 0 OR s.qty_melo > 0 OR s.qty_mara > 0 OR s.qty_oreo > 0 OR s.qty_nute > 0)
+						  AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id)
+					`;
+
+					if (legacyToMigrate.length > 0) {
+						console.log(`DATABASE FIX 47: Migrating ${legacyToMigrate.length} legacy rows with historical $13k Nute price.`);
+						for (const s of legacyToMigrate) {
+							for (const k of ['arco', 'melo', 'mara', 'oreo', 'nute']) {
+								const q = Number(s[`qty_${k}`] || 0);
+								if (q > 0 && dMap[k]) {
+									await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) VALUES (${s.id}, ${dMap[k]}, ${q}, ${histMap[k]})`;
+								}
+							}
+							await sql`UPDATE sales SET qty_arco=0, qty_melo=0, qty_mara=0, qty_oreo=0, qty_nute=0 WHERE id=${s.id}`;
+							await recalcTotalForId(s.id);
+						}
+					}
+
+					// 2. Correct any sale_items already created with 14000 on or before April 13th
+					const wrongPriceItems = await sql`
+						SELECT si.id, si.sale_id 
+						FROM sale_items si
+						JOIN sales s ON s.id = si.sale_id
+						JOIN sale_days sd ON sd.id = s.sale_day_id
+						WHERE si.dessert_id = ${nuteId} 
+						  AND si.unit_price = 14000 
+						  AND sd.day <= '2026-04-13'
+					`;
+					
+					if (wrongPriceItems.length > 0) {
+						console.log(`DATABASE FIX 47: Correcting ${wrongPriceItems.length} items from $14k to $13k.`);
+						const sids = [...new Set(wrongPriceItems.map(i => i.sale_id))];
+						await sql`UPDATE sale_items SET unit_price = 13000 WHERE id = ANY(${wrongPriceItems.map(i => i.id)})`;
+						for (const sid of sids) {
+							await recalcTotalForId(sid);
+						}
+					}
+				}
+			} catch (err) { console.error('Migration 47 error:', err); }
+
+				if (Number(meta[0].version) < 50) {
+					console.log('Migrating to v50: Unified Inventory schema...');
+					
+					// 1. Ensure inventory_items columns
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT 'ingrediente'`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS price INTEGER DEFAULT 0`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS pack_size INTEGER DEFAULT 0`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now()`;
+
+					// 2. Populate from recipes (Max price found)
+					await sql`
+						WITH recipe_prices AS (
+							SELECT lower(trim(ingredient)) as ing, MAX(price) as max_p, MAX(pack_size) as max_pk
+							FROM dessert_recipe_items
+							GROUP BY lower(trim(ingredient))
+						)
+						UPDATE inventory_items ii
+						SET price = COALESCE(rp.max_p, ii.price),
+							pack_size = COALESCE(rp.max_pk, ii.pack_size),
+							category = 'ingrediente'
+						FROM recipe_prices rp
+						WHERE lower(trim(ii.ingredient)) = rp.ing
+					`;
+
+					// 3. Populate from extras (Categorize as 'empaque' by default for extras, as they usually are)
+					await sql`
+						WITH extra_prices AS (
+							SELECT lower(trim(ingredient)) as ing, MAX(price) as max_p, MAX(pack_size) as max_pk
+							FROM extras_items
+							GROUP BY lower(trim(ingredient))
+						)
+						UPDATE inventory_items ii
+						SET price = COALESCE(ep.max_p, ii.price),
+							pack_size = COALESCE(ep.max_pk, ii.pack_size),
+							category = 'empaque'
+						FROM extra_prices ep
+						WHERE lower(trim(ii.ingredient)) = ep.ing
+					`;
+
+					// 4. Upsert any missing ingredients that are in recipes but not in inventory_items
+					await sql`
+						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
+						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'ingrediente'
+						FROM dessert_recipe_items
+						ORDER BY lower(trim(ingredient))
+						ON CONFLICT (ingredient) DO NOTHING
+					`;
+					await sql`
+						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
+						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'empaque'
+						FROM extras_items
+						ORDER BY lower(trim(ingredient))
+						ON CONFLICT (ingredient) DO NOTHING
+					`;
+
+					await sql`UPDATE schema_meta SET version = 50`;
+				}
+
+				if (Number(meta[0].version) < 51) {
+					console.log('Migrating to v51: Allowing decimals in inventory prices...');
+					await sql`ALTER TABLE inventory_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE inventory_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE dessert_recipe_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE dessert_recipe_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE extras_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE extras_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE desserts ALTER COLUMN cost_price TYPE NUMERIC(12,2)`;
+					await sql`UPDATE schema_meta SET version = 51`;
+				}
+
+				if (Number(meta[0].version) < 52) {
+					console.log('Migrating to v52: Moving global extras to per-dessert recipes...');
+					const desserts = await sql`SELECT DISTINCT name FROM desserts`;
+					const extras = await sql`SELECT * FROM extras_items`;
+					
+					for (const d of desserts) {
+						if (!d.name) continue;
+						// Create 'Empaque' step for this dessert 
+						const [step] = await sql`
+							INSERT INTO dessert_recipes (dessert, step_name, position)
+							VALUES (${d.name}, 'Empaque', 99)
+							RETURNING id
+						`;
+						// Copy all extras to this step
+						for (const ex of extras) {
+							await sql`
+								INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, position)
+								VALUES (${step.id}, ${ex.ingredient}, ${ex.unit}, ${ex.qty_per_unit}, ${ex.position})
+							`;
+						}
+					}
+					await sql`UPDATE schema_meta SET version = 52`;
+				}
+
+				if (Number(meta[0].version) < 53) {
+					console.log('Migrating to v53: Creating inventory_conversions table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS inventory_conversions (
+							id SERIAL PRIMARY KEY,
+							ingredient_name TEXT UNIQUE NOT NULL,
+							factor NUMERIC DEFAULT 1
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 53`;
+				}
+				
+				if (Number(meta[0].version) < 54) {
+					console.log('Migrating to v54: Adding production output columns to dessert_recipes...');
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_ingredient TEXT`;
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_unit TEXT`;
+					await sql`UPDATE schema_meta SET version = 54`;
+				}
+
+				if (Number(meta[0].version) < 55) {
+					console.log('Migrating to v55: Creating production_logs table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS production_logs (
+							id SERIAL PRIMARY KEY,
+							step_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+							qty NUMERIC NOT NULL,
+							duration_seconds INTEGER NOT NULL,
+							actor_name TEXT,
+							metadata JSONB DEFAULT '{}'::jsonb,
+							created_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 55`;
+				}
+
+				if (Number(meta[0].version) < 56) {
+					console.log('Migrating to v56: Adding position to sellers...');
+					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`;
+					await sql`UPDATE schema_meta SET version = 56`;
+				}
+
+				if (Number(meta[0].version) < 57) {
+					console.log('Migrating to v57: Creating store_visits table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS store_visits (
+							id SERIAL PRIMARY KEY,
+							visited_at TIMESTAMPTZ DEFAULT now(),
+							ip TEXT,
+							user_agent TEXT,
+							seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+							referrer TEXT
+						)
+					`;
+					await sql`CREATE INDEX IF NOT EXISTS idx_store_visits_date ON store_visits(visited_at)`;
+					await sql`UPDATE schema_meta SET version = 57`;
+				}
+
+				if (Number(meta[0].version) < 58) {
+					console.log('Migrating to v58: Seeding kitchen user Jaimes...');
+					await sql`INSERT INTO users (username, password_hash, role) VALUES ('jaimes', 'jaimessweet', 'produccion') ON CONFLICT (username) DO NOTHING`;
+					await sql`UPDATE schema_meta SET version = 58`;
+				}
+
+				if (Number(meta[0].version) < 59) {
+					console.log('Migrating to v59: Updating kitchen user Jaimes password...');
+					await sql`INSERT INTO users (username, password_hash, role) VALUES ('jaimes', 'padilla', 'produccion') ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash`;
+					await sql`UPDATE schema_meta SET version = 59`;
+				}
+
+				if (Number(meta[0].version) < 60) {
+					console.log('Migrating to v60: Adding instructions column to dessert_recipes...');
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS instructions JSONB DEFAULT '[]'::jsonb`;
+					await sql`UPDATE schema_meta SET version = 60`;
+				}
+
+				if (Number(meta[0].version) < 61) {
+					console.log('Migrating to v61: Renaming role cocina to produccion...');
+					await sql`UPDATE users SET role = 'produccion' WHERE role = 'cocina'`;
+					await sql`UPDATE users SET role = 'produccion' WHERE username = 'jaimes'`;
+					await sql`UPDATE schema_meta SET version = 61`;
+				}
+
+				if (Number(meta[0].version) < 62) {
+					console.log('Migrating to v62: Making jaimes a mixed user (role user + feature produccion)...');
+					await sql`UPDATE users SET role = 'user' WHERE username = 'jaimes'`;
+					await sql`INSERT INTO user_feature_permissions (username, feature) VALUES ('jaimes', 'produccion') ON CONFLICT (username, feature) DO NOTHING`;
+					await sql`UPDATE schema_meta SET version = 62`;
+				}
+
+				if (Number(meta[0].version) < 63) {
+					console.log('Migrating to v63: Seeding seller Jaimes...');
+					await sql`INSERT INTO sellers (name) VALUES ('Jaimes') ON CONFLICT (name) DO NOTHING`;
+					await sql`UPDATE schema_meta SET version = 63`;
+				}
+
+				if (Number(meta[0].version) < 64) {
+					console.log('Migrating to v64: Creating active_production_timers table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS active_production_timers (
+							id SERIAL PRIMARY KEY,
+							step_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+							target_date DATE NOT NULL,
+							username TEXT NOT NULL,
+							start_time TIMESTAMPTZ NOT NULL,
+							qty INTEGER NOT NULL,
+							created_at TIMESTAMPTZ DEFAULT now(),
+							UNIQUE (step_id, target_date, username)
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 64`;
+				}
+				if (Number(meta[0].version) < 65) {
+					console.log('Migrating to v65: Creating production_sync_meta table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS production_sync_meta (
+							last_change TIMESTAMPTZ NOT NULL DEFAULT now()
+						)
+					`;
+					await sql`INSERT INTO production_sync_meta (last_change) SELECT now() WHERE NOT EXISTS (SELECT 1 FROM production_sync_meta)`;
+					await sql`UPDATE schema_meta SET version = 65`;
+				}
+				if (Number(meta[0].version) < 66) {
+					console.log('Migrating to v66: Seeding production access settings...');
+					await sql`
+						INSERT INTO store_settings (key, value)
+						VALUES 
+							('production_access_approved', 'false'),
+							('next_production_datetime', '27 de Junio, 2:00 pm')
+						ON CONFLICT (key) DO NOTHING
+					`;
+					await sql`UPDATE schema_meta SET version = 66`;
+				}
+				if (Number(meta[0].version) < 67) {
+					console.log('Migrating to v67: Creating production_instructions_checked table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS production_instructions_checked (
+							id SERIAL PRIMARY KEY,
+							step_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+							target_date DATE NOT NULL,
+							instruction_index INTEGER NOT NULL,
+							checked_at TIMESTAMPTZ DEFAULT now(),
+							username TEXT,
+							UNIQUE (step_id, target_date, instruction_index)
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 67`;
+				}
+
+				if (Number(meta[0].version) < 68) {
+					console.log('Migrating to v68: Adding require_location to sellers...');
+					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS require_location BOOLEAN NOT NULL DEFAULT false`;
+					await sql`UPDATE schema_meta SET version = 68`;
+				}
+
+				if (Number(meta[0].version) < 69) {
+					console.log('Migrating to v69: Creating restaurant_recipes table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS restaurant_recipes (
+							id TEXT PRIMARY KEY,
+							name TEXT NOT NULL,
+							is_base_recipe BOOLEAN DEFAULT false,
+							category TEXT DEFAULT 'Comida',
+							meal_type TEXT DEFAULT 'Almuerzo',
+							image TEXT DEFAULT '',
+							servings INTEGER DEFAULT 1,
+							ingredients JSONB DEFAULT '[]'::jsonb,
+							steps JSONB DEFAULT '[]'::jsonb,
+							position INTEGER DEFAULT 0,
+							created_at TIMESTAMPTZ DEFAULT now(),
+							updated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 69`;
+				}
+
+				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
 		} catch (err) {
 			console.error('CRITICAL: ensureSchema failed', err);
@@ -459,7 +907,7 @@ export async function recalcTotalForId(id) {
 	const dessertsById = {};
 	for (const d of dessertsList) dessertsById[d.id] = d;
 
-	const allItems = await sql`SELECT id, dessert_id, quantity FROM sale_items WHERE sale_id = ${id}`;
+	const allItems = await sql`SELECT id, dessert_id, quantity, unit_price FROM sale_items WHERE sale_id = ${id}`;
 	const hasItems = Array.isArray(allItems) && allItems.length > 0;
 
 	let row;
@@ -469,18 +917,29 @@ export async function recalcTotalForId(id) {
 				const dessert = dessertsById[item.dessert_id];
 				const newPrice = dessert ? getDessertUnitPriceForSpecialPricing(dessert, specialPricing) : 0;
 				await sql`UPDATE sale_items SET unit_price = ${newPrice} WHERE id = ${item.id}`;
+				item.unit_price = newPrice;
 			}
 		}
 
-		const qtyByDessertId = {};
-		for (const item of allItems) {
-			const did = Number(item.dessert_id || 0);
-			if (did) qtyByDessertId[did] = (qtyByDessertId[did] || 0) + (Number(item.quantity || 0));
-		}
 		let total = 0;
-		for (const [didRaw, qt] of Object.entries(qtyByDessertId)) {
-			const d = dessertsById[didRaw];
-			if (d) total += getDessertLineTotalForPricing(d, qt, specialPricing);
+		for (const item of allItems) {
+			const d = dessertsById[item.dessert_id];
+			if (!d) continue;
+
+			const qty = Number(item.quantity || 0);
+			if (qty <= 0) continue;
+
+			if (specialPricing) {
+				total += qty * Number(item.unit_price || 0);
+			} else {
+				// Si no hay precio especial, verificar si el unit_price en BD es personalizado (manual)
+				const isCustomPrice = Number(item.unit_price || 0) !== Number(d.sale_price || 0);
+				if (isCustomPrice) {
+					total += qty * Number(item.unit_price || 0);
+				} else {
+					total += getDessertLineTotalForPricing(d, qty, specialPricing);
+				}
+			}
 		}
 
 		[row] = await sql`UPDATE sales SET total_cents = ${total} WHERE id = ${id} RETURNING *`;
@@ -528,7 +987,7 @@ export function canonicalizeIngredientName(name) {
 	if (low.includes('nutella')) return 'Nutella';
 	if (low.startsWith('agua')) return 'Agua';
 	if (low.includes('oreo')) return 'Oreo';
-	if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+	if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa cuchara';
 	return raw;
 }
 
@@ -545,9 +1004,145 @@ export async function ensureInventoryItem(ingredient, unit = 'g') {
 	const [row] = await sql`
 		INSERT INTO inventory_items (ingredient, unit) VALUES (${name}, ${unit})
 		ON CONFLICT (ingredient) DO UPDATE SET unit = EXCLUDED.unit, updated_at = now()
-		RETURNING id, ingredient, unit
+		RETURNING id, ingredient, unit, category, price, pack_size
 	`;
 	return row;
+}
+
+export async function recalculateAllDessertCosts() {
+	await ensureSchema();
+	const materials = await sql`SELECT lower(trim(ingredient)) as ing, price FROM inventory_items`;
+	const pricesMap = new Map();
+	materials.forEach(m => pricesMap.set(m.ing, Number(m.price || 0)));
+
+	const dessertsList = await sql`SELECT id, name, short_code FROM desserts`;
+	const recipes = await sql`SELECT id, dessert FROM dessert_recipes`;
+	const items = await sql`SELECT recipe_id, lower(trim(ingredient)) as ing, qty_per_unit FROM dessert_recipe_items`;
+
+	for (const d of dessertsList) {
+		let total = 0;
+		const dSteps = recipes.filter(r => {
+			if (!r.dessert) return false;
+			return r.dessert.toLowerCase() === d.name.toLowerCase() || r.dessert.toLowerCase() === d.short_code.toLowerCase();
+		});
+		const stepIds = dSteps.map(s => s.id);
+		const dItems = items.filter(i => stepIds.includes(i.recipe_id));
+		for (const it of dItems) {
+			const p = pricesMap.get(it.ing) || 0;
+			total += (p * Number(it.qty_per_unit || 0));
+		}
+		await sql`UPDATE desserts SET cost_price = ${total}, updated_at = now() WHERE id = ${d.id}`;
+	}
+	console.log('All dessert cost_prices recalculated.');
+}
+
+/**
+ * Calcula y actualiza el Precio Medio Ponderado (PMP) tras una compra.
+ * Formula: (Saldo Actual * Precio Actual + Cantidad Nueva * Precio Nuevo) / (Saldo Actual + Cantidad Nueva)
+ */
+export async function updateIngredientPMP(ingredientName, newQty, newUnitPrice) {
+	await ensureSchema();
+	const name = canonicalizeIngredientName(ingredientName);
+	if (!name) return null;
+
+	// 1. Obtener precio actual y saldo actual
+	const [item] = await sql`SELECT price FROM inventory_items WHERE lower(trim(ingredient)) = lower(trim(${name}))`;
+	const [movs] = await sql`SELECT SUM(qty)::numeric as balance FROM inventory_movements WHERE lower(trim(ingredient)) = lower(trim(${name}))`;
+	
+	const currentPrice = Number(item?.price || 0);
+	const currentBalance = Math.max(0, Number(movs?.balance || 0)); // No promediamos saldos negativos previos
+
+	const totalValue = (currentBalance * currentPrice) + (newQty * newUnitPrice);
+	const totalQty = currentBalance + newQty;
+
+	const newPMP = totalQty > 0 ? (totalValue / totalQty) : newUnitPrice;
+
+	// 2. Actualizar inventory_items
+	await sql`UPDATE inventory_items SET price = ${newPMP}, updated_at = now() WHERE lower(trim(ingredient)) = lower(trim(${name}))`;
+
+	// 3. Recalcular costos de postres
+	await recalculateAllDessertCosts();
+
+	return newPMP;
+}
+
+/**
+ * Validates WhatsApp phone number for a seller based on business rules:
+ * 1. Must be a valid 10-digit Colombian mobile starting with '3'.
+ * 2. Cannot be a fake/repeating pattern (e.g. 3000000000, 3111111111, 3001234567, 1234567890).
+ * 3. Max 2 distinct clients per WhatsApp number for the seller.
+ * 4. Max 2 uses of the seller's own registered WhatsApp number.
+ */
+export async function validateWhatsAppForSeller(sellerId, rawWhatsApp, clientName = '') {
+	await ensureSchema();
+	const cleaned = (rawWhatsApp || '').toString().replace(/\D/g, '');
+	if (!cleaned) return null; // caller handles whether whatsapp is required or optional
+
+	// 1. Format check: Colombia mobile format (10 digits starting with 3)
+	if (cleaned.length !== 10 || !cleaned.startsWith('3')) {
+		return 'El número de WhatsApp debe tener 10 dígitos y comenzar por 3 (ej. 3001234567).';
+	}
+
+	// 2. Fake / repeated pattern check
+	const allSame = /^(\d)\1{9}$/.test(cleaned);
+	const repeatsDigits = /^3(\d)\1{8}$/.test(cleaned);
+	const sequential = '3012345678901234567890'.includes(cleaned);
+	if (allSame || repeatsDigits || sequential) {
+		return 'Por favor ingresar un número de WhatsApp real y válido.';
+	}
+
+	// 3. Fetch seller details
+	const [seller] = await sql`SELECT whatsapp, require_whatsapp FROM sellers WHERE id = ${sellerId}`;
+	const sellerWa = seller && seller.whatsapp ? String(seller.whatsapp).replace(/\D/g, '') : '';
+	const isSellerOwnNumber = sellerWa && cleaned === sellerWa;
+
+	const normClient = (clientName || '').trim().toLowerCase();
+
+	// Count how many OTHER distinct clients already have this exact whatsapp for this seller
+	const countRows = await sql`
+		SELECT COUNT(DISTINCT lower(name)) as total 
+		FROM clients 
+		WHERE seller_id = ${sellerId} 
+		  AND whatsapp IS NOT NULL 
+		  AND regexp_replace(whatsapp, '\\D', '', 'g') = ${cleaned}
+		  AND lower(name) != ${normClient}
+	`;
+	const clientCount = parseInt(countRows[0]?.total || '0', 10);
+
+	if (isSellerOwnNumber) {
+		if (clientCount >= 2) {
+			return 'Has alcanzado el límite máximo (2 veces) para usar tu número propio de vendedor.';
+		}
+	} else {
+		if (clientCount >= 2) {
+			return 'Este número de WhatsApp ya está asignado a 2 clientes diferentes. Por favor ingresa el número propio de este cliente.';
+		}
+	}
+
+	// 4. Detect near-duplicates (changing only last 1 or 2 digits of an existing client number)
+	const existingWaList = await sql`
+		SELECT DISTINCT regexp_replace(whatsapp, '\\D', '', 'g') as wa
+		FROM clients 
+		WHERE seller_id = ${sellerId} 
+		  AND whatsapp IS NOT NULL 
+		  AND lower(name) != ${normClient}
+	`;
+
+	for (const row of existingWaList) {
+		const targetWa = row.wa;
+		if (targetWa && targetWa.length === 10) {
+			const prefixMatch = cleaned.substring(0, 8) === targetWa.substring(0, 8);
+			let diffs = 0;
+			for (let i = 0; i < 10; i++) {
+				if (cleaned[i] !== targetWa[i]) diffs++;
+			}
+			if ((prefixMatch || (diffs > 0 && diffs <= 2)) && diffs > 0) {
+				return 'Por favor ingresar el número de WhatsApp real del cliente.';
+			}
+		}
+	}
+
+	return null; // All checks passed cleanly!
 }
 
 export { sql };

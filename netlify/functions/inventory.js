@@ -1,4 +1,4 @@
-import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName } from './_db.js';
+import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName, recalculateAllDessertCosts, updateIngredientPMP, notify } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -8,165 +8,718 @@ export async function handler(event) {
 	try {
 		await ensureSchema();
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
+
+		// 🔐 Identify actor and check for production access restrictions
+		const headers = (event.headers || {});
+		const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+		let bActor = '';
+		if (event.body) {
+			try {
+				const bodyData = JSON.parse(event.body);
+				bActor = bodyData.actor_name || bodyData.username || '';
+			} catch {}
+		}
+		let qActor = '';
+		try {
+			const rawQuery = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
+			const queryParams = new URLSearchParams(rawQuery);
+			qActor = queryParams.get('actor') || '';
+		} catch {}
+		const actor = (hActor || bActor || qActor || '').trim();
+
+		let isProductionUser = false;
+		if (actor) {
+			try {
+				const userRows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+				const role = userRows.length ? userRows[0].role : 'user';
+				if (role === 'produccion') {
+					isProductionUser = true;
+				} else {
+					const fpRows = await sql`SELECT 1 FROM user_feature_permissions WHERE lower(username)=lower(${actor}) AND feature='produccion' LIMIT 1`;
+					if (fpRows.length > 0) {
+						isProductionUser = true;
+					}
+				}
+			} catch {}
+		}
+
+		if (isProductionUser) {
+			const [approvedRow] = await sql`SELECT value FROM store_settings WHERE key = 'production_access_approved' LIMIT 1`;
+			const approved = approvedRow ? approvedRow.value === 'true' : false;
+			if (!approved) {
+				return json({ error: 'production_access_denied', message: 'El acceso a la cocina está cerrado temporalmente por el administrador.' }, 403);
+			}
+		}
+
 		switch (event.httpMethod) {
 			case 'GET': {
 				const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
 				const params = new URLSearchParams(raw);
 				const historyFor = params.get('history_for');
 				const historyAll = params.get('history_all');
+				
 				if (historyAll) {
-					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 500`;
+					const dateStart = params.get('date_start');
+					let rows;
+					if (dateStart) {
+						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE created_at >= ${dateStart} OR (metadata->>'target_date') >= ${dateStart} ORDER BY id DESC LIMIT 2000`;
+					} else {
+						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 1000`;
+					}
 					return json(rows);
 				}
+				
 				if (historyFor) {
 					const name = canonicalizeIngredientName(historyFor.toString());
-					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE lower(ingredient)=lower(${name}) ORDER BY id DESC LIMIT 200`;
+					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE lower(ingredient)=lower(${name}) ORDER BY id DESC LIMIT 500`;
 					return json(rows);
 				}
-				// Default: list unique ingredients from Recetas/Extras with saldo and price
-				// 1) Read recipe items (with price) and extras (with price)
-				const recipeItems = await sql`SELECT ingredient, unit, price FROM dessert_recipe_items`;
-				const extraItems = await sql`SELECT ingredient, unit, price FROM extras_items`;
-				// 2) Build canonical definitions map: key -> { ingredient, unit, price }
-				const defs = new Map();
-				function upsertDef(name, unit, price, isExtra = false){
-					if (!name) return;
-					const canon = canonicalizeIngredientName((name||'').toString());
-					const key = (canon||'').toString().toLowerCase();
-					if (!key) return;
-					const prev = defs.get(key) || { ingredient: canon, unit: unit || 'g', price: 0, isExtra: false };
-					if (unit && unit !== '') prev.unit = unit;
-					const p = Number(price || 0) || 0;
-					if (p > 0 && p > Number(prev.price || 0)) prev.price = p;
-					if (isExtra) prev.isExtra = true;
-					defs.set(key, prev);
+
+				const actionQuery = params.get('action');
+				if (actionQuery === 'get_production_logs') {
+					const stepId = params.get('step_id');
+					let list;
+					if (stepId) {
+						list = await sql`SELECT pl.id, pl.step_id, pl.qty, pl.duration_seconds, pl.actor_name, pl.created_at, dr.dessert, dr.step_name FROM production_logs pl LEFT JOIN dessert_recipes dr ON dr.id = pl.step_id WHERE pl.step_id = ${Number(stepId)} ORDER BY pl.created_at DESC LIMIT 100`;
+					} else {
+						list = await sql`SELECT pl.id, pl.step_id, pl.qty, pl.duration_seconds, pl.actor_name, pl.created_at, dr.dessert, dr.step_name FROM production_logs pl LEFT JOIN dessert_recipes dr ON dr.id = pl.step_id ORDER BY pl.created_at DESC LIMIT 1000`;
+					}
+					return json(list);
 				}
-				for (const it of (recipeItems || [])) upsertDef(it.ingredient, it.unit, it.price, false);
-				for (const it of (extraItems || [])) upsertDef(it.ingredient, it.unit, it.price, true);
-				// 3) Compute balances by canonical key
-				// Aggregate movements by canonical name to avoid split balances
+
+				if (actionQuery === 'get_conversions') {
+					const list = await sql`SELECT * FROM inventory_conversions ORDER BY ingredient_name`;
+					return json(list);
+				}
+
+				if (actionQuery === 'get_aliases') {
+					const list = await sql`SELECT * FROM inventory_alias ORDER BY alias ASC`;
+					return json(list);
+				}
+
+				if (actionQuery === 'active_timers') {
+					const activeList = await sql`SELECT id, step_id, TO_CHAR(target_date, 'YYYY-MM-DD') AS target_date, username, start_time, qty, created_at FROM active_production_timers ORDER BY start_time DESC`;
+					return json(activeList);
+				}
+
+				if (actionQuery === 'production_sync_check') {
+					const [row] = await sql`SELECT last_change FROM production_sync_meta LIMIT 1`;
+					return json({ last_change: row?.last_change || new Date().toISOString() });
+				}
+
+				if (actionQuery === 'get_checked_instructions') {
+					const dateStart = params.get('date_start') || new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0];
+					const list = await sql`
+						SELECT step_id, TO_CHAR(target_date, 'YYYY-MM-DD') AS target_date, instruction_index, checked_at, username 
+						FROM production_instructions_checked 
+						WHERE target_date >= ${dateStart}
+					`;
+					return json(list);
+				}
+
+				// Unified Inventory List
+				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
-				const movs = new Map();
+				const movsMap = new Map();
 				for (const r of (rawMovs || [])) {
 					const canon = canonicalizeIngredientName((r.ingredient||'').toString());
 					const key = (canon||'').toString().toLowerCase();
-					const prev = Number(movs.get(key) || 0) || 0;
-					movs.set(key, prev + (Number(r.qty||0)||0));
+					const prev = Number(movsMap.get(key) || 0) || 0;
+					movsMap.set(key, prev + (Number(r.qty||0)||0));
 				}
-				const saldoByKey = movs;
-				// 4) Materialize list, excluding items with price 0
-				const list = [];
-				for (const [key, v] of defs.entries()) {
-					const price = Number(v.price || 0) || 0;
-					if (price <= 0 && !v.isExtra) continue; // excluir costo 0, excepto extras
-					const saldo = Number(saldoByKey.get(key) || 0) || 0;
-					list.push({ ingredient: v.ingredient, unit: v.unit || 'g', saldo, price, valor: saldo * price });
-				}
-				list.sort((a,b) => (a.ingredient||'').localeCompare(b.ingredient||''));
-				return json(list);
+
+				const result = items.map(it => {
+					const canonName = canonicalizeIngredientName(it.ingredient || '');
+					const key = canonName.toLowerCase();
+					const saldo = Number(movsMap.get(key) || 0) || 0;
+					return { ...it, saldo, valor: saldo * Number(it.price || 0) };
+				});
+
+				return json(result);
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
 				const action = (data.action || '').toString();
 				const actor = (data.actor_name || '').toString() || null;
-				if (action === 'sync') {
-					// Ensure all Ingredientes (ingredient_formulas) exist as inventory items (case-insensitive unique)
-					await sql`
-						WITH pick AS (
-							SELECT DISTINCT ON (lower(ingredient)) ingredient, COALESCE(NULLIF(unit,''), 'g') AS unit
-							FROM ingredient_formulas
-							WHERE ingredient IS NOT NULL AND trim(ingredient) <> ''
-							ORDER BY lower(ingredient), unit ASC
-						)
-						INSERT INTO inventory_items (ingredient, unit)
-						SELECT ingredient, unit FROM pick
-						ON CONFLICT (ingredient) DO UPDATE SET unit = COALESCE(EXCLUDED.unit, inventory_items.unit), updated_at = now()
-					`;
-					// Canonicalize and merge duplicates (e.g., Agua*, Nutella*, *Oreo*)
-					const items = await sql`SELECT ingredient, unit FROM inventory_items`;
-					for (const it of (items || [])) {
-						const current = (it.ingredient || '').toString();
-						const canon = canonicalizeIngredientName(current);
-						if (!canon) continue;
-						if (current.toLowerCase() !== canon.toLowerCase()) {
-							await ensureInventoryItem(canon, it.unit || 'g');
-							await sql`UPDATE inventory_movements SET ingredient=${canon} WHERE lower(ingredient)=lower(${current})`;
-							await sql`DELETE FROM inventory_items WHERE ingredient=${current}`;
-						}
+
+				if (action === 'timer.start') {
+					const { step_id, target_date, qty } = data;
+					if (!step_id || !target_date || !actor) {
+						return json({ error: 'Faltan parámetros' }, 400);
 					}
+					await sql`
+						INSERT INTO active_production_timers (step_id, target_date, username, start_time, qty)
+						VALUES (${Number(step_id)}, ${new Date(target_date)}, ${actor}, now(), ${Number(qty || 1)})
+						ON CONFLICT (step_id, target_date, username) 
+						DO UPDATE SET start_time = now(), qty = EXCLUDED.qty
+					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
 					return json({ ok: true });
 				}
+
+				if (action === 'timer.stop') {
+					const { step_id, target_date } = data;
+					if (!step_id || !target_date || !actor) {
+						return json({ error: 'Faltan parámetros' }, 400);
+					}
+					await sql`
+						DELETE FROM active_production_timers 
+						WHERE step_id = ${Number(step_id)} 
+						  AND target_date = ${target_date} 
+						  AND username = ${actor}
+					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true });
+				}
+
+				if (action === 'instruction.check') {
+					const { step_id, target_date, instruction_index } = data;
+					if (!step_id || !target_date || instruction_index === undefined || !actor) {
+						return json({ error: 'Faltan parámetros' }, 400);
+					}
+					await sql`
+						INSERT INTO production_instructions_checked (step_id, target_date, instruction_index, username, checked_at)
+						VALUES (${Number(step_id)}, ${target_date}, ${Number(instruction_index)}, ${actor}, now())
+						ON CONFLICT (step_id, target_date, instruction_index) 
+						DO UPDATE SET checked_at = now(), username = EXCLUDED.username
+					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true });
+				}
+
+				if (action === 'instruction.uncheck') {
+					const { step_id, target_date, instruction_index } = data;
+					if (!step_id || !target_date || instruction_index === undefined) {
+						return json({ error: 'Faltan parámetros' }, 400);
+					}
+					await sql`
+						DELETE FROM production_instructions_checked 
+						WHERE step_id = ${Number(step_id)} 
+						  AND target_date = ${target_date} 
+						  AND instruction_index = ${Number(instruction_index)}
+					`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true });
+				}
+
+				if (action === 'save_alias') {
+					const { alias, ingredient_name } = data;
+					if (!alias || !ingredient_name) return json({ error: 'Missing alias or ingredient_name' }, 400);
+					
+					await sql`
+						INSERT INTO inventory_alias (alias, ingredient_name)
+						VALUES (${alias.toLowerCase().trim()}, ${ingredient_name})
+						ON CONFLICT (alias, vendor) DO UPDATE SET ingredient_name = EXCLUDED.ingredient_name
+					`;
+					return json({ ok: true });
+				}
+
+
+				if (action === 'save_conversion') {
+					const { ingredient_name, factor } = data;
+					if (!ingredient_name || factor === undefined) return json({ error: 'Missing name or factor' }, 400);
+					await sql`INSERT INTO inventory_conversions (ingredient_name, factor) VALUES (${ingredient_name}, ${factor}) ON CONFLICT (ingredient_name) DO UPDATE SET factor = EXCLUDED.factor`;
+					return json({ ok: true });
+				}
+
+				if (action === 'delete_conversion') {
+					const { id } = data;
+					if (!id) return json({ error: 'Missing id' }, 400);
+					await sql`DELETE FROM inventory_conversions WHERE id = ${id}`;
+					return json({ ok: true });
+				}
+
+				if (action === 'delete_production') {
+					const { ids } = data;
+					if (!ids || !Array.isArray(ids) || ids.length === 0) return json({ error: 'Missing or invalid ids' }, 400);
+					const numericIds = ids.map(id => Number(id)).filter(id => !isNaN(id));
+					
+					let deletedCount = 0;
+					for (const id of numericIds) {
+						const result = await sql`DELETE FROM inventory_movements WHERE id = ${id} RETURNING id`;
+						if (result.length > 0) deletedCount++;
+					}
+					
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true, deletedCount });
+				}
+
+				if (action === 'add_item') {
+					const ingredient = (data.ingredient || '').toString().trim();
+					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);
+					const { unit = 'g', category = 'ingrediente', price = 0, pack_size = 0 } = data;
+
+					// ⚠️ SUPER NORMALIZATION check
+					const norm = (s) => (s || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+					const canonNew = norm(ingredient);
+
+					const all = await sql`SELECT id, ingredient, category FROM inventory_items`;
+					const existing = all.find(it => norm(it.ingredient) === canonNew);
+
+					if (existing) {
+						// Item already exists (deep normalization), just update it
+						const [row] = await sql`
+							UPDATE inventory_items 
+							SET 
+								unit = ${unit}, 
+								category = ${category || existing.category}, 
+								price = ${Number(price) || 0}, 
+								pack_size = ${Number(pack_size) || 0}, 
+								updated_at = now()
+							WHERE id = ${existing.id}
+							RETURNING *
+						`;
+						await recalculateAllDessertCosts();
+						return json({ ...row, status: 'updated_existing' });
+					}
+
+					const [row] = await sql`
+						INSERT INTO inventory_items (ingredient, unit, category, price, pack_size)
+						VALUES (${ingredient}, ${unit}, ${category}, ${price}, ${pack_size})
+						RETURNING *
+					`;
+					await recalculateAllDessertCosts();
+					return json(row, 201);
+				}
+
+				if (action === 'merge_ingredients') {
+					const { source, target } = data;
+					if (!source || !target) return json({ error: 'Missing source or target' }, 400);
+					
+					await sql`UPDATE inventory_movements SET ingredient = ${target} WHERE ingredient = ${source}`;
+					await sql`DELETE FROM inventory_items WHERE ingredient = ${source}`;
+					await recalculateAllDessertCosts();
+					return json({ ok: true });
+				}
+
+				if (action === 'update_item') {
+					const { id, price, category, unit, pack_size, ingredient } = data;
+					if (!id) return json({ error: 'id requerido' }, 400);
+
+					const [old] = await sql`SELECT * FROM inventory_items WHERE id = ${id}`;
+					if (!old) return json({ error: 'ítem no encontrado' }, 404);
+
+					const newName = (ingredient || old.ingredient || '').trim();
+
+					// ⚠️ SUPER NORMALIZATION for merge check (accents, cases, spaces)
+					const norm = (s) => (s || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+					const canonNew = norm(newName);
+
+					// We check for any OTHER item that matches the canonical name using deep normalization
+					const all = await sql`SELECT id, ingredient FROM inventory_items WHERE id != ${id}`;
+					const existing = all.find(it => norm(it.ingredient) === canonNew);
+					
+					if (existing) {
+						console.log(`[MERGE] ${old.ingredient} -> ${existing.ingredient}`);
+						// Update ALL references in other tables
+						const oldName = old.ingredient;
+						const targetName = existing.ingredient;
+
+						await sql`UPDATE inventory_movements SET ingredient = ${targetName} WHERE lower(trim(ingredient)) = lower(trim(${oldName}))`;
+						await sql`UPDATE dessert_recipe_items SET ingredient = ${targetName} WHERE lower(trim(ingredient)) = lower(trim(${oldName}))`;
+						await sql`UPDATE extras_items SET ingredient = ${targetName} WHERE lower(trim(ingredient)) = lower(trim(${oldName}))`;
+						
+						// Update the existing item with new data if provided (price, etc)
+						await sql`
+							UPDATE inventory_items 
+							SET 
+								price = ${price !== undefined ? Number(price) : existing.price},
+								category = ${category || existing.category},
+								unit = ${unit || existing.unit},
+								pack_size = ${pack_size !== undefined ? Number(pack_size) : existing.pack_size},
+								updated_at = now()
+							WHERE id = ${existing.id}
+						`;
+
+						await sql`DELETE FROM inventory_items WHERE id = ${id}`;
+						await recalculateAllDessertCosts();
+						return json({ status: 'merged', target_id: existing.id, ingredient: targetName });
+					}
+
+					// Standard Update
+					const [row] = await sql`
+						UPDATE inventory_items 
+						SET 
+							ingredient = ${newName}, 
+							price = ${price !== undefined ? Number(price) : old.price}, 
+							category = ${category || old.category}, 
+							unit = ${unit || old.unit}, 
+							pack_size = ${pack_size !== undefined ? Number(pack_size) : old.pack_size}, 
+							updated_at = now()
+						WHERE id = ${id}
+						RETURNING *
+					`;
+					
+					// If name changed (even without merge), sync movements/recipes
+					if (newName !== old.ingredient) {
+						await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+					}
+
+					await recalculateAllDessertCosts();
+					return json(row);
+				}
+
+				if (action === 'delete_item') {
+					const { id } = data;
+					if (!id) return json({ error: 'id requerido' }, 400);
+					await sql`DELETE FROM inventory_items WHERE id = ${id}`;
+					return json({ ok: true });
+				}
+
 				if (action === 'ingreso' || action === 'ajuste') {
 					const ingredient = canonicalizeIngredientName((data.ingredient || '').toString().trim());
 					const unit = (data.unit || 'g').toString();
 					let qty = Number(data.qty || 0) || 0;
 					const note = (data.note || '').toString();
+					const totalCost = Number(data.total_cost || 0); // Opcional para PMP
+					const unitPrice = Number(data.unit_price || 0); // Opcional para PMP
+					
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);
 					if (!qty) return json({ error: 'qty requerido' }, 400);
+					
 					await ensureInventoryItem(ingredient, unit);
-					const kind = action;
-					const signed = action === 'ingreso' ? Math.abs(qty) : qty; // ajuste puede ser +/- ya enviado
-					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${kind}, ${signed}, ${note}, ${actor}, '{}'::jsonb) RETURNING *`;
+					const signed = action === 'ingreso' ? Math.abs(qty) : qty;
+					
+					const metadata = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+					if (totalCost > 0) metadata.total_cost = totalCost;
+					if (unitPrice > 0) metadata.unit_price = unitPrice;
+
+					const movementDate = data.date || null;
+					const [row] = await sql`
+						INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+						VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, COALESCE(${movementDate}::timestamptz, now())) 
+						RETURNING *
+					`;
+					
+					// Si es un ingreso con precio, actualizar PMP
+					if (action === 'ingreso' && (totalCost > 0 || unitPrice > 0)) {
+						const priceToUse = unitPrice > 0 ? unitPrice : (totalCost / Math.abs(qty));
+						await updateIngredientPMP(ingredient, Math.abs(qty), priceToUse);
+					}
+
 					return json(row, 201);
 				}
+
+				if (action === 'compra') {
+					const { items, total_cost, note, date, receipt_base64, receipt_name, accounting_id } = data;
+					if (!items || !items.length || !total_cost || !date) return json({ error: 'Faltan campos requeridos (items, total, fecha)' }, 400);
+
+					const results = [];
+					const metadata = { total_cost: Number(total_cost), purchase_date: date, items_count: items.length };
+
+					let accEntry;
+					const accDesc = note || (items[0].ingredient + (items.length > 1 ? '...' : ''));
+
+					if (accounting_id) {
+						// MODO EDICIÓN
+						[accEntry] = await sql`
+							UPDATE accounting_entries 
+							SET entry_date = ${date}, description = ${accDesc}, amount_cents = ${Number(total_cost)}, actor_name = ${actor} 
+							WHERE id = ${Number(accounting_id)} 
+							RETURNING *
+						`;
+						// Borrar movimientos previos para re-insertar los nuevos
+						await sql`DELETE FROM inventory_movements WHERE metadata->>'accounting_id' = ${accounting_id.toString()}`;
+					} else {
+						// MODO NUEVO
+						[accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+					}
+					
+					metadata.accounting_id = accEntry.id;
+
+					// Etiquetado automático: Insumos
+					try {
+						const [tag] = await sql`SELECT id FROM accounting_tags WHERE lower(name) = 'insumos' LIMIT 1`;
+						if (tag) {
+							await sql`INSERT INTO accounting_entry_tags (entry_id, tag_id) VALUES (${accEntry.id}, ${tag.id}) ON CONFLICT DO NOTHING`;
+						}
+					} catch (e) { console.error('Error tagging as Insumos:', e); }
+
+					// 2. Procesar cada item (Nuevo o Actualizado)
+					for (const it of items) {
+						const canon = canonicalizeIngredientName(it.ingredient);
+						await ensureInventoryItem(canon);
+						
+						// Movimiento individual para trazabilidad
+						const itemMeta = { total_cost: Number(it.price_cents || 0), purchase_date: date, accounting_id: accEntry.id };
+						const [invMov] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canon}, 'ingreso', ${Math.abs(it.qty)}, ${note || 'Parte de compra multi'}, ${actor}, ${JSON.stringify(itemMeta)}::jsonb, ${date}) 
+							RETURNING id
+						`;
+						
+						// Calcular precio unitario para PMP si se proporcionó precio por item, si no, prorratear o usar 0
+						const unitPrice = it.price_cents ? (Number(it.price_cents) / Math.abs(it.qty)) : 0;
+						if (unitPrice > 0) {
+							await updateIngredientPMP(canon, Math.abs(it.qty), unitPrice);
+						}
+						results.push({ ingredient: canon, movement_id: invMov.id });
+					}
+
+					// 3. Adjunto si existe
+					if (receipt_base64) {
+						await sql`INSERT INTO accounting_attachments (entry_id, file_base64, mime_type, file_name) VALUES (${accEntry.id}, ${receipt_base64}, 'image/jpeg', ${receipt_name || 'recibo.jpg'})`;
+					}
+
+					return json({ ok: true, accounting_id: accEntry.id, movements: results }, 201);
+				}
+				
+				if (action === 'delete_purchase') {
+					const { accounting_id } = data;
+					if (!accounting_id) return json({ error: 'accounting_id requerido' }, 400);
+					
+					// 1. Borrar movimientos de inventario asociados
+					await sql`DELETE FROM inventory_movements WHERE metadata->>'accounting_id' = ${accounting_id.toString()}`;
+					
+					// 2. Borrar asiento contable (esto borra los adjuntos por CASCADE)
+					await sql`DELETE FROM accounting_entries WHERE id = ${Number(accounting_id)}`;
+					
+					return json({ ok: true });
+				}
+
 				if (action === 'reset') {
-					// Danger: clears all movement history and leaves all balances at zero
 					await sql`DELETE FROM inventory_movements`;
 					return json({ ok: true, cleared: true });
 				}
+
+				if (action === 'update_production_log') {
+					const logId = Number(data.log_id || 0);
+					const qty = Number(data.qty || 0);
+					const durationSeconds = Number(data.duration_seconds || 0);
+					const logActorName = (data.log_actor_name || '').toString().trim() || null;
+					if (!logId) return json({ error: 'log_id requerido' }, 400);
+
+					const logRows = await sql`SELECT step_id, qty, duration_seconds, actor_name FROM production_logs WHERE id = ${logId} LIMIT 1`;
+					if (!logRows.length) return json({ error: 'Registro no encontrado' }, 404);
+					const oldLog = logRows[0];
+
+					await sql`
+						UPDATE production_logs 
+						SET qty = ${qty}, duration_seconds = ${durationSeconds}, actor_name = COALESCE(${logActorName}, actor_name)
+						WHERE id = ${logId}
+					`;
+
+					if (logActorName && oldLog.actor_name) {
+						await sql`
+							UPDATE inventory_movements 
+							SET actor_name = ${logActorName} 
+							WHERE kind = 'produccion' 
+							  AND lower(actor_name) = lower(${oldLog.actor_name})
+							  AND (metadata->>'step_id')::numeric = ${oldLog.step_id}
+						`;
+					}
+
+					let actorRole = 'user';
+					if (actor) {
+						try {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+							if (r.length) actorRole = r[0].role;
+						} catch {}
+					}
+
+					if (actorRole === 'produccion') {
+						const stepRows = await sql`SELECT dessert, step_name FROM dessert_recipes WHERE id = ${oldLog.step_id} LIMIT 1`;
+						const stepName = stepRows.length ? `${stepRows[0].dessert} - ${stepRows[0].step_name || 'General'}` : `Paso ID ${oldLog.step_id}`;
+						await notify({
+							type: 'kitchen_log_edit',
+							message: `El personal de producción ${actor} modificó un registro del paso "${stepName}": Lote cambió de ${oldLog.qty} a ${qty}, Tiempo de ${oldLog.duration_seconds}s a ${durationSeconds}s.`,
+							actorName: actor
+						});
+					}
+
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true });
+				}
+
+				if (action === 'delete_production_log') {
+					const logId = Number(data.log_id || 0);
+					if (!logId) return json({ error: 'log_id requerido' }, 400);
+
+					const logRows = await sql`SELECT step_id, qty, duration_seconds FROM production_logs WHERE id = ${logId} LIMIT 1`;
+					if (logRows.length) {
+						const oldLog = logRows[0];
+						
+						let actorRole = 'user';
+						if (actor) {
+							try {
+								const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+								if (r.length) actorRole = r[0].role;
+							} catch {}
+						}
+
+						if (actorRole === 'produccion') {
+							const stepRows = await sql`SELECT dessert, step_name FROM dessert_recipes WHERE id = ${oldLog.step_id} LIMIT 1`;
+							const stepName = stepRows.length ? `${stepRows[0].dessert} - ${stepRows[0].step_name || 'General'}` : `Paso ID ${oldLog.step_id}`;
+							await notify({
+								type: 'kitchen_log_delete',
+								message: `El personal de producción ${actor} eliminó un registro del paso "${stepName}" (Lote: ${oldLog.qty} uds, Tiempo: ${oldLog.duration_seconds}s).`,
+								actorName: actor
+							});
+						}
+					}
+
+					await sql`DELETE FROM production_logs WHERE id = ${logId}`;
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ ok: true });
+				}
+
+				if (action === 'produccion_paso') {
+					const stepId = Number(data.step_id || 0);
+					const multiplier = Number(data.multiplier || 1) || 1;
+					const producedQty = Number(data.produced_qty || 0) || 0;
+					const targetUsername = data.target_username ? data.target_username.toString().trim() : null;
+					if (!stepId) return json({ error: 'step_id requerido' }, 400);
+
+					const [step] = await sql`SELECT id, dessert, step_name, produces_ingredient, produces_unit FROM dessert_recipes WHERE id = ${stepId}`;
+					if (!step) return json({ error: 'paso no encontrado' }, 404);
+
+					const items = await sql`SELECT ingredient, unit, qty_per_unit FROM dessert_recipe_items WHERE recipe_id = ${stepId}`;
+
+					const results = [];
+					const note = `Producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
+					
+					const metadata = { step_id: stepId, multiplier: multiplier };
+					if (data.target_date) metadata.target_date = data.target_date;
+					if (producedQty > 0) metadata.produced_qty = producedQty;
+
+					const now = new Date();
+					const logActor = targetUsername || actor;
+					
+					// 0. Log duration if provided
+					const durationSeconds = Number(data.duration_seconds || 0) || 0;
+					if (durationSeconds > 0) {
+						metadata.duration_seconds = durationSeconds;
+						await sql`
+							INSERT INTO production_logs (step_id, qty, duration_seconds, actor_name, created_at)
+							VALUES (${stepId}, ${multiplier}, ${durationSeconds}, ${logActor}, ${now})
+						`;
+					}
+
+					// 1. Record consumption of ingredients
+					let insertedProduccion = false;
+					
+					if (data.custom_ingredients && Array.isArray(data.custom_ingredients)) {
+						for (const customIt of data.custom_ingredients) {
+							const canon = (customIt.ingredient || '').toString().trim();
+							const qtyToSubtract = -Math.abs(Number(customIt.qty || 0));
+							
+							if (qtyToSubtract === 0) continue;
+
+							const [row] = await sql`
+								INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note + ' (Ajuste manual)'}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+								RETURNING *
+							`;
+							results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
+							insertedProduccion = true;
+						}
+					} else {
+						for (const it of items) {
+							const canon = (it.ingredient || '').toString().trim();
+							const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
+							
+							if (qtyToSubtract === 0) continue;
+
+							const [row] = await sql`
+								INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+								RETURNING *
+							`;
+							results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
+							insertedProduccion = true;
+						}
+					}
+
+					// Si no hubo ingredientes (es solo una actividad), insertamos un movimiento en cero para que el historial lo cuente
+					if (!insertedProduccion) {
+						const [row] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES ('- Actividad -', 'produccion', 0, ${note}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							RETURNING *
+						`;
+						results.push({ ingredient: '- Actividad -', qty: 0, movement_id: row?.id, type: 'activity' });
+					}
+
+					// 2. Record production output (if configured and qty > 0)
+					if (producedQty > 0 && step.produces_ingredient) {
+						const canonProduced = (step.produces_ingredient || '').toString().trim();
+						const noteProduced = `Resultado de producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
+						
+						const [rowProduced] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canonProduced}, 'entrada', ${producedQty}, ${noteProduced}, ${logActor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							RETURNING *
+						`;
+						results.push({ ingredient: canonProduced, qty: producedQty, movement_id: rowProduced?.id, type: 'output' });
+					}
+
+					// 3. Clean up active timer for this step and user (if active)
+					if (stepId && data.target_date) {
+						try {
+							const targetDateObj = new Date(data.target_date);
+							await sql`
+								DELETE FROM active_production_timers 
+								WHERE step_id = ${stepId} 
+								  AND target_date = ${targetDateObj} 
+								  AND username = ${logActor}
+							`;
+						} catch (e) {
+							console.error("Error clearing active timer in produccion_paso:", e);
+						}
+					}
+
+					await sql`UPDATE production_sync_meta SET last_change = now()`;
+					return json({ 
+						ok: true, 
+						step: step.step_name, 
+						dessert: step.dessert, 
+						movements: results,
+						produced: producedQty > 0 ? { ingredient: step.produces_ingredient, qty: producedQty } : null
+					});
+				}
+
 				if (action === 'produccion') {
-					// counts: { arco, melo, mara, oreo, nute }
 					const counts = data.counts && typeof data.counts === 'object' ? data.counts : {};
-					const c = {
-						arco: Number(counts.arco || 0) || 0,
-						melo: Number(counts.melo || 0) || 0,
-						mara: Number(counts.mara || 0) || 0,
-						oreo: Number(counts.oreo || 0) || 0,
-						nute: Number(counts.nute || 0) || 0
-					};
-					// Fetch full recipes and extras
-					const steps = await sql`SELECT id, dessert FROM dessert_recipes ORDER BY dessert ASC, position ASC`;
+					const desserts = await sql`SELECT id, short_code, name FROM desserts WHERE is_active = true`;
+					const steps = await sql`SELECT id, dessert FROM dessert_recipes`;
 					const stepIds = steps.map(s => s.id);
 					let items = [];
 					if (stepIds.length) items = await sql`SELECT recipe_id, ingredient, unit, qty_per_unit FROM dessert_recipe_items WHERE recipe_id = ANY(${stepIds})`;
-					const byDessert = new Map();
-					for (const s of steps) { const key = (s.dessert||'').toString(); if (!byDessert.has(key)) byDessert.set(key, []); }
-					for (const it of items) {
-						const step = steps.find(s => s.id === it.recipe_id);
-						if (!step) continue;
-						const key = (step.dessert || '').toString();
-						byDessert.get(key).push({ ingredient: it.ingredient, unit: it.unit || 'g', qty: Number(it.qty_per_unit || 0) || 0 });
-					}
 					const extras = await sql`SELECT ingredient, unit, qty_per_unit FROM extras_items`;
-					const totals = new Map(); // ingredient -> { unit, qty }
+					
+					const totals = new Map();
 					function add(ing, unit, qty) {
 						if (!ing) return;
 						const canon = canonicalizeIngredientName(ing.toString());
-						const k = canon;
-						const prev = totals.get(k) || { unit: unit || 'g', qty: 0 };
+						const prev = totals.get(canon) || { unit: unit || 'g', qty: 0 };
 						prev.qty += Number(qty || 0) || 0;
 						if (unit) prev.unit = unit;
-						totals.set(k, prev);
+						totals.set(canon, prev);
 					}
-					const mapKey = (name) => (name||'').toString().trim().toLowerCase();
-					for (const [dessertName, arr] of byDessert.entries()) {
-						const k = mapKey(dessertName);
-						const mult = k.startsWith('arco') ? c.arco : k.startsWith('melo') ? c.melo : k.startsWith('mara') ? c.mara : k.startsWith('oreo') ? c.oreo : k.startsWith('nute') ? c.nute : 0;
-						if (!mult) continue;
-						for (const it of (arr || [])) add(it.ingredient, it.unit, it.qty * mult);
+
+					for (const d of desserts) {
+						const q = Number(counts[d.short_code] || 0);
+						if (q <= 0) continue;
+						const dSteps = steps.filter(s => s.dessert.toLowerCase() === d.name.toLowerCase() || s.dessert.toLowerCase() === d.short_code.toLowerCase());
+						for (const s of dSteps) {
+							for (const it of items.filter(i => i.recipe_id === s.id)) add(it.ingredient, it.unit, Number(it.qty_per_unit || 0) * q);
+						}
 					}
-					const unitsTotal = c.arco + c.melo + c.mara + c.oreo + c.nute;
-					for (const ex of (extras || [])) add(ex.ingredient, ex.unit, Number(ex.qty_per_unit || 0) * unitsTotal);
-					// Ensure inventory items and insert movements as negatives
+					
+					let totalUnits = 0;
+					for (const k in counts) totalUnits += Number(counts[k] || 0);
+					for (const ex of (extras || [])) add(ex.ingredient, ex.unit, Number(ex.qty_per_unit || 0) * totalUnits);
+
 					const out = [];
 					for (const [ingredient, v] of totals.entries()) {
-						const canon = canonicalizeIngredientName(ingredient);
-						await ensureInventoryItem(canon, v.unit || 'g');
-						const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, ${'produccion'}, ${-Math.abs(v.qty || 0)}, ${'Producción aprobada'}, ${actor}, ${JSON.stringify({ counts: c })}::jsonb) RETURNING *`;
-						out.push({ ingredient: canon, unit: v.unit || 'g', qty: v.qty || 0, movement_id: row?.id });
+						const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, 'produccion', ${-Math.abs(v.qty || 0)}, 'Producción aprobada', ${actor}, ${JSON.stringify({ counts })}::jsonb) RETURNING *`;
+						out.push({ ingredient, unit: v.unit, qty: v.qty, movement_id: row?.id });
 					}
 					return json({ ok: true, movements: out });
 				}
+
 				return json({ error: 'acción inválida' }, 400);
 			}
 			default:

@@ -2,59 +2,39 @@
 
 async function loadStore() {
     const grid = document.getElementById('product-grid');
-    
-    // SWR: Load from cache first for instant feel
-    const cached = safeLS.getItem('store_products_cache');
-    if (cached) {
-        try {
-            const products = JSON.parse(cached);
-            if (Array.isArray(products) && products.length > 0) {
-                grid.innerHTML = '';
-                products.filter(p => p.is_active).forEach(storeRenderProduct);
-            }
-        } catch (e) {
-            console.error('Error parsing product cache', e);
-        }
-    }
 
     try {
         const res = await fetch('/api/store-products');
         if (!res.ok) throw new Error('Error de red');
         const products = await res.json();
 
-        // If data changed compared to cache, update UI
-        if (JSON.stringify(products) !== cached) {
-            safeLS.setItem('store_products_cache', JSON.stringify(products));
-            const activeProducts = products.filter(p => p.is_active);
+        const activeProducts = products.filter(p => p.is_active);
 
-            if (activeProducts.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state">
-                        <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--text);">¡Pronto tendremos delicias aquí!</h2>
-                        <p>Actualmente estamos horneando nuevas sorpresas. Vuelve pronto.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            grid.innerHTML = '';
-            activeProducts.forEach(storeRenderProduct);
+        if (activeProducts.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--text);">¡Pronto tendremos delicias aquí!</h2>
+                    <p>Actualmente estamos horneando nuevas sorpresas. Vuelve pronto.</p>
+                </div>
+            `;
+            return;
         }
+
+        grid.innerHTML = '';
+        activeProducts.forEach((p, index) => storeRenderProduct(p, index));
 
     } catch (err) {
         console.error('Error loading store:', err);
-        if (!cached) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--danger);">¡Ups! Algo salió mal.</h2>
-                    <p>No pudimos cargar el menú en este momento. Por favor, recarga la página.</p>
-                </div>
-            `;
-        }
+        grid.innerHTML = `
+            <div class="empty-state">
+                <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--danger);">¡Ups! Algo salió mal.</h2>
+                <p>No pudimos cargar el menú en este momento. Por favor, recarga la página.</p>
+            </div>
+        `;
     }
 }
 
-function storeRenderProduct(product) {
+function storeRenderProduct(product, index) {
     const grid = document.getElementById('product-grid');
     const card = document.createElement('div');
     card.className = 'product-card';
@@ -83,7 +63,7 @@ function storeRenderProduct(product) {
             const img = document.createElement('img');
             img.src = `https://img.youtube.com/vi/${m.id}/hqdefault.jpg`;
             img.alt = product.name;
-            img.loading = idx === 0 ? 'eager' : 'lazy';
+            img.loading = (idx === 0 && index < 4) ? 'eager' : 'lazy';
             img.style.cursor = 'zoom-in';
             img.addEventListener('click', () => openFullscreenGallery(mediaItems, idx));
             slide.appendChild(img);
@@ -106,13 +86,13 @@ function storeRenderProduct(product) {
             vid.controls = true;
             vid.loop = true;
             vid.playsInline = true;
-            vid.autoplay = idx === 0;
+            vid.autoplay = idx === 0 && index < 4;
             slide.appendChild(vid);
         } else {
             const img = document.createElement('img');
             img.src = m.base64;
             img.alt = product.name;
-            img.loading = idx === 0 ? 'eager' : 'lazy';
+            img.loading = (idx === 0 && index < 4) ? 'eager' : 'lazy';
             img.style.cursor = 'zoom-in';
             img.addEventListener('click', () => openFullscreenGallery(mediaItems, idx));
             slide.appendChild(img);

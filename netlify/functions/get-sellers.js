@@ -19,7 +19,7 @@ export async function handler(event) {
 			SELECT id, name, require_whatsapp, whatsapp 
 			FROM sellers 
 			WHERE archived_at IS NULL AND game_enabled IS TRUE
-			ORDER BY name
+			ORDER BY position ASC, name ASC
 		`;
 
 		return json(rows);

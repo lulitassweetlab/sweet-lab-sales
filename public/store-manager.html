@@ -139,6 +139,12 @@
                         placeholder="Ej: 573004147471"
                         style="width: 100%;" />
                 </div>
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">Mensaje de Éxito al terminar pedido (Opcional):</label>
+                    <textarea id="store-confirm-msg-input" class="input-light"
+                        placeholder="Ej: ¡Tu pedido ha sido enviado! Nos contactaremos contigo pronto."
+                        style="width: 100%; height: 60px; resize: vertical;"></textarea>
+                </div>
                 <div style="display: flex; gap: 16px;">
                     <div style="flex: 1;">
                         <label style="font-weight: bold; display: block; margin-bottom: 8px;">Separación Horizontal
@@ -244,16 +250,17 @@
 
     <main class="sales-panel" style="margin-top: 24px; margin-bottom: 64px;">
         <div class="panel-header">
-            <h3>Reglas de Vendedores (WhatsApp Obligatorio)</h3>
+            <h3>Reglas de Vendedores (WhatsApp y GPS)</h3>
         </div>
         <div class="panel-body">
-            <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px; margin-top: 0;">Desactiva el botón si deseas que el cliente pueda enviar su pedido sin escribir un número de WhatsApp. Por defecto es <b>Opcional</b>.</p>
+            <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px; margin-top: 0;">Configura qué requisitos son obligatorios para cada vendedor al momento de realizar o enviar un pedido.</p>
             <div class="table-wrapper">
                 <table id="sellers-rules-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr>
                             <th style="text-align: left; padding: 12px; border-bottom: 1px solid var(--border);">Vendedor</th>
                             <th style="text-align: center; padding: 12px; border-bottom: 1px solid var(--border);">¿WhatsApp Obligatorio?</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 1px solid var(--border);">¿Ubicación GPS Obligatoria?</th>
                         </tr>
                     </thead>
                     <tbody id="sellers-rules-tbody"></tbody>
@@ -1038,8 +1045,8 @@
                     if (!res.ok) throw new Error('Error al guardar');
                     alert('Configuración guardada exitosamente');
                 } catch (err) {
-                    console.error(err);
-                    alert('Error al guardar la configuración');
+                    console.error('Error saving settings:', err);
+                    alert('Error al guardar la configuración: ' + (err.message || 'Error desconocido'));
                 } finally {
                     saveSettingsBtn.disabled = false;
                     saveSettingsBtn.textContent = 'Guardar Configuración';
@@ -1105,8 +1112,11 @@
                             const url = '/api/sellers' + (actor ? '?actor=' + encodeURIComponent(actor) : '');
                             const res = await fetch(url, {
                                 method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: s.id, require_whatsapp: toggleInput.checked })
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    ...(actor ? { 'X-Actor-Name': actor } : {})
+                                },
+                                body: JSON.stringify({ id: s.id, require_whatsapp: toggleInput.checked, _actor_name: actor })
                             });
                             if (!res.ok) throw new Error('Failed');
                             
@@ -1124,7 +1134,58 @@
                     toggleWrap.append(toggleInput, toggleLabel);
                     tdCheckbox.appendChild(toggleWrap);
 
-                    tr.append(tdName, tdCheckbox);
+                    // GPS Checkbox Column
+                    const tdGps = document.createElement('td');
+                    tdGps.style.textAlign = 'center';
+                    tdGps.style.padding = '12px';
+                    tdGps.style.borderBottom = '1px solid var(--border)';
+
+                    const gpsWrap = document.createElement('label');
+                    gpsWrap.style.display = 'inline-flex';
+                    gpsWrap.style.alignItems = 'center';
+                    gpsWrap.style.cursor = 'pointer';
+                    
+                    const gpsInput = document.createElement('input');
+                    gpsInput.type = 'checkbox';
+                    gpsInput.style.width = '18px';
+                    gpsInput.style.height = '18px';
+                    gpsInput.style.accentColor = 'var(--primary)';
+                    gpsInput.checked = !!s.require_location;
+                    
+                    const gpsLabel = document.createElement('span');
+                    gpsLabel.style.marginLeft = '8px';
+                    gpsLabel.textContent = s.require_location ? 'Obligatoria' : 'Opcional';
+                    gpsLabel.style.color = s.require_location ? 'var(--primary)' : 'var(--text-muted)';
+                    
+                    gpsInput.addEventListener('change', async (e) => {
+                        gpsInput.disabled = true;
+                        try {
+                            const url = '/api/sellers' + (actor ? '?actor=' + encodeURIComponent(actor) : '');
+                            const res = await fetch(url, {
+                                method: 'PATCH',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    ...(actor ? { 'X-Actor-Name': actor } : {})
+                                },
+                                body: JSON.stringify({ id: s.id, require_location: gpsInput.checked, _actor_name: actor })
+                            });
+                            if (!res.ok) throw new Error('Failed');
+                            
+                            const updatedVal = gpsInput.checked;
+                            gpsLabel.textContent = updatedVal ? 'Obligatoria' : 'Opcional';
+                            gpsLabel.style.color = updatedVal ? 'var(--primary)' : 'var(--text-muted)';
+                        } catch (err) {
+                            alert('No se pudo actualizar la configuración GPS del vendedor');
+                            gpsInput.checked = !gpsInput.checked; // revert
+                        } finally {
+                            gpsInput.disabled = false;
+                        }
+                    });
+
+                    gpsWrap.append(gpsInput, gpsLabel);
+                    tdGps.appendChild(gpsWrap);
+
+                    tr.append(tdName, tdCheckbox, tdGps);
                     sellersRulesTbody.appendChild(tr);
                 }
             }

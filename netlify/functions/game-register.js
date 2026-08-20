@@ -40,9 +40,9 @@ export async function handler(event) {
 
         console.log('game-register: Validating input', { name, whatsapp, birthDate, seller });
 
-        // Validate input
-        if (!name || name.length < 3) {
-            return json({ error: 'Nombre inválido' }, 400);
+        // Validate input (birthDate is now optional)
+        if (!name || !whatsapp || !seller) {
+            return json({ error: 'Datos incompletos' }, 400);
         }
 
         if (!whatsapp || !/^\d{10}$/.test(whatsapp)) {
@@ -53,9 +53,7 @@ export async function handler(event) {
             return json({ error: 'Vendedor requerido' }, 400);
         }
 
-        if (!birthDate) {
-            return json({ error: 'Fecha de nacimiento inválida' }, 400);
-        }
+        // birthDate is now optional
 
         // Check if WhatsApp has already played
         console.log('game-register: Checking if user has already played');

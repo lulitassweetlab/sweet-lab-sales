@@ -160,7 +160,7 @@ async function openGlobalClientDetailView(clientName) {
 // Load client detail rows from all sellers the user has access to
 async function loadGlobalClientDetailRows(clientName) {
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-	const isAdmin = !!state.currentUser?.isAdmin;
+	const isAdmin = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
 
 	const allRows = [];
 	let sellersToSearch = [];
@@ -482,7 +482,7 @@ function renderClientDetailTable() {
 		// Click: first-time behaviors and shortcuts
 		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
-			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 			const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 			const locked = pm !== '' && pm !== 'entregado';
 			if (!isAdminUser && locked) return; // block for non-admins, allow when 'entregado'
@@ -512,7 +512,7 @@ function renderClientDetailTable() {
 				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 				
 				e.preventDefault();
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 				const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 				const locked = pm !== '' && pm !== 'entregado';
 				if (!isAdminUser && locked) return;
@@ -663,7 +663,7 @@ async function openEditClientNameDialog(currentName) {
 		// Determine which sellers to update
 		const isGlobalView = state._clientDetailFrom === 'global-search';
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		const isAdmin = !!state.currentUser?.isAdmin;
+		const isAdmin = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
 
 		let sellersToUpdate = [];
 
@@ -752,23 +752,10 @@ const API = {
 	Inventory: '/api/inventory',
 	Desserts: '/api/desserts',
 	Notifications: '/api/notifications',
-	Clients: '/api/clients'
+	Clients: '/api/clients',
+	StoreSettings: '/api/store-settings'
 };
 
-const PRICES = {
-	arco: 8500,
-	melo: 9500,
-	mara: 10500,
-	oreo: 10500,
-	nute: 13000,
-};
-const COST_PRICES = {
-	arco: 4675,
-	melo: 5225,
-	mara: 5775,
-	oreo: 5775,
-	nute: 7150,
-};
 const DEFAULT_A_COSTO_MULTIPLIER = 0.55;
 
 function getDefaultCostPriceFromSalePrice(salePrice) {
@@ -777,18 +764,18 @@ function getDefaultCostPriceFromSalePrice(salePrice) {
 
 function getCostPriceForDessert(dessert) {
 	if (!dessert) return 0;
+	// Use explicit cost_price from DB if available
 	const directCost = Number(dessert.cost_price);
 	if (Number.isFinite(directCost) && directCost >= 0) return Math.round(directCost);
-	const mapCost = Number(COST_PRICES[dessert.short_code]);
-	if (Number.isFinite(mapCost) && mapCost >= 0) return Math.round(mapCost);
-	const salePrice = Number(dessert.sale_price ?? PRICES[dessert.short_code] ?? 0) || 0;
+	// Otherwise fallback to 55% of current sale price
+	const salePrice = Number(dessert.sale_price ?? 0) || 0;
 	return getDefaultCostPriceFromSalePrice(salePrice);
 }
 
 function getUnitPriceForDessertByPricingType(dessert, specialPricingType) {
 	if (specialPricingType === 'muestra') return 0;
 	if (specialPricingType === 'a_costo') return getCostPriceForDessert(dessert);
-	return Number(dessert?.sale_price ?? PRICES[dessert?.short_code] ?? 0) || 0;
+	return Number(dessert?.sale_price ?? 0) || 0;
 }
 
 function getPromotionForDessert(dessert) {
@@ -1129,6 +1116,13 @@ async function api(method, url, body) {
 	}
 	return res.json();
 }
+window.api = api;
+window.state = state;
+window.API = API;
+window.enterSeller = enterSeller;
+window.loadSales = loadSales;
+window.loadDaysForSeller = loadDaysForSeller;
+window.notify = notify;
 
 async function loadSellers() {
 	// Try loading from localStorage first for instant feel
@@ -1189,7 +1183,7 @@ async function loadGlobalClientSuggestions() {
 		} catch (e) { }
 
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		const isAdmin = !!state.currentUser?.isAdmin;
+		const isAdmin = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin';
 
 		let resultArr = [];
 
@@ -1297,8 +1291,12 @@ async function addSeller(name) {
 }
 
 async function enterSeller(id) {
+	console.log('APP: enterSeller starting for ID:', id);
 	const seller = state.sellers.find(s => s.id === id);
-	if (!seller) return;
+	if (!seller) {
+		console.error('APP: Seller not found for ID:', id);
+		return;
+	}
 	state.currentSeller = seller;
 	// Apply seller bill icon CSS var
 	try {
@@ -1313,18 +1311,35 @@ async function enterSeller(id) {
 	document.getElementById('sales-wrapper')?.classList.add('hidden');
 
 	// Load desserts and days in parallel
+	console.log('APP: Loading desserts and days for seller...');
 	await Promise.all([
 		loadDesserts().then(() => renderDessertColumns()),
 		loadDaysForSeller()
 	]);
 
+	console.log('APP: Data loaded. Switching to #view-sales');
 	// 🛠️ FIX: Ensure UI transitions to the sales view when a seller is selected
 	switchView('#view-sales');
 }
 
+window.switchView = switchView;
 function switchView(id) {
 	document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
 	$(id).classList.remove('hidden');
+
+	if (id === '#view-kitchen') {
+		if (window.KitchenManager) {
+			const isBlocked = typeof window.KitchenManager.isProductionUser === 'function' && 
+				window.KitchenManager.isProductionUser() && 
+				document.getElementById('kitchen-active-content')?.classList.contains('hidden');
+			if (!isBlocked) {
+				window.KitchenManager.startIntervals();
+			}
+		}
+	} else {
+		if (window.KitchenManager) window.KitchenManager.stopIntervals();
+	}
+
 	// Close client action bar when switching views
 	if (typeof closeClientActionBar === 'function') {
 		closeClientActionBar();
@@ -1336,7 +1351,7 @@ function switchView(id) {
 }
 
 function applyAuthVisibility() {
-	const isAdminUser = !!state.currentUser?.isAdmin;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
@@ -1356,15 +1371,25 @@ function applyAuthVisibility() {
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
+	const gamesBtn = document.getElementById('games-button');
+	const partnersBtn = document.getElementById('partners-button');
+	const purchasesBtn = document.getElementById('purchases-button');
+	const storeBtn = document.getElementById('store-button');
+	const crmAdminBtn = document.getElementById('crm-admin-button');
 	const canSales = isSuper || feats.has('reports.sales');
 	const canCartera = isSuper || feats.has('reports.cartera');
 	const canProjections = isSuper || feats.has('reports.projections');
 	const canTransfers = isSuper || feats.has('reports.transfers');
 	const canMaterials = isSuper || feats.has('nav.materials');
 	const canInventory = isSuper || feats.has('nav.inventory');
-	const canUsers = isSuper || isAdminUser || feats.has('nav.users');
+	const canUsers = isSuper || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
-	const canDesserts = isSuper || isAdminUser || feats.has('nav.desserts');
+	const canDesserts = isSuper || feats.has('nav.desserts');
+	const canGames = isSuper || feats.has('nav.games');
+	const canPartners = isSuper || feats.has('nav.partners');
+	const canPurchases = isSuper || feats.has('nav.purchases');
+	const canStore = isSuper || feats.has('nav.store');
+	const canCrm = isSuper || feats.has('nav.crm');
 	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
 	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
 	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
@@ -1373,12 +1398,25 @@ function applyAuthVisibility() {
 	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
 	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
 	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
-	const canDeliveries = isSuper || isAdminUser;
+	const canDeliveries = isSuper || feats.has('nav.deliveries');
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
+	if (gamesBtn) gamesBtn.style.display = canGames ? 'inline-block' : 'none';
+	if (partnersBtn) partnersBtn.style.display = canPartners ? 'inline-block' : 'none';
+	if (purchasesBtn) purchasesBtn.style.display = canPurchases ? 'inline-block' : 'none';
+	if (storeBtn) storeBtn.style.display = canStore ? 'inline-block' : 'none';
+	if (crmAdminBtn) crmAdminBtn.style.display = canCrm ? 'inline-block' : 'none';
+	
+	const canKitchen = isSuper || isAdminUser || feats.has('nav.kitchen');
+	const kitchenBtn = document.getElementById('kitchen-button');
+	if (kitchenBtn) kitchenBtn.style.display = canKitchen ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
-	if (globalDbBtn) globalDbBtn.style.display = (isSuper || isAdminUser) ? 'inline-block' : 'none';
+	if (globalDbBtn) globalDbBtn.style.display = (isSuper || feats.has('nav.globaldb')) ? 'inline-block' : 'none';
+
+	const visitsBtn = document.getElementById('visits-button');
+	const canVisits = isSuper || isAdminUser || feats.has('nav.visits');
+	if (visitsBtn) visitsBtn.style.display = canVisits ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
@@ -1401,36 +1439,17 @@ async function loadDesserts() {
 		try {
 			localStorage.setItem('desserts_cache', JSON.stringify(state.desserts));
 		} catch (e) { }
-		updateDessertPriceMaps();
 		state.dessertsLoaded = true;
 		return state.desserts;
 	} catch (err) {
 		console.error('Error loading desserts from API:', err);
 		if (state.desserts && state.desserts.length > 0) return state.desserts;
-
-		// Fallback to defaults only if no cache and no API
-		state.desserts = [
-			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, promo_qty: null, promo_price: null, position: 1 },
-			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, promo_qty: null, promo_price: null, position: 2 },
-			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 3 },
-			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 4 },
-			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, promo_qty: null, promo_price: null, position: 5 }
-		];
-		updateDessertPriceMaps();
+		state.desserts = [];
 		state.dessertsLoaded = true;
-		return state.desserts;
+		return [];
 	}
 }
 
-function updateDessertPriceMaps() {
-	if (!state.desserts) return;
-	for (const key of Object.keys(PRICES)) delete PRICES[key];
-	for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
-	for (const d of state.desserts) {
-		PRICES[d.short_code] = d.sale_price;
-		COST_PRICES[d.short_code] = getCostPriceForDessert(d);
-	}
-}
 
 // Render dynamic dessert columns in table header
 function renderDessertColumns() {
@@ -1654,16 +1673,21 @@ function calcRowTotal(q) {
 	// If total_cents exists from database, use it directly (already accounts for special pricing)
 	if (q.hasOwnProperty('total_cents') && q.total_cents !== null && q.total_cents !== undefined) {
 		const total = Number(q.total_cents) || 0;
-		console.log(`💰 calcRowTotal(sale ${q.id}): Using total_cents=${q.total_cents}, special_pricing=${q.special_pricing_type}, returning ${total}`);
 		return total;
 	}
 
-	console.log(`⚠️ calcRowTotal(sale ${q.id}): total_cents not found, calculating... special_pricing=${q.special_pricing_type}`);
-
 	let total = 0;
-	for (const d of state.desserts) {
-		const qty = getSaleDessertQty(q, d);
-		total += getDessertAmountForSale(d, qty, q.special_pricing_type);
+	if (Array.isArray(q.items) && q.items.length > 0) {
+		// Calculate from items (historical prices)
+		for (const item of q.items) {
+			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
+		}
+	} else {
+		// Legacy fallback
+		for (const d of state.desserts) {
+			const qty = Number(q[`qty_${d.short_code}`] || 0);
+			total += getDessertAmountForSale(d, qty, q.special_pricing_type);
+		}
 	}
 
 	return total;
@@ -1832,7 +1856,7 @@ function renderTable() {
 					sel.appendChild(opt);
 				}
 				// Lock editing for non-admins once a method is chosen, except when it's 'entregado'
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 				const pmNormalized = String(current || '').trim().toLowerCase();
 				const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado';
 				if (!isAdminUser && shouldLock) {
@@ -1857,7 +1881,7 @@ function renderTable() {
 				});
 				wrap.addEventListener('click', async (e) => {
 					e.stopPropagation();
-					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 					const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 					const locked = pm !== '' && pm !== 'entregado';
 
@@ -1884,7 +1908,7 @@ function renderTable() {
 						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 						
 						e.preventDefault();
-						const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+						const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 						const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
 						const locked = pm !== '' && pm !== 'entregado';
 
@@ -1927,7 +1951,7 @@ function renderTable() {
 				input.placeholder = '';
 				input.readOnly = true;
 				
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
 				if (!isAdminUser && saleLocked) {
 					input.style.cursor = 'default';
@@ -2684,36 +2708,129 @@ function openNewSalePopover(anchorX, anchorY) {
 			grid.appendChild(right);
 		}
 
-		// Client row
+		function appendDessertRow(d, qtyInput, priceInput) {
+			const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+			const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+			const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = d.name;
+			left.appendChild(lbl);
+
+			const container = document.createElement('div');
+			container.className = 'qty-price-container';
+
+			const divider = document.createElement('span');
+			divider.className = 'promo-price-divider';
+			divider.textContent = '|';
+
+			const chipM = document.createElement('button');
+			chipM.type = 'button';
+			chipM.className = 'pricing-chip';
+			chipM.innerHTML = '<span class="chip-text-desktop">Muestra</span><span class="chip-text-mobile">M</span>';
+			chipM.title = 'Marcar como Muestra (Precio 0)';
+
+			const chipC = document.createElement('button');
+			chipC.type = 'button';
+			chipC.className = 'pricing-chip';
+			chipC.innerHTML = '<span class="chip-text-desktop">Costo</span><span class="chip-text-mobile">C</span>';
+			chipC.title = `Marcar A Costo (Costo: $${getCostPriceForDessert(d)})`;
+
+			chipM.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipM.classList.contains('active-muestra');
+				if (isActive) {
+					chipM.classList.remove('active-muestra');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipM.classList.add('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = '0';
+					priceInput.dataset.specialPricingType = 'muestra';
+				}
+			});
+
+			chipC.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipC.classList.contains('active-costo');
+				if (isActive) {
+					chipC.classList.remove('active-costo');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipC.classList.add('active-costo');
+					chipM.classList.remove('active-muestra');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = String(getCostPriceForDessert(d));
+					priceInput.dataset.specialPricingType = 'a_costo';
+				}
+			});
+
+			priceInput.addEventListener('input', () => {
+				if (priceInput.value) {
+					chipM.classList.remove('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.dataset.specialPricingType = '';
+				}
+			});
+
+			container.appendChild(qtyInput);
+			container.appendChild(divider);
+			container.appendChild(priceInput);
+			container.appendChild(chipM);
+			container.appendChild(chipC);
+			right.appendChild(container);
+
+			right.addEventListener('mousedown', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+			right.addEventListener('click', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+
+			grid.appendChild(left);
+			grid.appendChild(right);
+			return { left, right, chipM, chipC };
+		}
+
 		const clientInput = document.createElement('input');
 		clientInput.type = 'text';
 		clientInput.placeholder = 'Nombre del cliente';
 		clientInput.className = 'input-cell client-input';
 		clientInput.autocomplete = 'off';
-		// Custom inline suggestions below the first character (left-aligned)
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// EXTRA CLIENT INFO (Short Name, WhatsApp)
-		const extraRow = document.createElement('div');
-		extraRow.className = 'client-info-extra';
-		
-		const snWrap = document.createElement('div'); snWrap.className = 'client-info-row';
-		const snLbl = document.createElement('div'); snLbl.className = 'client-info-label'; snLbl.textContent = 'Apodo / Corto';
-		const snInput = document.createElement('input');
-		snInput.type = 'text'; snInput.placeholder = 'Ej: Marce'; snInput.className = 'input-cell';
-		snWrap.append(snLbl, snInput);
-		
-		const waWrap = document.createElement('div'); waWrap.className = 'client-info-row';
-		const waLbl = document.createElement('div'); waLbl.className = 'client-info-label'; waLbl.textContent = 'WhatsApp';
-		const waInput = document.createElement('input');
-		waInput.type = 'tel'; waInput.placeholder = '300...'; waInput.className = 'input-cell';
-		waWrap.append(waLbl, waInput);
-		
-		extraRow.append(snWrap, waWrap);
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.store_is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
+		}
 
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
+		const priceInputs = {};
+		let hiddenCount = 0;
+		const hiddenRows = [];
+
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -2724,52 +2841,42 @@ function openNewSalePopover(anchorX, anchorY) {
 			input.className = 'input-cell input-qty';
 			input.dataset.dessertId = d.id;
 			qtyInputs[d.short_code] = input;
-			appendRow(d.name, input);
+
+			const priceInput = document.createElement('input');
+			priceInput.type = 'number';
+			priceInput.min = '0';
+			priceInput.step = '100';
+			priceInput.inputMode = 'numeric';
+			const normalPrice = Number(d.sale_price || 0);
+			priceInput.placeholder = String(normalPrice || 0);
+			priceInput.className = 'input-cell input-promo-price';
+			priceInput.title = 'Precio unitario promocional manual (vacío para usar normal)';
+			priceInputs[d.short_code] = priceInput;
+
+			const rowCells = appendDessertRow(d, input, priceInput);
+
+			if (!defaultActiveIds.has(d.id)) {
+				rowCells.left.classList.add('hidden-dessert-cell');
+				rowCells.right.classList.add('hidden-dessert-cell');
+				hiddenRows.push(rowCells.left, rowCells.right);
+				hiddenCount++;
+			}
 		}
 
-		// Special pricing checkboxes
-		const specialPricingContainer = document.createElement('div');
-		specialPricingContainer.style.display = 'flex';
-		specialPricingContainer.style.gap = '16px';
-		specialPricingContainer.style.padding = '12px 0';
-		specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
-		specialPricingContainer.style.marginTop = '8px';
-
-		const muestraCheckbox = document.createElement('label');
-		muestraCheckbox.style.display = 'flex';
-		muestraCheckbox.style.alignItems = 'center';
-		muestraCheckbox.style.gap = '6px';
-		muestraCheckbox.style.cursor = 'pointer';
-		muestraCheckbox.style.fontSize = '14px';
-		const muestraInput = document.createElement('input');
-		muestraInput.type = 'checkbox';
-		muestraInput.style.cursor = 'pointer';
-		const muestraLabel = document.createElement('span');
-		muestraLabel.textContent = 'Muestra';
-		muestraCheckbox.append(muestraInput, muestraLabel);
-
-		const costoCheckbox = document.createElement('label');
-		costoCheckbox.style.display = 'flex';
-		costoCheckbox.style.alignItems = 'center';
-		costoCheckbox.style.gap = '6px';
-		costoCheckbox.style.cursor = 'pointer';
-		costoCheckbox.style.fontSize = '14px';
-		const costoInput = document.createElement('input');
-		costoInput.type = 'checkbox';
-		costoInput.style.cursor = 'pointer';
-		const costoLabel = document.createElement('span');
-		costoLabel.textContent = 'A costo';
-		costoCheckbox.append(costoInput, costoLabel);
-
-		specialPricingContainer.append(muestraCheckbox, costoCheckbox);
-
-		// Make checkboxes mutually exclusive
-		muestraInput.addEventListener('change', () => {
-			if (muestraInput.checked) costoInput.checked = false;
-		});
-		costoInput.addEventListener('change', () => {
-			if (costoInput.checked) muestraInput.checked = false;
-		});
+		if (hiddenCount > 0) {
+			const showMoreBtn = document.createElement('button');
+			showMoreBtn.type = 'button';
+			showMoreBtn.className = 'show-more-desserts-btn';
+			showMoreBtn.textContent = '✨ Mostrar más postres';
+			showMoreBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				hiddenRows.forEach(cell => cell.classList.remove('hidden-dessert-cell'));
+				showMoreBtn.remove();
+				clampWithinViewport();
+			});
+			grid.appendChild(showMoreBtn);
+		}
 
 		const actions = document.createElement('div');
 		actions.className = 'confirm-actions';
@@ -2783,7 +2890,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, extraRow, grid, specialPricingContainer, actions);
+		pop.append(title, grid, actions);
 		// Prepare hidden mount to avoid visible jump before clamping
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
@@ -2830,7 +2937,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
@@ -2839,28 +2946,44 @@ function openNewSalePopover(anchorX, anchorY) {
 		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
 
 		async function doSave() {
+			if (saveBtn.disabled) return;
 			try {
+				// Silent validation: if no desserts have a quantity greater than zero, close silently and don't save
+				let totalQty = 0;
+				for (const d of state.desserts) {
+					const qty = Math.max(0, parseInt(qtyInputs[d.short_code]?.value || '0', 10) || 0);
+					totalQty += qty;
+				}
+				if (totalQty === 0) {
+					cleanup();
+					return;
+				}
+
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 				const sellerId = state?.currentSeller?.id;
 				if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch { } return; }
+
+				const isWaReq = !!state?.currentSeller?.require_whatsapp;
+				if (isWaReq) {
+					const clientNameVal = (clientInput.value || '').trim().toLowerCase();
+					const existingClient = (state.clients || []).find(c => (c.name || '').trim().toLowerCase() === clientNameVal);
+					const hasWa = existingClient && (existingClient.whatsapp || existingClient.phone);
+					if (!hasWa) {
+						saveBtn.disabled = false; cancelBtn.disabled = false;
+						try { notify.error('Por favor ingresar el número de WhatsApp del cliente'); } catch { }
+						return;
+					}
+				}
 				
 				// Prepare payload with CRM fields
 				const payload = { 
 					seller_id: sellerId,
 					client_name: clientInput.value.trim(),
-					short_name: snInput.value.trim(),
-					whatsapp: waInput.value.trim()
+					short_name: "",
+					whatsapp: ""
 				};
 				if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
 				const created = await api('POST', API.Sales, payload);
-
-				// Determine special pricing type
-				let specialPricingType = null;
-				if (muestraInput.checked) {
-					specialPricingType = 'muestra';
-				} else if (costoInput.checked) {
-					specialPricingType = 'a_costo';
-				}
 
 				// Build items array and legacy qty_* properties dynamically
 				const items = [];
@@ -2869,7 +2992,7 @@ function openNewSalePopover(anchorX, anchorY) {
 					client_name: (clientInput.value || '').trim(),
 					is_paid: false,
 					pay_method: null,
-					special_pricing_type: specialPricingType,
+					special_pricing_type: null,
 					_actor_name: state.currentUser?.name || ''
 				};
 
@@ -2882,10 +3005,25 @@ function openNewSalePopover(anchorX, anchorY) {
 
 					// New format - items array with adjusted price
 					if (qty > 0) {
+						const priceInput = priceInputs[d.short_code];
+						const itemSpecialType = priceInput?.dataset.specialPricingType || null;
+						
+						let finalPrice;
+						if (itemSpecialType === 'muestra') {
+							finalPrice = 0;
+						} else if (itemSpecialType === 'a_costo') {
+							finalPrice = getCostPriceForDessert(d);
+						} else {
+							const manualPrice = parseInt(priceInput?.value || '', 10);
+							finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
+								? manualPrice
+								: Number(d.sale_price || 0);
+						}
+
 						items.push({
 							dessert_id: d.id,
 							quantity: qty,
-							unit_price: getUnitPriceForDessertByPricingType(d, specialPricingType)
+							unit_price: finalPrice
 						});
 					}
 				}
@@ -2905,7 +3043,7 @@ function openNewSalePopover(anchorX, anchorY) {
 
 		saveBtn.addEventListener('click', doSave);
 		// Submit on Enter in any input
-		const allInputs = [clientInput, ...Object.values(qtyInputs)];
+		const allInputs = [clientInput, ...Object.values(qtyInputs), ...Object.values(priceInputs)];
 		allInputs.forEach((el) => {
 			el.addEventListener('keydown', (ev) => {
 				if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
@@ -2963,6 +3101,102 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 			grid.appendChild(right);
 		}
 
+		function appendDessertRow(d, qtyInput, priceInput) {
+			const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+			const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+			const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = d.name;
+			left.appendChild(lbl);
+
+			const container = document.createElement('div');
+			container.className = 'qty-price-container';
+
+			const divider = document.createElement('span');
+			divider.className = 'promo-price-divider';
+			divider.textContent = '|';
+
+			const chipM = document.createElement('button');
+			chipM.type = 'button';
+			chipM.className = 'pricing-chip';
+			chipM.innerHTML = '<span class="chip-text-desktop">Muestra</span><span class="chip-text-mobile">M</span>';
+			chipM.title = 'Marcar como Muestra (Precio 0)';
+
+			const chipC = document.createElement('button');
+			chipC.type = 'button';
+			chipC.className = 'pricing-chip';
+			chipC.innerHTML = '<span class="chip-text-desktop">Costo</span><span class="chip-text-mobile">C</span>';
+			chipC.title = `Marcar A Costo (Costo: $${getCostPriceForDessert(d)})`;
+
+			chipM.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipM.classList.contains('active-muestra');
+				if (isActive) {
+					chipM.classList.remove('active-muestra');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipM.classList.add('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = '0';
+					priceInput.dataset.specialPricingType = 'muestra';
+				}
+			});
+
+			chipC.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipC.classList.contains('active-costo');
+				if (isActive) {
+					chipC.classList.remove('active-costo');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipC.classList.add('active-costo');
+					chipM.classList.remove('active-muestra');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = String(getCostPriceForDessert(d));
+					priceInput.dataset.specialPricingType = 'a_costo';
+				}
+			});
+
+			priceInput.addEventListener('input', () => {
+				if (priceInput.value) {
+					chipM.classList.remove('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.dataset.specialPricingType = '';
+				}
+			});
+
+			container.appendChild(qtyInput);
+			container.appendChild(divider);
+			container.appendChild(priceInput);
+			container.appendChild(chipM);
+			container.appendChild(chipC);
+			right.appendChild(container);
+
+			right.addEventListener('mousedown', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+			right.addEventListener('click', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+
+			grid.appendChild(left);
+			grid.appendChild(right);
+			return { left, right, chipM, chipC };
+		}
+
 		// Client row - prefilled
 		const clientInput = document.createElement('input');
 		clientInput.type = 'text';
@@ -2973,8 +3207,42 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.store_is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		// Always show any dessert that has a positive quantity in this sale
+		if (sale) {
+			if (Array.isArray(sale.items) && sale.items.length > 0) {
+				sale.items.forEach(item => {
+					if (Number(item.quantity || 0) > 0) {
+						defaultActiveIds.add(item.dessert_id);
+					}
+				});
+			} else {
+				for (const d of state.desserts) {
+					const qty = Number(sale[`qty_${d.short_code}`] || 0);
+					if (qty > 0) {
+						defaultActiveIds.add(d.id);
+					}
+				}
+			}
+		}
+
 		// Dessert rows (dynamic from state.desserts) - prefilled
 		const qtyInputs = {};
+		const priceInputs = {};
+		let hiddenCount = 0;
+		const hiddenRows = [];
+
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -2985,65 +3253,75 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 			input.className = 'input-cell input-qty';
 			input.dataset.dessertId = d.id;
 
-			// Get current quantity from sale
+			const priceInput = document.createElement('input');
+			priceInput.type = 'number';
+			priceInput.min = '0';
+			priceInput.step = '100';
+			priceInput.inputMode = 'numeric';
+			const normalPrice = Number(d.sale_price || 0);
+			priceInput.placeholder = String(normalPrice || 0);
+			priceInput.className = 'input-cell input-promo-price';
+			priceInput.title = 'Precio unitario promocional manual (vacío para usar normal)';
+
+			// Get current quantity and unit price from sale
 			let qty = 0;
+			let currentPrice = normalPrice;
 			if (Array.isArray(sale.items) && sale.items.length > 0) {
 				const item = sale.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
 				qty = item ? Number(item.quantity || 0) : 0;
+				if (item && item.unit_price !== undefined) {
+					currentPrice = Number(item.unit_price);
+				}
 			} else {
 				qty = Number(sale[`qty_${d.short_code}`] || 0);
 			}
 
 			input.value = qty > 0 ? String(qty) : '';
 			qtyInputs[d.short_code] = input;
-			appendRow(d.name, input);
+			priceInputs[d.short_code] = priceInput;
+
+			const chips = appendDessertRow(d, input, priceInput);
+
+			// Prefill manual price if it's different from the default regular sale_price
+			if (qty > 0) {
+				if (currentPrice === 0) {
+					chips.chipM.classList.add('active-muestra');
+					priceInput.disabled = true;
+					priceInput.placeholder = '0';
+					priceInput.dataset.specialPricingType = 'muestra';
+				} else if (currentPrice === getCostPriceForDessert(d)) {
+					chips.chipC.classList.add('active-costo');
+					priceInput.disabled = true;
+					priceInput.placeholder = String(getCostPriceForDessert(d));
+					priceInput.dataset.specialPricingType = 'a_costo';
+				} else if (currentPrice !== normalPrice) {
+					priceInput.value = String(currentPrice);
+					priceInput.dataset.specialPricingType = '';
+				}
+			}
+
+			if (!defaultActiveIds.has(d.id)) {
+				chips.left.classList.add('hidden-dessert-cell');
+				chips.right.classList.add('hidden-dessert-cell');
+				hiddenRows.push(chips.left, chips.right);
+				hiddenCount++;
+			}
 		}
 
-		// Special pricing checkboxes
-		const specialPricingContainer = document.createElement('div');
-		specialPricingContainer.style.display = 'flex';
-		specialPricingContainer.style.gap = '16px';
-		specialPricingContainer.style.padding = '12px 0';
-		specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
-		specialPricingContainer.style.marginTop = '8px';
-
-		const muestraCheckbox = document.createElement('label');
-		muestraCheckbox.style.display = 'flex';
-		muestraCheckbox.style.alignItems = 'center';
-		muestraCheckbox.style.gap = '6px';
-		muestraCheckbox.style.cursor = 'pointer';
-		muestraCheckbox.style.fontSize = '14px';
-		const muestraInput = document.createElement('input');
-		muestraInput.type = 'checkbox';
-		muestraInput.style.cursor = 'pointer';
-		muestraInput.checked = (sale.special_pricing_type === 'muestra');
-		const muestraLabel = document.createElement('span');
-		muestraLabel.textContent = 'Muestra (precio 0)';
-		muestraCheckbox.append(muestraInput, muestraLabel);
-
-		const costoCheckbox = document.createElement('label');
-		costoCheckbox.style.display = 'flex';
-		costoCheckbox.style.alignItems = 'center';
-		costoCheckbox.style.gap = '6px';
-		costoCheckbox.style.cursor = 'pointer';
-		costoCheckbox.style.fontSize = '14px';
-		const costoInput = document.createElement('input');
-		costoInput.type = 'checkbox';
-		costoInput.style.cursor = 'pointer';
-		costoInput.checked = (sale.special_pricing_type === 'a_costo');
-		const costoLabel = document.createElement('span');
-		costoLabel.textContent = 'A costo';
-		costoCheckbox.append(costoInput, costoLabel);
-
-		specialPricingContainer.append(muestraCheckbox, costoCheckbox);
-
-		// Make checkboxes mutually exclusive
-		muestraInput.addEventListener('change', () => {
-			if (muestraInput.checked) costoInput.checked = false;
-		});
-		costoInput.addEventListener('change', () => {
-			if (costoInput.checked) muestraInput.checked = false;
-		});
+		if (hiddenCount > 0) {
+			const showMoreBtn = document.createElement('button');
+			showMoreBtn.type = 'button';
+			showMoreBtn.className = 'show-more-desserts-btn';
+			showMoreBtn.textContent = '✨ Mostrar más postres';
+			showMoreBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				hiddenRows.forEach(cell => cell.classList.remove('hidden-dessert-cell'));
+				showMoreBtn.remove();
+				clampWithinViewport();
+			});
+			grid.appendChild(showMoreBtn);
+		}
 
 		const actions = document.createElement('div');
 		actions.className = 'confirm-actions';
@@ -3057,7 +3335,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, grid, specialPricingContainer, actions);
+		pop.append(title, grid, actions);
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
 		pop.style.transition = 'opacity 160ms ease-out';
@@ -3101,7 +3379,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
@@ -3110,16 +3388,9 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
 
 		async function doSave() {
+			if (saveBtn.disabled) return;
 			try {
 				saveBtn.disabled = true; cancelBtn.disabled = true;
-
-				// Determine special pricing type
-				let specialPricingType = null;
-				if (muestraInput.checked) {
-					specialPricingType = 'muestra';
-				} else if (costoInput.checked) {
-					specialPricingType = 'a_costo';
-				}
 
 				// Build items array and legacy qty_* properties
 				const items = [];
@@ -3129,7 +3400,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 					is_paid: sale.is_paid || false,
 					pay_method: sale.pay_method || null,
 					comment_text: sale.comment_text || '',
-					special_pricing_type: specialPricingType,
+					special_pricing_type: null,
 					_actor_name: state.currentUser?.name || ''
 				};
 
@@ -3142,10 +3413,25 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 
 					// New format with adjusted price
 					if (qty > 0) {
+						const priceInput = priceInputs[d.short_code];
+						const itemSpecialType = priceInput?.dataset.specialPricingType || null;
+						
+						let finalPrice;
+						if (itemSpecialType === 'muestra') {
+							finalPrice = 0;
+						} else if (itemSpecialType === 'a_costo') {
+							finalPrice = getCostPriceForDessert(d);
+						} else {
+							const manualPrice = parseInt(priceInput?.value || '', 10);
+							finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
+								? manualPrice
+								: Number(d.sale_price || 0);
+						}
+
 						items.push({
 							dessert_id: d.id,
 							quantity: qty,
-							unit_price: getUnitPriceForDessertByPricingType(d, specialPricingType)
+							unit_price: finalPrice
 						});
 					}
 				}
@@ -3166,7 +3452,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		}
 
 		saveBtn.addEventListener('click', doSave);
-		const allInputs = [clientInput, ...Object.values(qtyInputs)];
+		const allInputs = [clientInput, ...Object.values(qtyInputs), ...Object.values(priceInputs)];
 		allInputs.forEach((el) => {
 			el.addEventListener('keydown', (ev) => {
 				if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
@@ -3227,6 +3513,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 			});
 			grid.appendChild(left);
 			grid.appendChild(right);
+			return { left, right };
 		}
 
 		// Date selection row
@@ -3690,8 +3977,24 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
+		// Compute active dessert IDs (union of active store storefront desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.store_is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
+		let hiddenCount = 0;
+		const hiddenRows = [];
+
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -3702,7 +4005,29 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 			input.className = 'input-cell input-qty';
 			input.dataset.dessertId = d.id;
 			qtyInputs[d.short_code] = input;
-			appendRow(d.name, input);
+			const rowCells = appendRow(d.name, input);
+
+			if (!defaultActiveIds.has(d.id)) {
+				rowCells.left.classList.add('hidden-dessert-cell');
+				rowCells.right.classList.add('hidden-dessert-cell');
+				hiddenRows.push(rowCells.left, rowCells.right);
+				hiddenCount++;
+			}
+		}
+
+		if (hiddenCount > 0) {
+			const showMoreBtn = document.createElement('button');
+			showMoreBtn.type = 'button';
+			showMoreBtn.className = 'show-more-desserts-btn';
+			showMoreBtn.textContent = '✨ Mostrar más postres';
+			showMoreBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				hiddenRows.forEach(cell => cell.classList.remove('hidden-dessert-cell'));
+				showMoreBtn.remove();
+				clampWithinViewport();
+			});
+			grid.appendChild(showMoreBtn);
 		}
 
 		const actions = document.createElement('div');
@@ -3764,7 +4089,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
@@ -3815,6 +4140,18 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		let isSaving = false;
 		async function doSave() {
 			if (isSaving) return;
+
+			// Silent validation: if no desserts have a quantity greater than zero, close silently and don't save
+			let totalQty = 0;
+			for (const d of state.desserts) {
+				const qty = Math.max(0, parseInt(qtyInputs[d.short_code]?.value || '0', 10) || 0);
+				totalQty += qty;
+			}
+			if (totalQty === 0) {
+				cleanup();
+				return;
+			}
+
 			isSaving = true;
 
 			try {
@@ -3857,8 +4194,8 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 					if (val > 0) {
 						items.push({
 							dessert_id: d.id,
-							qty: val,
-							amount: val * d.price
+							quantity: val,
+							unit_price: Number(d.sale_price || 0)
 						});
 					}
 				}
@@ -3871,6 +4208,11 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 
 				// Show success notification
 				try { notify.success('Pedido guardado exitosamente'); } catch { }
+
+				// Reload sales table if we are currently viewing the selected day
+				if (state.selectedDayId && Number(state.selectedDayId) === Number(selectedDayId)) {
+					loadSales().catch(e => console.error('Error reloading sales:', e));
+				}
 
 				// Reload client detail in background to show the new order
 				if (state._clientDetailName) {
@@ -4236,7 +4578,7 @@ async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
 	const actor = encodeURIComponent(state.currentUser?.name || '');
 	// Block delete in UI for non-admins if sale is locked
-	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 	const locked = String(prev?.pay_method || '').trim() !== '';
 	if (!isAdminUser && locked) {
 		try { notify.error('Pedido bloqueado: solo admin/superadmin puede eliminar'); } catch { }
@@ -4321,18 +4663,40 @@ function updateSummary() {
 	let grand = 0;
 
 	for (const s of state.sales) {
-		// Support both formats; align with visible per-flavor qty (first occurrence per dessert)
 		const pm = (s.pay_method || '').toString();
-		// Check if this sale has special pricing (muestra or a_costo)
 		const hasSpecialPricing = (s.special_pricing_type === 'muestra' || s.special_pricing_type === 'a_costo');
+		
 		for (const d of visibleDesserts) {
-			const qty = getSaleDessertQty(s, d);
-			const amount = getDessertAmountForSale(d, qty, s.special_pricing_type);
+			let qty = 0;
+			let amount = 0;
+
+			// Check for historical item first to get correct price
+			const item = (s.items || []).find(it => Number(it.dessert_id) === Number(d.id));
+			if (item) {
+				qty = Number(item.quantity || 0);
+				amount = qty * Number(item.unit_price || 0);
+			} else {
+				// Legacy fallback (should be rare)
+				qty = Number(s[`qty_${d.short_code}`] || 0);
+				amount = getDessertAmountForSale(d, qty, s.special_pricing_type);
+			}
+
 			qtys[d.short_code] += qty;
 			amts[d.short_code] += amount;
+			
 			// Exclude special pricing from commission calculations
-			if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
-				paidQtys[d.short_code] += qty;
+			const isPaidMethod = (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge');
+			if (isPaidMethod) {
+				if (item) {
+					const isSpecialItem = Number(item.unit_price || 0) === 0 || Number(item.unit_price || 0) === getCostPriceForDessert(d);
+					if (!isSpecialItem) {
+						paidQtys[d.short_code] += qty;
+					}
+				} else {
+					if (!hasSpecialPricing) {
+						paidQtys[d.short_code] += qty;
+					}
+				}
 			}
 		}
 
@@ -4754,6 +5118,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
+	const kitchenBtn = document.getElementById('kitchen-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -4801,6 +5166,14 @@ async function exportCarteraExcel(startIso, endIso) {
 			const url = `/transfers.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
+	});
+	
+	kitchenBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		window.switchView('#view-kitchen');
+		if (window.KitchenManager) {
+			window.KitchenManager.init();
+		}
 	});
 	usersBtn?.addEventListener('click', async (ev) => {
 		exitDeleteSellerModeIfActive();
@@ -4868,6 +5241,15 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo para superadmin'); return; }
 		openGlobalClientsView();
+	});
+
+	const visitsBtn = document.getElementById('visits-button');
+	visitsBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		const isAdminUser = !!state.currentUser?.isAdmin;
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
+		window.location.href = '/visitas.html';
 	});
 
 	const globalDbBackBtn = document.getElementById('global-clients-back');
@@ -5561,7 +5943,8 @@ function openUsersMenu(anchorX, anchorY) {
 	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
 	const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
 	const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
-	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
+	const b7 = document.createElement('button'); b7.className = 'press-btn'; b7.textContent = 'Tiempos de producción';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6); list.appendChild(b7);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -5589,9 +5972,13 @@ function openUsersMenu(anchorX, anchorY) {
 	});
 	b3.addEventListener('click', async () => {
 		const username = prompt('Usuario a modificar rol:'); if (!username) return;
-		const role = prompt('Nuevo rol (user, admin, superadmin):'); if (!role) return;
+		const role = prompt('Nuevo rol (user, admin, superadmin, produccion):'); if (!role) return;
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
+	});
+	b7.addEventListener('click', async () => {
+		cleanup();
+		await openKitchenProductionLogsReport();
 	});
 	b4.addEventListener('click', async () => {
 		const viewer = prompt('Usuario que podrá ver:'); if (!viewer) return;
@@ -5643,8 +6030,16 @@ function openPermissionsManager() {
 	const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
 	const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
 	const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
+	const featGames = makeFeat('Ver botón Juegos', 'nav.games');
+	const featCrm = makeFeat('Ver botón CRM', 'nav.crm');
+	const featPartners = makeFeat('Ver botón Socios', 'nav.partners');
+	const featPurchases = makeFeat('Ver botón Compras', 'nav.purchases');
+	const featStore = makeFeat('Ver botón Tienda', 'nav.store');
+	const featDesserts = makeFeat('Ver botón Postres', 'nav.desserts');
+	const featDeliveries = makeFeat('Ver botón Entregas', 'nav.deliveries');
+	const featGlobalDb = makeFeat('Ver Base de Datos', 'nav.globaldb');
 	right.appendChild(featureLabel);
-	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
+	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting, featGames, featCrm, featPartners, featPurchases, featStore, featDesserts, featDeliveries, featGlobalDb]
 		.forEach(x => right.appendChild(x.wrap));
 	row.appendChild(left); row.appendChild(right);
 
@@ -5810,7 +6205,7 @@ function openPermissionsManager() {
 			});
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
 			const featuresSet = new Set((feats || []).map(f => String(f.feature)));
-			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb, featDesserts.cb, featDeliveries.cb, featGlobalDb.cb]
 				.forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
 
 			// All users are sellers, so always show commission section
@@ -5852,7 +6247,7 @@ function openPermissionsManager() {
 			// Save feature permissions
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
 			const currentFeat = new Set((feats || []).map(f => String(f.feature)));
-			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb, featDesserts.cb, featDeliveries.cb, featGlobalDb.cb]
 				.filter(cb => cb.checked).map(cb => cb.dataset.feature));
 			const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
 			const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
@@ -5919,6 +6314,254 @@ function openMaterialsMenu(anchorX, anchorY) {
 }
 
 // Removed openAssignIconsDialog
+
+async function openKitchenProductionLogsReport() {
+	const modal = document.createElement('div');
+	modal.className = 'notif-center-modal';
+
+	const backdrop = document.createElement('div');
+	backdrop.className = 'notif-center-backdrop';
+	backdrop.addEventListener('click', () => modal.remove());
+	modal.appendChild(backdrop);
+
+	const panel = document.createElement('div');
+	panel.className = 'notif-center-panel';
+	panel.style.maxWidth = '900px';
+	panel.style.width = '95%';
+	panel.style.height = '85vh';
+	panel.style.maxHeight = '85vh';
+
+	const header = document.createElement('div');
+	header.className = 'notif-center-header';
+
+	const title = document.createElement('h2');
+	title.textContent = 'Tiempos de Producción';
+	header.appendChild(title);
+
+	const closeBtn = document.createElement('button');
+	closeBtn.className = 'icon-btn';
+	closeBtn.innerHTML = '&times;';
+	closeBtn.style.fontSize = '24px';
+	closeBtn.style.border = 'none';
+	closeBtn.style.background = 'transparent';
+	closeBtn.style.cursor = 'pointer';
+	closeBtn.style.color = 'var(--text)';
+	closeBtn.addEventListener('click', () => modal.remove());
+	header.appendChild(closeBtn);
+
+	panel.appendChild(header);
+
+	const body = document.createElement('div');
+	body.className = 'notif-center-body';
+	body.style.padding = '20px';
+	body.style.display = 'flex';
+	body.style.flexDirection = 'column';
+	body.style.gap = '15px';
+
+	const filterBar = document.createElement('div');
+	filterBar.style.display = 'flex';
+	filterBar.style.gap = '10px';
+	filterBar.style.alignItems = 'center';
+	filterBar.style.flexWrap = 'wrap';
+
+	const searchInput = document.createElement('input');
+	searchInput.type = 'text';
+	searchInput.placeholder = 'Buscar por cocinero, postre o paso...';
+	searchInput.style.flex = '1';
+	searchInput.style.minWidth = '200px';
+	searchInput.style.padding = '8px 12px';
+	searchInput.style.fontSize = '14px';
+	searchInput.style.borderRadius = '8px';
+	searchInput.style.border = '1px solid var(--border)';
+	searchInput.style.background = 'var(--background)';
+	searchInput.style.color = 'var(--text)';
+	filterBar.appendChild(searchInput);
+
+	body.appendChild(filterBar);
+
+	// Stats cards
+	const statsBar = document.createElement('div');
+	statsBar.style.display = 'flex';
+	statsBar.style.gap = '15px';
+	statsBar.style.flexWrap = 'wrap';
+
+	const statTotalLogs = document.createElement('div');
+	const statTotalQty = document.createElement('div');
+	const statTotalTime = document.createElement('div');
+
+	[statTotalLogs, statTotalQty, statTotalTime].forEach(div => {
+		div.style.flex = '1';
+		div.style.minWidth = '120px';
+		div.style.padding = '12px 15px';
+		div.style.background = 'var(--surface)';
+		div.style.border = '1px solid var(--border)';
+		div.style.borderRadius = '8px';
+		div.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+	});
+
+	statsBar.appendChild(statTotalLogs);
+	statsBar.appendChild(statTotalQty);
+	statsBar.appendChild(statTotalTime);
+	body.appendChild(statsBar);
+
+	const tableContainer = document.createElement('div');
+	tableContainer.style.flex = '1';
+	tableContainer.style.overflowY = 'auto';
+	tableContainer.style.border = '1px solid var(--border)';
+	tableContainer.style.borderRadius = '8px';
+	tableContainer.style.background = 'var(--surface)';
+
+	const table = document.createElement('table');
+	table.className = 'clients-table';
+	table.style.width = '100%';
+	table.style.borderCollapse = 'collapse';
+	tableContainer.appendChild(table);
+
+	body.appendChild(tableContainer);
+	panel.appendChild(body);
+	modal.appendChild(panel);
+	document.body.appendChild(modal);
+
+	const loadingDiv = document.createElement('div');
+	loadingDiv.textContent = 'Cargando registros de producción...';
+	loadingDiv.style.textAlign = 'center';
+	loadingDiv.style.padding = '40px';
+	loadingDiv.style.color = 'var(--text-muted)';
+	table.appendChild(loadingDiv);
+
+	function formatDuration(seconds) {
+		if (seconds === undefined || seconds === null) return '-';
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		const s = seconds % 60;
+		return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+	}
+
+	function formatDate(isoStr) {
+		if (!isoStr) return '';
+		const d = new Date(isoStr);
+		if (isNaN(d.getTime())) return isoStr;
+		const pad = n => n.toString().padStart(2, '0');
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	}
+
+	let allLogs = [];
+
+	try {
+		allLogs = await api('GET', '/api/inventory?action=get_production_logs') || [];
+		table.removeChild(loadingDiv);
+	} catch (e) {
+		loadingDiv.textContent = 'Error al cargar registros: ' + e.message;
+		loadingDiv.style.color = 'var(--danger)';
+		return;
+	}
+
+	function renderLogs(logsList) {
+		table.innerHTML = '';
+
+		const totalLogs = logsList.length;
+		const totalQty = logsList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+		const totalTime = logsList.reduce((sum, item) => sum + (Number(item.duration_seconds) || 0), 0);
+
+		statTotalLogs.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:bold;">Registros</div><div style="font-size:20px; font-weight:bold; color:var(--text); margin-top:4px;">${totalLogs}</div>`;
+		statTotalQty.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:bold;">Total Producido</div><div style="font-size:20px; font-weight:bold; color:var(--text); margin-top:4px;">${totalQty} uds</div>`;
+		statTotalTime.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:bold;">Tiempo Total</div><div style="font-size:20px; font-weight:bold; color:var(--text); margin-top:4px;">${formatDuration(totalTime)}</div>`;
+
+		const thead = document.createElement('thead');
+		thead.style.position = 'sticky';
+		thead.style.top = '0';
+		thead.style.background = 'var(--card)';
+		thead.style.zIndex = '1';
+		const headerRow = document.createElement('tr');
+		['Fecha', 'Cocinero/a', 'Postre', 'Paso', 'Lote', 'Tiempo Total', 'Tiempo/Ud'].forEach(text => {
+			const th = document.createElement('th');
+			th.textContent = text;
+			th.style.padding = '10px';
+			th.style.borderBottom = '2px solid var(--border)';
+			th.style.fontWeight = 'bold';
+			th.style.fontSize = '13px';
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
+		table.appendChild(thead);
+
+		const tbody = document.createElement('tbody');
+		if (logsList.length === 0) {
+			const tr = document.createElement('tr');
+			const td = document.createElement('td');
+			td.colSpan = 7;
+			td.textContent = 'No hay registros de producción.';
+			td.style.padding = '30px';
+			td.style.textAlign = 'center';
+			td.style.color = 'var(--text-muted)';
+			tr.appendChild(td);
+			tbody.appendChild(tr);
+		} else {
+			logsList.forEach(log => {
+				const tr = document.createElement('tr');
+				tr.style.borderBottom = '1px solid var(--border)';
+				
+				const tdDate = document.createElement('td');
+				tdDate.textContent = formatDate(log.created_at);
+				tdDate.style.padding = '8px 10px';
+				tdDate.style.fontSize = '13px';
+				
+				const tdActor = document.createElement('td');
+				tdActor.textContent = log.actor_name || 'Anónimo';
+				tdActor.style.padding = '8px 10px';
+				tdActor.style.fontWeight = 'bold';
+				tdActor.style.fontSize = '13px';
+				
+				const tdDessert = document.createElement('td');
+				tdDessert.textContent = log.dessert || 'General';
+				tdDessert.style.padding = '8px 10px';
+				tdDessert.style.fontSize = '13px';
+				
+				const tdStep = document.createElement('td');
+				tdStep.textContent = log.step_name || '-';
+				tdStep.style.padding = '8px 10px';
+				tdStep.style.fontSize = '13px';
+				
+				const tdQty = document.createElement('td');
+				tdQty.textContent = `${log.qty || 0} uds`;
+				tdQty.style.padding = '8px 10px';
+				tdQty.style.fontSize = '13px';
+				
+				const tdDuration = document.createElement('td');
+				tdDuration.textContent = formatDuration(log.duration_seconds || 0);
+				tdDuration.style.padding = '8px 10px';
+				tdDuration.style.fontSize = '13px';
+				
+				const tdPerUnit = document.createElement('td');
+				const perUnit = log.qty > 0 ? Math.round(log.duration_seconds / log.qty) : 0;
+				tdPerUnit.textContent = perUnit > 0 ? formatDuration(perUnit) : '-';
+				tdPerUnit.style.padding = '8px 10px';
+				tdPerUnit.style.fontSize = '13px';
+				
+				tr.append(tdDate, tdActor, tdDessert, tdStep, tdQty, tdDuration, tdPerUnit);
+				tbody.appendChild(tr);
+			});
+		}
+		table.appendChild(tbody);
+	}
+
+	renderLogs(allLogs);
+
+	searchInput.addEventListener('input', () => {
+		const query = searchInput.value.toLowerCase().trim();
+		if (!query) {
+			renderLogs(allLogs);
+			return;
+		}
+		const filtered = allLogs.filter(log => {
+			const actor = (log.actor_name || '').toLowerCase();
+			const dessertName = (log.dessert || '').toLowerCase();
+			const step = (log.step_name || '').toLowerCase();
+			return actor.includes(query) || dessertName.includes(query) || step.includes(query);
+		});
+		renderLogs(filtered);
+	});
+}
 
 async function exportUsersExcel() {
 	try {
@@ -6345,114 +6988,303 @@ async function openTimesView() {
 
 async function openInventoryView() {
 	switchView('#view-inventory');
-	try { await api('POST', API.Inventory, { action: 'sync' }); } catch { }
 	await renderInventoryView();
 }
 
 async function renderInventoryView() {
-	const root = document.getElementById('inventory-content');
-	if (!root) return;
-	root.innerHTML = '';
-	const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+	const scrollPos = window.scrollY;
+	const ingredsRoot = document.getElementById('inventory-ingredients-content');
+	const packsRoot = document.getElementById('inventory-packaging-content');
+	const othersRoot = document.getElementById('inventory-others-content');
+	if (!ingredsRoot || !packsRoot || !othersRoot) return;
+	
 	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+	const fmtUnit = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 2, minimumFractionDigits: 0 });
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
-	// Header actions: ingreso and ajuste buttons
-	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginBottom = '8px';
-	const ingresoBtn = document.createElement('button'); ingresoBtn.className = 'press-btn btn-primary'; ingresoBtn.textContent = 'Ingreso';
-	const ajusteBtn = document.createElement('button'); ajusteBtn.className = 'press-btn'; ajusteBtn.textContent = 'Ajustes';
-	const histAllBtn = document.createElement('button'); histAllBtn.className = 'press-btn'; histAllBtn.textContent = 'Historial general';
-	const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Resetear';
-	actions.append(ingresoBtn, ajusteBtn, histAllBtn, resetBtn);
-	root.appendChild(actions);
-	// Table
-	const table = document.createElement('table'); table.className = 'clients-table';
-	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente', 'Saldo', 'Valor', 'Ingresar', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
-	thead.appendChild(hr); const tbody = document.createElement('tbody');
-	const rowInputs = [];
-	let totalValor = 0;
-	for (const it of (items || [])) {
-		const tr = document.createElement('tr');
-		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
-		const tdS = document.createElement('td');
-		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
-		tdS.append(inSaldo);
-		const tdV = document.createElement('td'); const valor = (Number(it.saldo || 0) || 0) * (Number(it.price || 0) || 0); tdV.textContent = fmtMoney.format(valor); tdV.style.textAlign = 'right';
-		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.1'; inQty.min = '0'; inQty.placeholder = '0.0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
-		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
-		tr.append(tdN, tdS, tdV, tdI, tdA); tbody.appendChild(tr);
-		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
-		totalValor += valor;
-		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
-		async function saveSaldo() {
-			try {
-				const prev = Number(it.saldo || 0) || 0;
-				const next = Number(inSaldo.value || 0) || 0;
-				let delta = next - prev;
-				delta = Math.round(delta * 10) / 10;
-				if (!isFinite(delta) || Math.abs(delta) < 1e-9) { return; }
-				await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: it.unit || 'g', qty: delta, note: 'Ajuste de saldo', actor_name: state.currentUser?.username || state.currentUser?.name || null });
-				notify.success('Saldo actualizado');
-				await renderInventoryView();
-			} catch { notify.error('No se pudo actualizar saldo'); }
-		}
-		saveBtn.addEventListener('click', saveSaldo);
-		inSaldo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') saveSaldo(); });
-	}
-	// Footer: total valor + Ingresar button row
-	const tfoot = document.createElement('tfoot');
-	const frTotal = document.createElement('tr');
-	const ft1 = document.createElement('td'); ft1.className = 'label'; ft1.textContent = 'Total inventario';
-	const ft2 = document.createElement('td');
-	const ft3 = document.createElement('td'); ft3.className = 'col-total'; ft3.textContent = fmtMoney.format(totalValor); ft3.style.textAlign = 'right';
-	const ft4 = document.createElement('td');
-	const ft5 = document.createElement('td');
-	frTotal.append(ft1, ft2, ft3, ft4, ft5); tfoot.appendChild(frTotal);
-	const fr = document.createElement('tr');
-	const fd1 = document.createElement('td'); const fd2 = document.createElement('td'); const fd3 = document.createElement('td');
-	const fd4 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd4.appendChild(btnAll);
-	const fd5 = document.createElement('td');
-	fr.append(fd1, fd2, fd3, fd4, fd5); tfoot.appendChild(fr);
-	btnAll.addEventListener('click', async () => {
-		try {
-			for (const r of rowInputs) {
-				const val = Number(r.input.value || 0) || 0;
-				if (val > 0) {
-					await api('POST', API.Inventory, { action: 'ingreso', ingredient: r.ingredient, unit: r.unit || 'g', qty: val, note: 'Ingreso', actor_name: state.currentUser?.username || state.currentUser?.name || null });
+
+	// Don't clear immediately to reduce flicker
+	const tempIngreds = document.createElement('div');
+	const tempPacks = document.createElement('div');
+	const tempOthers = document.createElement('div');
+
+	const ingreds = items.filter(it => (it.category || 'ingrediente') === 'ingrediente');
+	const packs = items.filter(it => it.category === 'empaque');
+	const others = items.filter(it => it.category === 'otros');
+
+	function buildTable(list, root) {
+		if (list.length === 0) { root.innerHTML = '<p style="opacity:0.6; padding:10px;">No hay ítems en esta categoría.</p>'; return; }
+		const table = document.createElement('table'); table.className = 'clients-table';
+		const thead = document.createElement('thead'); const hr = document.createElement('tr');
+		['Material', 'Saldo', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+		thead.appendChild(hr); const tbody = document.createElement('tbody');
+		for (const it of list) {
+			const tr = document.createElement('tr');
+			tr.draggable = true;
+			tr.dataset.id = it.id;
+			tr.dataset.ingredient = it.ingredient;
+			tr.addEventListener('dragstart', (ev) => {
+				ev.dataTransfer.setData('text/plain', it.id);
+				ev.target.style.opacity = '0.5';
+			});
+			tr.addEventListener('dragend', (ev) => { ev.target.style.opacity = '1'; });
+
+			const tdName = document.createElement('td');
+			const inName = document.createElement('input'); inName.type = 'text'; inName.className = 'input-cell'; inName.style.width = '140px'; inName.value = it.ingredient;
+			tdName.appendChild(inName);
+
+			
+			const tdSaldo = document.createElement('td');
+			const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '80px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
+			tdSaldo.appendChild(inSaldo);
+
+
+			const tdPrice = document.createElement('td');
+			const inPrice = document.createElement('input'); inPrice.type = 'number'; inPrice.step = 'any'; inPrice.className = 'input-cell'; inPrice.style.width = '100px'; inPrice.style.textAlign = 'right'; inPrice.value = it.price || 0;
+			tdPrice.appendChild(inPrice);
+
+			const tdTotal = document.createElement('td'); tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0)); tdTotal.style.textAlign = 'right';
+			
+			const tdActions = document.createElement('td');
+			const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = '📜'; histBtn.title = 'Ver Historial';
+			const delBtn = document.createElement('button'); delBtn.className = 'press-btn'; delBtn.textContent = '🗑️'; delBtn.title = 'Eliminar'; delBtn.style.color = 'var(--danger)';
+			tdActions.append(histBtn, delBtn);
+
+			tr.append(tdName, tdSaldo, tdPrice, tdTotal, tdActions);
+			tbody.appendChild(tr);
+
+			histBtn.onclick = () => openInventoryHistoryDialog(it.ingredient);
+			delBtn.onclick = async () => {
+				if (!confirm(`¿Estás seguro de eliminar "${it.ingredient}"? Se borrará del maestro de inventario.`)) return;
+				try {
+					await api('POST', API.Inventory, { action: 'delete_item', id: it.id });
+					notify.success('Eliminado');
+					renderInventoryView();
+				} catch { notify.error('Error al eliminar'); }
+			};
+
+			// Autosave logic
+			const save = async () => {
+				const n = inName.value.trim();
+				const p = Number(inPrice.value || 0);
+				const u = it.unit || 'g';
+				const nextSaldo = Number(inSaldo.value || 0);
+
+				if (n !== it.ingredient || p !== it.price || u !== it.unit) {
+					try {
+						const res = await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: it.category, pack_size: it.pack_size });
+						notify.success(res.status === 'merged' ? 'Fusionado' : 'Cambiado');
+						if (res.status === 'merged') {
+							renderInventoryView();
+						} else {
+							it.ingredient = n; it.price = p; it.unit = u;
+							tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0));
+						}
+					} catch { notify.error('Error al guardar'); }
 				}
-			}
-			notify.success('Ingresos registrados');
-			await renderInventoryView();
-		} catch { notify.error('No se pudo registrar ingresos'); }
-	});
+				
+				const delta = Math.round((nextSaldo - it.saldo) * 10) / 10;
+				if (Math.abs(delta) > 0.01) {
+					try {
+						await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: u, qty: delta, note: 'Ajuste auto', actor_name: state.currentUser?.username || null });
+						notify.success('Saldo ajustado');
+						it.saldo = nextSaldo;
+						tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0));
+					} catch { notify.error('Error al ajustar saldo'); }
+				}
+			};
 
-	table.append(thead, tbody, tfoot); root.appendChild(table);
-
-	async function promptMovement(kind) {
-		try {
-			const ingredient = prompt('Ingrediente:'); if (!ingredient) return;
-			const unit = prompt('Unidad (g, ml, unidad):', 'g') || 'g';
-			const qtyStr = prompt(kind === 'ingreso' ? 'Cantidad a ingresar:' : 'Cantidad (use negativo para salida):', '0'); if (qtyStr == null) return;
-			const qty = Number(qtyStr || '0') || 0;
-			const note = prompt('Nota (opcional):', '') || '';
-			await api('POST', API.Inventory, { action: kind, ingredient, unit, qty, note, actor_name: state.currentUser?.username || state.currentUser?.name || null });
-			notify.success('Movimiento registrado');
-			await renderInventoryView();
-		} catch { notify.error('No se pudo registrar'); }
+			const handleEnter = (ev) => { if (ev.key === 'Enter') ev.target.blur(); };
+			inName.onkeydown = handleEnter;
+			inPrice.onkeydown = handleEnter;
+			inName.onblur = save;
+			inPrice.onblur = save;
+			inSaldo.onblur = save;
+		}
+		table.append(thead, tbody);
+		root.appendChild(table);
 	}
 
-	ingresoBtn.addEventListener('click', async () => { await promptMovement('ingreso'); });
-	ajusteBtn.addEventListener('click', async () => { await openInventoryAdjustView(); });
-	histAllBtn.addEventListener('click', async () => { openInventoryHistoryAllPage(); });
-	resetBtn.addEventListener('click', async () => {
-		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
-		const ok = confirm('Esto borrará TODO el historial y pondrá todos los saldos en 0. ¿Continuar?');
-		if (!ok) return;
-		try { await api('POST', API.Inventory, { action: 'reset' }); notify.success('Inventario reseteado'); await renderInventoryView(); }
-		catch { notify.error('No se pudo resetear'); }
-	});
+	buildTable(ingreds, tempIngreds);
+	buildTable(packs, tempPacks);
+	buildTable(others, tempOthers);
+	
+	ingredsRoot.innerHTML = ''; ingredsRoot.appendChild(tempIngreds);
+	packsRoot.innerHTML = ''; packsRoot.appendChild(tempPacks);
+	othersRoot.innerHTML = ''; othersRoot.appendChild(tempOthers);
+
+	function setupDrop(root, cat) {
+		root.ondragover = (ev) => { ev.preventDefault(); root.style.outline = '2px dashed var(--primary)'; root.style.borderRadius = '8px'; };
+		root.ondragleave = () => { root.style.outline = 'none'; };
+		root.ondrop = async (ev) => {
+			ev.preventDefault();
+			root.style.outline = 'none';
+			const id = ev.dataTransfer.getData('text/plain');
+			if (!id) return;
+			try {
+				await api('POST', API.Inventory, { action: 'update_item', id, category: cat });
+				notify.success('Movido');
+				renderInventoryView();
+			} catch { notify.error('Error al mover'); }
+		};
+	}
+	setupDrop(ingredsRoot.parentElement, 'ingrediente');
+	setupDrop(packsRoot.parentElement, 'empaque');
+	setupDrop(othersRoot.parentElement, 'otros');
+
+	// Setup toolbar listeners (need to re-bind since they might have been lost if we replaced toolbar? No, toolbar is separate)
+	document.getElementById('inventory-new-material').onclick = openNewMaterialDialog;
+	document.getElementById('inventory-confirm-prod').onclick = openConfirmProductionDialog;
+	
+	const convBtn = document.getElementById('inventory-conversions-btn');
+	if (convBtn) {
+		convBtn.onclick = async (ev) => {
+			ev.stopPropagation();
+			const ingredients = await api('GET', API.Inventory);
+			const pop = document.createElement('div'); pop.className = 'confirm-popover aladdin-pop'; pop.id = 'conversions-manager-pop';
+			pop.style.position = 'fixed'; pop.style.left = '50%'; pop.style.top = '10%'; pop.style.transform = 'translate(-50%, 0)';
+			pop.style.width = 'min(95vw, 550px)'; pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto'; pop.style.padding = '24px'; pop.style.zIndex = '100000';
+			
+			const renderConvList = async () => {
+				const container = pop.querySelector('#conv-list');
+				if (!container) return;
+				const convs = await api('GET', '/api/inventory?action=get_conversions');
+				container.innerHTML = `
+					<table style="width:100%; border-collapse:collapse; margin-top:15px">
+						<thead>
+							<tr style="border-bottom:2px solid var(--border)">
+								<th style="text-align:left; padding:8px">Ingrediente</th>
+								<th style="text-align:right; padding:8px">Factor (x Gramos)</th>
+								<th style="width:40px"></th>
+							</tr>
+						</thead>
+						<tbody>
+							${convs.map(c => `
+								<tr style="border-bottom:1px solid var(--border)">
+									<td style="padding:8px">${c.ingredient_name}</td>
+									<td style="padding:8px; text-align:right">x ${c.factor}</td>
+									<td style="padding:8px"><button class="btn-del-item" data-id="${c.id}" data-action="delete">✕</button></td>
+								</tr>
+							`).join('')}
+							${convs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--muted)">No hay reglas creadas</td></tr>' : ''}
+						</tbody>
+					</table>
+				`;
+			};
+
+			const cleanup = () => {
+				document.removeEventListener('mousedown', outside, true);
+				if (pop.parentNode) pop.parentNode.removeChild(pop);
+			};
+			const outside = (e) => { if (!pop.contains(e.target)) cleanup(); };
+			setTimeout(() => document.addEventListener('mousedown', outside, true), 10);
+
+			pop.innerHTML = `
+				<h3 style="margin-top:0; color:var(--primary)">Reglas de Conversión</h3>
+				<p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px">Define cuánto pesa cada unidad de un ingrediente (ej: 1 Huevo = 52g).</p>
+				
+				<div style="background:var(--surface); padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid var(--border)">
+					<div style="display:grid; grid-template-columns: 1.5fr 1fr 60px; gap:10px; align-items:end">
+						<div>
+							<label style="display:block; font-size:0.7rem; font-weight:700; margin-bottom:4px">Ingrediente</label>
+							<select id="new-conv-ing" class="input-cell" style="width:100%">
+								<option value="">Seleccionar...</option>
+								${ingredients.map(it => `<option value="${it.ingredient}">${it.ingredient}</option>`).join('')}
+							</select>
+						</div>
+						<div>
+							<label style="display:block; font-size:0.7rem; font-weight:700; margin-bottom:4px">Factor (Gramos)</label>
+							<input id="new-conv-factor" type="number" step="0.1" class="input-cell" style="width:100%" placeholder="Ej: 52">
+						</div>
+						<button id="add-conv-btn-main" class="press-btn btn-primary" style="padding:10px">+</button>
+					</div>
+				</div>
+
+				<div id="conv-list"></div>
+
+				<div style="margin-top:20px; text-align:right">
+				<div style="margin-top:20px; text-align:right">
+					<button id="close-conv-btn-main" class="press-btn" style="background:var(--border); color:var(--text)">Cerrar</button>
+				</div>
+			`;
+
+			pop.addEventListener('click', async (e) => {
+				e.stopPropagation();
+				const target = e.target;
+
+				if (target.id === 'close-conv-btn-main') {
+					cleanup();
+				} else if (target.id === 'add-conv-btn-main') {
+					const ingredient_name = pop.querySelector('#new-conv-ing').value;
+					const factor = Number(pop.querySelector('#new-conv-factor').value);
+					if(!ingredient_name || !factor) return notify.error('Completa los campos');
+					target.disabled = true; target.textContent = '...';
+					try {
+						await api('POST', '/api/inventory', { action:'save_conversion', ingredient_name, factor });
+						pop.querySelector('#new-conv-factor').value = '';
+						await renderConvList();
+						notify.success('Guardado');
+					} catch(err) { notify.error('Error al guardar'); }
+					target.disabled = false; target.textContent = '+';
+				} else if (target.classList.contains('btn-del-item') && target.dataset.action === 'delete') {
+					if(!confirm('¿Eliminar esta regla?')) return;
+					const id = target.dataset.id;
+					try {
+						await api('POST', '/api/inventory', { action:'delete_conversion', id });
+						await renderConvList();
+					} catch(err) { notify.error('Error al eliminar'); }
+				}
+			});
+
+			document.body.appendChild(pop);
+			await renderConvList();
+		};
+	}
+
+	if (scrollPos > 0) window.scrollTo(0, scrollPos);
+}
+
+async function openNewMaterialDialog() {
+	const name = (prompt('Nombre del material:') || '').trim(); if (!name) return;
+	const cat = confirm(`¿Es un ingrediente? (Aceptar para Ingrediente, Cancelar para Empaque/Otro)`) ? 'ingrediente' : 'empaque';
+	const unit = 'g';
+	const price = Number(prompt('Costo unitario actual:', '0') || '0') || 0;
+	try {
+		await api('POST', API.Inventory, { action: 'add_item', ingredient: name, unit, category: cat, price });
+		notify.success('Cargado al maestro');
+		renderInventoryView();
+	} catch { notify.error('Error al guardar'); }
+}
+
+async function openConfirmProductionDialog() {
+	// 1. Fetch pending orders (sales for today not archived)
+	const today = new Date().toISOString().slice(0, 10);
+	let sales = [];
+	try { 
+		const query = `?start=${today}&end=${today}`;
+		const report = await api('GET', `/api/sales-report${query}`);
+		sales = report.sales || [];
+	} catch { notify.error('No se pudieron obtener ventas pendientes'); return; }
+
+	// 2. Aggregate counts
+	const counts = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+	for (const s of sales) {
+		counts.arco += (Number(s.qty_arco || 0));
+		counts.melo += (Number(s.qty_melo || 0));
+		counts.mara += (Number(s.qty_mara || 0));
+		counts.oreo += (Number(s.qty_oreo || 0));
+		counts.nute += (Number(s.qty_nute || 0));
+	}
+
+	// 3. Show dialog
+	const msg = `Confirmar producción sugerida basada en pedidos de hoy:\n\nArco: ${counts.arco}\nMelo: ${counts.melo}\nMara: ${counts.mara}\nOreo: ${counts.oreo}\nNute: ${counts.nute}\n\n¿Deseas descontar estos ingredientes del inventario?`;
+	if (!confirm(msg)) return;
+
+	try {
+		await api('POST', API.Inventory, { action: 'produccion', counts, actor_name: state.currentUser?.username || state.currentUser?.name || null });
+		notify.success('Producción confirmada y descontada');
+		renderInventoryView();
+	} catch { notify.error('Error en el proceso de producción'); }
 }
 
 async function openInventoryAdjustView() {
@@ -6537,6 +7369,7 @@ async function openInventoryHistoryDialog(ingredient) {
 	try { rows = await api('GET', `${API.Inventory}?history_for=${encodeURIComponent(ingredient)}`); } catch { rows = []; }
 	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
 	pop.style.left = (window.innerWidth / 2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto';
 	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
@@ -6567,7 +7400,16 @@ async function openInventoryHistoryDialog(ingredient) {
 		tr.append(tdD, tdK, tdQ, tdProd, tdN, tdA); tbody.appendChild(tr);
 	}
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
-	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	
+	const cleanup = () => {
+		document.removeEventListener('mousedown', outside);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	};
+	const outside = (ev) => { if (!pop.contains(ev.target)) cleanup(); };
+	
+	close.addEventListener('click', cleanup);
+	document.addEventListener('mousedown', outside);
+	
 	table.append(thead, tbody); pop.append(title, table, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
 }
 
@@ -6617,6 +7459,12 @@ async function renderIngredientsView() {
 	const root = document.getElementById('ingredients-content');
 	if (!root) return;
 	root.innerHTML = '';
+	// Create or update global ingredients datalist
+	let inv = []; try { inv = await api('GET', API.Inventory); } catch {}
+	if (!Array.isArray(inv)) inv = [];
+	let dl = document.getElementById('dl-inventory-items');
+	if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-inventory-items'; document.body.appendChild(dl); }
+	dl.innerHTML = inv.map(it => `<option value="${it.ingredient}">`).join('');
 
 	// Get desserts from both sources:
 	// 1. Desserts with recipes (from dessert_recipes)
@@ -6669,8 +7517,6 @@ async function renderIngredientsView() {
 		await renderIngredientsView();
 		try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch { }
 	};
-	const extrasBtn = document.getElementById('ingredients-add-extras');
-	if (extrasBtn) extrasBtn.onclick = () => { openExtrasEditor(); };
 }
 
 // ====== Local-only TIEMPOS ======
@@ -7182,7 +8028,7 @@ function buildStepCard(dessertName, step) {
 	head.append(label, actions);
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente', 'Cantidad por unidad', 'Ajuste', 'Precio', 'Por paquete', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente', 'Cantidad/Unidad', 'Ajuste', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
@@ -7199,7 +8045,160 @@ function buildStepCard(dessertName, step) {
 	function removePlaceholder() { const ph = tbody.querySelector('tr.empty-drop'); if (ph) ph.remove(); }
 	ensurePlaceholder();
 	table.append(thead, tbody);
-	box.append(head, table);
+	
+	const producesDiv = document.createElement('div');
+	producesDiv.style.cssText = 'margin-top:12px; padding:10px; background:rgba(14,165,233,0.05); border-radius:8px; border:1px solid rgba(14,165,233,0.1); display:flex; align-items:center; gap:8px; font-size:0.85rem;';
+	producesDiv.innerHTML = `
+		<span style="font-weight:600; color:var(--primary)">Genera Stock:</span>
+		<input type="text" class="input-cell produces-input" list="dl-inventory-items" placeholder="Ej: Galletas champaña" style="flex:1; font-size:0.85rem; padding:4px 8px" value="${step.produces_ingredient || ''}">
+		<small style="color:var(--muted)">Ingresa el nombre del insumo que resulta de este paso.</small>
+	`;
+	const producesIn = producesDiv.querySelector('.produces-input');
+	producesIn.addEventListener('change', async () => {
+		const val = producesIn.value.trim() || null;
+		try {
+			await api('POST', API.Recipes, { 
+				kind: 'step.upsert', 
+				id: step.id, 
+				dessert: dessertName, 
+				step_name: step.step_name, 
+				position: step.position || 0,
+				produces_ingredient: val,
+				produces_unit: 'unidad'
+			});
+			step.produces_ingredient = val;
+		} catch { notify.error('No se pudo guardar la configuración de producción'); }
+	});
+
+	const instructionsDiv = document.createElement('div');
+	instructionsDiv.style.cssText = 'margin-top:12px; padding:12px; background:rgba(244,166,183,0.05); border-radius:8px; border:1px solid rgba(244,166,183,0.15); display:flex; flex-direction:column; gap:8px;';
+	
+	const instructionsTitle = document.createElement('div');
+	instructionsTitle.style.cssText = 'font-weight:700; color:var(--primary); font-size:0.85rem;';
+	instructionsTitle.textContent = 'Instrucciones del paso (Lista paso a paso):';
+	instructionsDiv.appendChild(instructionsTitle);
+
+	const instructionsList = document.createElement('div');
+	instructionsList.style.cssText = 'display:flex; flex-direction:column; gap:6px;';
+	instructionsDiv.appendChild(instructionsList);
+
+	const newInstructionRow = document.createElement('div');
+	newInstructionRow.style.cssText = 'display:flex; gap:8px; align-items:center;';
+	
+	const newInstructionInput = document.createElement('input');
+	newInstructionInput.type = 'text';
+	newInstructionInput.className = 'input-cell';
+	newInstructionInput.placeholder = 'Ej: Mezclar la masa a velocidad media por 5 minutos...';
+	newInstructionInput.style.cssText = 'flex:1; font-size:0.85rem; padding:6px 10px; border: 1px solid var(--border); border-radius: 8px; background: white;';
+	
+	const addInstructionBtn = document.createElement('button');
+	addInstructionBtn.className = 'press-btn btn-primary';
+	addInstructionBtn.textContent = '+ Agregar';
+	addInstructionBtn.style.cssText = 'padding:6px 12px; font-size:0.85rem; min-width:unset;';
+	
+	newInstructionRow.append(newInstructionInput, addInstructionBtn);
+	instructionsDiv.appendChild(newInstructionRow);
+
+	let currentInstructions = Array.isArray(step.instructions) ? step.instructions : [];
+
+	async function saveInstructions() {
+		try {
+			await api('POST', API.Recipes, {
+				kind: 'step.upsert',
+				id: step.id,
+				dessert: dessertName,
+				step_name: step.step_name,
+				position: step.position || 0,
+				produces_ingredient: step.produces_ingredient || null,
+				produces_unit: step.produces_unit || 'unidad',
+				instructions: currentInstructions
+			});
+			step.instructions = currentInstructions;
+		} catch {
+			notify.error('No se pudo guardar la instrucción');
+		}
+	}
+
+	function renderInstructions() {
+		instructionsList.innerHTML = '';
+		if (currentInstructions.length === 0) {
+			const emptyMsg = document.createElement('div');
+			emptyMsg.style.cssText = 'font-size:0.8rem; color:var(--muted); font-style:italic;';
+			emptyMsg.textContent = 'No hay instrucciones configuradas. Agrega una arriba.';
+			instructionsList.appendChild(emptyMsg);
+			return;
+		}
+
+		currentInstructions.forEach((inst, idx) => {
+			const row = document.createElement('div');
+			row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:white; padding:6px 10px; border-radius:6px; border:1px solid var(--border); gap:8px;';
+			
+			const prefixSpan = document.createElement('span');
+			prefixSpan.style.cssText = 'font-size:0.85rem; color:var(--muted); font-weight:700; margin-right:4px; user-select:none;';
+			prefixSpan.textContent = `${idx + 1}.`;
+
+			const editSpan = document.createElement('span');
+			editSpan.contentEditable = 'true';
+			editSpan.style.cssText = 'font-size:0.85rem; color:var(--text); flex:1; padding:2px 4px; border-radius:4px; border-bottom:1px dashed transparent; outline:none; transition: border-color 0.15s;';
+			editSpan.textContent = inst;
+
+			editSpan.addEventListener('mouseenter', () => { editSpan.style.borderBottomColor = 'var(--primary)'; });
+			editSpan.addEventListener('mouseleave', () => { editSpan.style.borderBottomColor = 'transparent'; });
+			
+			editSpan.addEventListener('blur', async () => {
+				const newVal = editSpan.textContent.trim();
+				if (newVal && newVal !== inst) {
+					currentInstructions[idx] = newVal;
+					await saveInstructions();
+				}
+				renderInstructions();
+			});
+
+			editSpan.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					editSpan.blur();
+				}
+			});
+
+			const deleteBtn = document.createElement('button');
+			deleteBtn.className = 'press-btn';
+			deleteBtn.textContent = '🗑️';
+			deleteBtn.style.cssText = 'color:var(--danger); padding:2px 6px; font-size:0.8rem; border:none; background:transparent; cursor:pointer; min-width:unset;';
+			deleteBtn.addEventListener('click', async () => {
+				currentInstructions.splice(idx, 1);
+				await saveInstructions();
+				renderInstructions();
+			});
+
+			row.append(prefixSpan, editSpan, deleteBtn);
+			instructionsList.appendChild(row);
+		});
+	}
+
+	addInstructionBtn.addEventListener('click', async () => {
+		const val = newInstructionInput.value.trim();
+		if (!val) return;
+		currentInstructions.push(val);
+		newInstructionInput.value = '';
+		await saveInstructions();
+		renderInstructions();
+	});
+
+	newInstructionInput.addEventListener('keydown', async (e) => {
+		if (e.key === 'Enter') {
+			const val = newInstructionInput.value.trim();
+			if (!val) return;
+			currentInstructions.push(val);
+			newInstructionInput.value = '';
+			await saveInstructions();
+			renderInstructions();
+		}
+	});
+
+	renderInstructions();
+
+	box.append(head, table, producesDiv, instructionsDiv);
 	// Enable drag & drop for steps using the header as a handle
 	box.draggable = false;
 	head.draggable = true;
@@ -7219,12 +8218,13 @@ function buildStepCard(dessertName, step) {
 		if (!stepIds.length) return;
 		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch { }
 	});
-	add.addEventListener('click', async () => {
-		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
-		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length || 0) + 1 });
-		removePlaceholder();
-		tbody.appendChild(buildItemRow(step.id, row));
+	add.addEventListener('click', () => {
+		openAddIngredientModal(step.id, (step.items?.length || 0), (row) => {
+			removePlaceholder();
+			tbody.appendChild(buildItemRow(step.id, row));
+			if (!step.items) step.items = [];
+			step.items.push(row);
+		});
 	});
 	del.addEventListener('click', async () => {
 		const ok = confirm('¿Eliminar este paso y sus ingredientes?'); if (!ok) return;
@@ -7324,15 +8324,110 @@ function buildStepCard(dessertName, step) {
 	return box;
 }
 
+async function openAddIngredientModal(recipeId, currentItemsCount, onAdded) {
+	// Fetch ingredients from inventory for suggestions
+	const inventory = await api('GET', '/api/inventory');
+	const existingIngredients = (inventory || []).map(it => it.ingredient);
+
+	const overlay = document.createElement('div');
+	overlay.style.position = 'fixed';
+	overlay.style.top = '0'; overlay.style.left = '0';
+	overlay.style.width = '100%'; overlay.style.height = '100%';
+	overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+	overlay.style.display = 'flex';
+	overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+	overlay.style.zIndex = '10000';
+	overlay.style.backdropFilter = 'blur(4px)';
+
+	const modal = document.createElement('div');
+	modal.className = 'confirm-popover';
+	modal.style.position = 'relative';
+	modal.style.width = '90%';
+	modal.style.maxWidth = '400px';
+	modal.style.padding = '24px';
+	modal.style.borderRadius = '20px';
+	modal.style.background = 'white';
+	modal.style.boxShadow = '0 20px 50px rgba(0,0,0,0.15)';
+
+	modal.innerHTML = `
+		<h3 style="margin:0 0 8px 0; color:var(--primary); font-size:1.4rem">Añadir Ingrediente</h3>
+		<p style="margin:0 0 20px 0; color:var(--muted); font-size:0.9rem">Busca un material existente o escribe uno nuevo.</p>
+		
+		<div style="margin-bottom:16px">
+			<label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem">Nombre del Material</label>
+			<input type="text" id="modal-ing-name" list="modal-ing-list" class="input-cell" style="width:100%; border:1px solid var(--border); padding:10px" placeholder="Ej: Crema de leche...">
+			<datalist id="modal-ing-list">
+				${existingIngredients.map(name => `<option value="${name}">`).join('')}
+			</datalist>
+		</div>
+
+		<div style="margin-bottom:24px">
+			<label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem">Cantidad por Unidad</label>
+			<input type="number" id="modal-ing-qty" step="any" class="input-cell" style="width:100%; border:1px solid var(--border); padding:10px" value="0">
+			<small style="color:var(--muted); display:block; margin-top:4px">Gramos, mililitros o unidades.</small>
+		</div>
+
+		<div style="display:flex; gap:12px">
+			<button id="modal-cancel" class="press-btn" style="flex:1; background:#f3f4f6; color:#4b5563">Cancelar</button>
+			<button id="modal-submit" class="press-btn btn-primary" style="flex:2">Agregar a Receta</button>
+		</div>
+	`;
+
+	overlay.appendChild(modal);
+	document.body.appendChild(overlay);
+	modal.classList.add('aladdin-pop');
+
+	const nameIn = modal.querySelector('#modal-ing-name');
+	const qtyIn = modal.querySelector('#modal-ing-qty');
+	const submitBtn = modal.querySelector('#modal-submit');
+	const cancelBtn = modal.querySelector('#modal-cancel');
+
+	nameIn.focus();
+
+	const close = () => { document.body.removeChild(overlay); };
+	
+	cancelBtn.onclick = close;
+	overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+	submitBtn.onclick = async () => {
+		const name = nameIn.value.trim();
+		const qty = Number(qtyIn.value || 0) || 0;
+		if (!name) { notify.error('Nombre requerido'); return; }
+		
+		submitBtn.disabled = true;
+		submitBtn.textContent = 'Agregando...';
+		
+		try {
+			const row = await api('POST', API.Recipes, { 
+				kind: 'item.upsert', 
+				recipe_id: recipeId, 
+				ingredient: name, 
+				unit: 'g', 
+				qty_per_unit: qty, 
+				adjustment: 0, 
+				price: 0, 
+				position: currentItemsCount + 1 
+			});
+			onAdded(row);
+			close();
+		} catch (err) {
+			notify.error('Error al guardar ingrediente');
+			submitBtn.disabled = false;
+			submitBtn.textContent = 'Agregar a Receta';
+		}
+	};
+
+	nameIn.onkeydown = (e) => { if (e.key === 'Enter') qtyIn.focus(); };
+	qtyIn.onkeydown = (e) => { if (e.key === 'Enter') submitBtn.click(); };
+}
+
 function buildItemRow(stepId, item) {
 	const tr = document.createElement('tr');
-	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; inN.setAttribute('list', 'dl-inventory-items'); tdN.appendChild(inN);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
 	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.adjustment || 0); tdAdj.appendChild(inAdj);
-	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.value = String(item.price || 0); tdP.appendChild(inP);
-	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdQ, tdAdj, tdP, tdPack, tdA);
+	tr.append(tdN, tdQ, tdAdj, tdA);
 	// DnD for ingredient rows
 	tr.draggable = true;
 	tr.addEventListener('dragstart', () => {
@@ -7350,10 +8445,10 @@ function buildItemRow(stepId, item) {
 	});
 	async function save() {
 		try {
-			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, price: Number(inP.value || 0) || 0, pack_size: Number(inPack.value || 0) || 0, position: item.position || 0 });
+			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, position: item.position || 0 });
 		} catch { notify.error('No se pudo guardar'); }
 	}
-	[inN, inQ, inAdj, inP, inPack].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	[inN, inQ, inAdj].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
 	// persist id on row
 	tr.setAttribute('data-item-id', String(item.id));
@@ -7368,7 +8463,7 @@ async function openExtrasEditor() {
 	const title = document.createElement('h4'); title.textContent = 'Extras por unidad'; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente', 'Cantidad', 'Precio', 'Por paquete', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Ingrediente', 'Cantidad', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of extras) tbody.appendChild(buildExtrasRow(it, tbody));
 	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Extra'; td.appendChild(add); fr.appendChild(td); tfoot.appendChild(fr);
@@ -7377,9 +8472,7 @@ async function openExtrasEditor() {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
 		const unit = 'unidad';
 		const qty = Number(prompt('Cantidad por unidad:') || '1') || 0;
-		const price = Number(prompt('Precio unitario:') || '0') || 0;
-		const pack = Number(prompt('Cantidad por paquete (0 si no aplica):') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, price, pack_size: pack, position: (extras.length || 0) + 1 });
+		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, position: (extras.length || 0) + 1 });
 		tbody.appendChild(buildExtrasRow(row, tbody));
 	});
 	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
@@ -7388,14 +8481,12 @@ async function openExtrasEditor() {
 
 function buildExtrasRow(item, tbody) {
 	const tr = document.createElement('tr');
-	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; inN.setAttribute('list', 'dl-inventory-items'); tdN.appendChild(inN);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.style.width = '76px'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
-	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.style.width = '88px'; inP.value = String(item.price || 0); tdP.appendChild(inP);
-	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.style.width = '88px'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdQ, tdP, tdPack, tdA);
-	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, price: Number(inP.value || 0) || 0, pack_size: Number(inPack.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
-	[inN, inQ, inP, inPack].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	tr.append(tdN, tdQ, tdA);
+	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
+	[inN, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=extras&id=${encodeURIComponent(item.id)}`); if (tr.parentNode === tbody) tbody.removeChild(tr); });
 	return tr;
 }
@@ -7570,6 +8661,10 @@ function renderDaysList() {
 		btn.textContent = formatDayLabel(d.day);
 		btn.addEventListener('click', async () => {
 			state.selectedDayId = d.id;
+			// Notify parent page (store.html) to keep UI in sync
+			try {
+				window.parent.postMessage({ type: 'selectDay', selectedDayId: d.id }, '*');
+			} catch (e) { }
 			document.getElementById('sales-wrapper').classList.remove('hidden');
 			await loadSales();
 		});
@@ -7621,6 +8716,10 @@ function renderDaysList() {
 				}
 				if (latest && latest.id) {
 					state.selectedDayId = latest.id;
+					// Notify parent page (store.html) to sync selection
+					try {
+						window.parent.postMessage({ type: 'selectDay', selectedDayId: latest.id }, '*');
+					} catch (e) { }
 					const wrap = document.getElementById('sales-wrapper');
 					if (wrap) wrap.classList.remove('hidden');
 					loadSales().catch(() => { });
@@ -8763,7 +9862,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
 		const sale = state.sales.find(s => s.id === saleId);
-		const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+		const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'admin' || state.currentUser?.role === 'superadmin';
 		const locked = String(sale?.pay_method || '').trim() !== '';
 		if (!isAdminUser && locked) {
 			try { notify.error('Ya no es posible editar este pedido ya que ha sido entregado al cliente. Para editarlo por favor pide soporte.'); } catch { }
@@ -10981,7 +12080,29 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	bindLogin();
 	bindActiveTableSearch();
 	updateToolbarOffset();
-	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch { }
+	try {
+		const saved = localStorage.getItem('authUser');
+		if (saved) {
+			state.currentUser = JSON.parse(saved);
+		} else {
+			// Fallback: load from storeAuthUser if they have production access
+			const storeUserStr = localStorage.getItem('storeAuthUser');
+			if (storeUserStr) {
+				const storeAuthUser = JSON.parse(storeUserStr);
+				const hasProductionAccess = storeAuthUser.role === 'produccion' || (storeAuthUser.features && storeAuthUser.features.includes('produccion')) || storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin';
+				if (hasProductionAccess) {
+					state.currentUser = {
+						name: storeAuthUser.username,
+						role: storeAuthUser.role,
+						features: storeAuthUser.features || [],
+						isAdmin: storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin',
+						isSuperAdmin: storeAuthUser.role === 'superadmin'
+					};
+					localStorage.setItem('authUser', JSON.stringify(state.currentUser));
+				}
+			}
+		}
+	} catch { }
 	// Backfill role fields if missing from older sessions
 	if (state.currentUser && !state.currentUser.role) {
 		const name = state.currentUser.name;
@@ -11053,6 +12174,10 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 					const latest = [...state.saleDays].sort((a, b) => new Date(b.day) - new Date(a.day))[0];
 					if (latest) {
 						state.selectedDayId = latest.id;
+						// Notify parent page (store.html)
+						try {
+							window.parent.postMessage({ type: 'selectDay', selectedDayId: latest.id }, '*');
+						} catch (e) { }
 						document.getElementById('sales-wrapper')?.classList.remove('hidden');
 						switchView('#view-sales');
 						await loadSales();
@@ -11066,10 +12191,59 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 
 	// Route initial view (skip if we just navigated from Transfers or Embedded)
 	if (!__handledPendingFocus && !__handledEmbedded) {
+		const urlParams = new URLSearchParams(window.location.search);
+		const viewParam = urlParams.get('view');
+		const hasProductionAccess = state.currentUser && (
+			state.currentUser.role === 'produccion' ||
+			(state.currentUser.features && state.currentUser.features.includes('produccion')) ||
+			state.currentUser.role === 'admin' ||
+			state.currentUser.role === 'superadmin'
+		);
+
 		if (!state.currentUser) {
 			switchView('#view-login');
+		} else if (viewParam === 'kitchen' && hasProductionAccess) {
+			switchView('#view-kitchen');
+			if (window.KitchenManager) window.KitchenManager.init();
+		} else if ((state.currentUser.role === 'produccion' || (state.currentUser.features && state.currentUser.features.includes('produccion'))) && !['user', 'admin', 'superadmin'].includes(state.currentUser.role)) {
+			switchView('#view-kitchen');
+			if (window.KitchenManager) window.KitchenManager.init();
 		} else if (state.currentUser.isAdmin) {
-			switchView('#view-select-seller');
+			const urlParams = new URLSearchParams(window.location.search);
+			const linkSeller = urlParams.get('seller');
+			const linkDate = urlParams.get('date');
+			if (linkSeller && linkDate) {
+				const targetSeller = (state.sellers || []).find(s => s.name.toLowerCase() === linkSeller.toLowerCase());
+				if (targetSeller) {
+					enterSeller(targetSeller.id).then(async () => {
+						let matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate));
+						
+						if (!matchingDay) {
+							// Check if it's an archived day
+							try {
+								const archivedDays = await api('GET', `/api/days?seller_id=${targetSeller.id}&archived=1`);
+								matchingDay = archivedDays.find(d => String(d.day).startsWith(linkDate));
+								if (matchingDay) {
+									state.showArchivedOnly = true;
+									await loadDaysForSeller(); // refresh the sidebar UI to show archived queue
+									matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate)) || matchingDay;
+								}
+							} catch (e) { console.error('Fallback archive error:', e); }
+                        }
+
+						if (matchingDay) {
+							state.selectedDayId = matchingDay.id;
+							switchView('#view-sales');
+							document.getElementById('sales-wrapper')?.classList.remove('hidden');
+							loadSales();
+						}
+					});
+				} else {
+					switchView('#view-select-seller');
+				}
+			} else {
+				switchView('#view-select-seller');
+			}
 		} else {
 			const me = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase());
 			if (me) enterSeller(me.id); else switchView('#view-select-seller');
@@ -11079,8 +12253,17 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 
 	// 🔄 Message listener for parent-to-iframe communication (e.g. from store.html)
 	window.addEventListener('message', async (event) => {
-		if (event.data === 'refreshSales' && typeof loadSales === 'function') {
-			console.log('[Iframe] Refresh request received from parent.');
+		const isRefresh = event.data === 'refreshSales' || (event.data && event.data.type === 'refreshSales');
+		const isSelectDay = event.data && event.data.type === 'selectDay';
+		
+		if ((isRefresh || isSelectDay) && typeof loadSales === 'function') {
+			console.log('[Iframe] Request received from parent:', event.data);
+			
+			const targetDayId = event.data && event.data.selectedDayId;
+			if (targetDayId) {
+				state.selectedDayId = Number(targetDayId);
+			}
+			
 			await loadSales();
 		}
 	});

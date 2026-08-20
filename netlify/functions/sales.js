@@ -1,4 +1,4 @@
-import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb, normalizeClientName } from './_db.js';
+import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb, normalizeClientName, validateWhatsAppForSeller } from './_db.js';
 import { evaluateClientStage } from './crm-automation.js';
 
 function json(body, status = 200) {
@@ -173,15 +173,17 @@ export async function handler(event) {
 							role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
 						}
 						
+						const allSellers = params.get('all_sellers') === '1';
+						
 						// Build the query based on permissions
 						let rows;
-						if (role === 'admin' || role === 'superadmin') {
-						// Admin can see all sales - optimized query with minimal data
+						if (role === 'admin' || role === 'superadmin' || allSellers) {
+						// Admin or Kitchen view: see all sales within range
 						rows = await sql`
 							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
-							       sd.day AS sale_day,
+							       COALESCE(sd.day, s.created_at::date) AS sale_day,
 							       se.name AS seller_name,
 							       (
 							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
@@ -191,18 +193,19 @@ export async function handler(event) {
 							           WHERE ccs.sale_id = s.id
 							       ) AS client_tags
 							FROM sales s
-							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
-							WHERE sd.day >= ${start} AND sd.day <= ${end}
-							ORDER BY sd.day ASC, se.name ASC
+							WHERE (sd.day >= ${start} AND sd.day <= ${end})
+							   OR (sd.day IS NULL AND s.created_at::date >= ${start} AND s.created_at::date <= ${end})
+							ORDER BY COALESCE(sd.day, s.created_at::date) ASC, se.name ASC
 						`;
 						} else {
-						// Non-admin can only see their own sales or sales they have permission to view
+						// Non-admin can only see their own sales
 						rows = await sql`
 							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
-							       sd.day AS sale_day,
+							       COALESCE(sd.day, s.created_at::date) AS sale_day,
 							       se.name AS seller_name,
 							       (
 							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
@@ -212,13 +215,13 @@ export async function handler(event) {
 							           WHERE ccs.sale_id = s.id
 							       ) AS client_tags
 							FROM sales s
-							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
 							LEFT JOIN user_view_permissions uvp ON uvp.seller_id = s.seller_id 
 							  AND lower(uvp.viewer_username) = lower(${actorName})
-							WHERE sd.day >= ${start} AND sd.day <= ${end}
+							WHERE ((sd.day >= ${start} AND sd.day <= ${end}) OR (sd.day IS NULL AND s.created_at::date >= ${start} AND s.created_at::date <= ${end}))
 							  AND (lower(se.name) = lower(${actorName}) OR uvp.id IS NOT NULL)
-							ORDER BY sd.day ASC, se.name ASC
+							ORDER BY COALESCE(sd.day, s.created_at::date) ASC, se.name ASC
 						`;
 						}
 						
@@ -563,13 +566,37 @@ export async function handler(event) {
 				const sellerId = Number(data.seller_id);
 				let saleDayId = data.sale_day_id ? Number(data.sale_day_id) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
+
+				const clientNamePost = normalizeClientName(data.client_name ?? '');
+
+				// Validate whatsapp rules for seller
+				try {
+					const whatsappInput = (data.whatsapp ?? '').toString().trim();
+					const [sellerObj] = await sql`SELECT require_whatsapp FROM sellers WHERE id = ${sellerId}`;
+					if (sellerObj && sellerObj.require_whatsapp) {
+						let existingWa = '';
+						if (clientNamePost) {
+							const [existingClient] = await sql`SELECT whatsapp FROM clients WHERE seller_id = ${sellerId} AND lower(name) = lower(${clientNamePost})`;
+							if (existingClient && existingClient.whatsapp) existingWa = String(existingClient.whatsapp).trim();
+						}
+						if (!whatsappInput && !existingWa) {
+							return json({ error: 'Por favor ingresar el número de WhatsApp del cliente' }, 400);
+						}
+					}
+					if (whatsappInput) {
+						const errMessage = await validateWhatsAppForSeller(sellerId, whatsappInput, clientNamePost);
+						if (errMessage) return json({ error: errMessage }, 400);
+					}
+				} catch (valErr) {
+					console.error('Error validating seller whatsapp rules:', valErr);
+				}
+
 				if (!saleDayId) {
 					const now = new Date();
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				// Include client_name in the initial INSERT so it is stored even if PUT is never called
-				const clientNamePost = normalizeClientName(data.client_name ?? '');
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {

@@ -24,6 +24,26 @@ export async function handler(event) {
 
                 // We can update multiple settings at once
                 const keys = Object.keys(data);
+
+                // Authorize access control key changes (only superadmin)
+                const hasAccessControlKeys = keys.includes('production_access_approved') || keys.includes('next_production_datetime');
+                if (hasAccessControlKeys) {
+                    const headers = (event.headers || {});
+                    const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+                    let bActor = '';
+                    try { bActor = data.actor_name || data.username || ''; } catch {}
+                    const actor = (hActor || bActor || '').trim();
+
+                    let actorRole = 'user';
+                    if (actor) {
+                        const userRows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+                        if (userRows.length) actorRole = userRows[0].role;
+                    }
+
+                    if (actorRole !== 'superadmin') {
+                        return json({ error: 'No autorizado: Solo el superadmin puede modificar los controles de acceso a producción.' }, 403);
+                    }
+                }
                 for (const key of keys) {
                     const value = data[key];
                     if (value === null || value === undefined) {

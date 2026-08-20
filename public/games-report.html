@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         body {
             font-family: 'DM Sans', sans-serif;
@@ -69,10 +70,17 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .qr-modal.active {
+            display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
         }
 
         .qr-modal.active {
@@ -81,10 +89,13 @@
 
         .qr-content {
             background: white;
-            padding: 40px;
+            padding: 30px;
             border-radius: 16px;
             text-align: center;
+            width: 100%;
             max-width: 500px;
+            margin: 40px auto;
+            position: relative;
         }
 
         .qr-content h2 {
@@ -403,6 +414,38 @@
         .sortable-header.is-active .sort-indicator {
             opacity: 1;
         }
+
+        /* Drag & Drop Styles */
+        .drag-handle {
+            cursor: grab;
+            color: #9ca3af;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+            transition: color 0.2s ease;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .winner-card:hover .drag-handle, 
+        tr:hover .drag-handle {
+            color: #f4a6b7;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #fff5f7 !important;
+            border: 2px dashed #f4a6b7 !important;
+        }
+
+        .sortable-chosen {
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 
@@ -431,8 +474,23 @@
 
     <!-- Edit Messages Modal -->
     <div class="qr-modal" id="edit-msgs-modal">
-        <div class="qr-content" style="max-width: 600px; text-align: left;">
-            <h2 style="text-align: center;">Editar Mensajes de Premio</h2>
+        <div class="qr-content" style="max-width: 750px; text-align: left;">
+            <h2 style="text-align: center;">Editar Textos del Juego</h2>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Título Principal</label>
+                <input type="text" id="game-title-input" 
+                    style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; box-sizing: border-box;" />
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Subtítulo (Soporta múltiples líneas)</label>
+                <textarea id="game-subtitle-input" rows="3"
+                    style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+
+            <div style="border-top: 1px solid #eee; margin: 15px 0; padding-top: 15px;">
+                <h3 style="font-size: 1rem; margin-bottom: 15px;">Mensajes de Premio (Pantalla)</h3>
+            </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 8px;">Mensaje de Postre Gratis</label>
@@ -510,6 +568,7 @@
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <thead style="background: #f3f4f6; color: #374151;">
                     <tr>
+                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 50px;"></th>
                         <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 60px;">Juego</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">Vendedor</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">WhatsApp (Ej: 573...)</th>
@@ -797,6 +856,7 @@
             sellerState.timersBySellerId.set(sid, timer);
         }
 
+
         async function saveSellerWhatsapp(inputEl) {
             const sid = inputEl?.dataset?.sellerId;
             if (!sid || inputEl?.dataset?.saving === '1') return;
@@ -885,6 +945,15 @@
             sellers.forEach(s => {
                 sellerState.whatsappBySellerId[s.id] = s.whatsapp || '';
                 const tr = document.createElement('tr');
+                tr.dataset.id = s.id;
+
+                // Drag handle column
+                const tdDrag = document.createElement('td');
+                tdDrag.style.padding = '12px';
+                tdDrag.style.borderBottom = '1px solid #eee';
+                tdDrag.style.textAlign = 'center';
+                tdDrag.innerHTML = `<div class="drag-handle" title="Arrastra para reordenar">☰</div>`;
+                tr.appendChild(tdDrag);
 
                 // Checkbox column with custom style
                 const tdCheck = document.createElement('td');
@@ -933,10 +1002,53 @@
                 input.addEventListener('blur', () => saveSellerWhatsapp(input));
 
                 tdInput.appendChild(input);
-                tr.appendChild(tdName);
                 tr.appendChild(tdInput);
                 tbody.appendChild(tr);
             });
+
+            // Initialize Sortable
+            if (window.Sortable) {
+                new Sortable(tbody, {
+                    handle: '.drag-handle',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    onEnd: async function() {
+                        const rows = Array.from(tbody.querySelectorAll('tr'));
+                        const newOrder = rows.map((tr, index) => ({
+                            id: tr.dataset.id,
+                            position: index + 1
+                        }));
+                        await saveNewSellersOrder(newOrder);
+                    }
+                });
+            }
+        }
+
+        async function saveNewSellersOrder(order) {
+            setSellerSaveStatus('Guardando orden...');
+            try {
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                const res = await fetch('/api/sellers', {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Actor-Name': actor
+                    },
+                    body: JSON.stringify(order)
+                });
+                
+                if (!res.ok) throw new Error('Error al guardar el orden');
+                setSellerSaveStatus('Orden guardado', 'success');
+            } catch (err) {
+                console.error('Error saving new sellers order:', err);
+                setSellerSaveStatus('Error al guardar orden', 'error');
+            }
         }
 
         async function loadSellersManagement() {
@@ -1363,6 +1475,8 @@
         const msgDiscountInput = document.getElementById('msg-discount-input');
         const waMsgFreeInput = document.getElementById('wa-msg-free-input');
         const waMsgDiscountInput = document.getElementById('wa-msg-discount-input');
+        const gameTitleInput = document.getElementById('game-title-input');
+        const gameSubtitleInput = document.getElementById('game-subtitle-input');
 
         showQrBtn.addEventListener('click', () => {
             qrModal.classList.add('active');
@@ -1377,6 +1491,8 @@
             msgDiscountInput.value = 'Cargando...';
             waMsgFreeInput.value = 'Cargando...';
             waMsgDiscountInput.value = 'Cargando...';
+            gameTitleInput.value = 'Cargando...';
+            gameSubtitleInput.value = 'Cargando...';
             editMsgsModal.classList.add('active');
 
             try {
@@ -1387,6 +1503,8 @@
                     msgDiscountInput.value = settings.game_msg_discount || 'Has ganado un {premio} de descuento en tu próximo pedido.\n\nEnvíalo a tu asesor y activa tu descuento ✨';
                     waMsgFreeInput.value = settings.game_wa_msg_free || '¡Hola! Acabo de ganar un POSTRE GRATIS en el Gira y Gana. Mi nombre es {nombre}. ✨';
                     waMsgDiscountInput.value = settings.game_wa_msg_discount || '¡Hola! Acabo de ganar un {premio} en el Gira y Gana. Mi nombre es {nombre}. ✨';
+                    gameTitleInput.value = settings.game_title || '🎉 Gira y Gana 🎉';
+                    gameSubtitleInput.value = settings.game_subtitle || '¡Participa y gana descuentos increíbles o un postre gratis!';
                 }
             } catch (e) {
                 console.error(e);
@@ -1405,7 +1523,9 @@
                     game_msg_free: msgFreeInput.value.trim(),
                     game_msg_discount: msgDiscountInput.value.trim(),
                     game_wa_msg_free: waMsgFreeInput.value.trim(),
-                    game_wa_msg_discount: waMsgDiscountInput.value.trim()
+                    game_wa_msg_discount: waMsgDiscountInput.value.trim(),
+                    game_title: gameTitleInput.value.trim(),
+                    game_subtitle: gameSubtitleInput.value.trim()
                 };
                 const res = await fetch('/api/store-settings', {
                     method: 'POST',
