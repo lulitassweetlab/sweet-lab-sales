@@ -1542,6 +1542,45 @@
         </div>
     </div>
 
+    <!-- Modal Manual Add/Edit Inventory Item -->
+    <div class="modal-overlay" id="manual-inventory-modal">
+        <div class="editor-modal" style="max-width: 500px;">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border);">
+                <h3 id="manual-inv-title" style="font-size: 18px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
+                    <span>📦</span> Agregar Insumo / Materia Prima
+                </h3>
+                <button id="btn-close-manual-inv-modal" style="background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
+            </div>
+
+            <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 700;">Nombre del Insumo / Materia Prima</label>
+                    <input type="text" class="form-input" id="manual-inv-name" list="restaurant-ingredients-list" placeholder="Ej: Pechuga de Pollo, Arroz, Aceite..." style="font-size: 15px; font-weight: 600;">
+                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">💡 Sugerencias automáticas según los ingredientes registrados en tus recetas.</span>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Unidad de Medida</label>
+                        <input type="text" class="form-input" id="manual-inv-unit" placeholder="Ej: g, ml, und, kg, porción" value="g">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Cantidad en Stock</label>
+                        <input type="number" class="form-input" id="manual-inv-stock" placeholder="Ej: 2000" value="1000" min="0" step="any">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btn-cancel-manual-inv-modal">Cancelar</button>
+                <button type="button" class="btn-primary" id="btn-save-manual-inv" style="background: #10b981;">
+                    ✅ Guardar Insumo en Inventario
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Application Script -->
     <script>
         const STORAGE_KEY = 'sweetlab_restaurante_recetas';
@@ -1552,6 +1591,7 @@
         let pairingsMemory = {}; // { recipeId: { pairedRecipeId: count } }
         let inventory = {}; // { [lowercaseName]: { name: string, unit: string, stock: number } }
         let selectedRecipeId = null;
+        let editingRecipeId = null;
         let activeMealFilter = 'Todas';
         let activeDayFilter = 'Todos';
         let activeOrderCategory = 'Todas';
@@ -1804,20 +1844,39 @@
             });
         }
 
-        function promptAddInventoryItem() {
-            const name = prompt('Nombre del insumo / materia prima:');
-            if (!name || !name.trim()) return;
-            const unit = prompt('Unidad de medida (ej: g, ml, und, porción):', 'g') || 'g';
-            const stock = Number(prompt('Cantidad inicial disponible en stock:', '1000')) || 0;
-            
-            const key = name.trim().toLowerCase();
+        function openManualInventoryModal() {
+            updateIngredientsDatalist();
+            document.getElementById('manual-inv-name').value = '';
+            document.getElementById('manual-inv-unit').value = 'g';
+            document.getElementById('manual-inv-stock').value = '1000';
+            document.getElementById('manual-inventory-modal').classList.add('active');
+        }
+
+        function closeManualInventoryModal() {
+            document.getElementById('manual-inventory-modal').classList.remove('active');
+        }
+
+        async function saveManualInventoryItem() {
+            const name = document.getElementById('manual-inv-name').value.trim();
+            if (!name) {
+                alert('Ingresa el nombre del insumo');
+                return;
+            }
+
+            const unit = document.getElementById('manual-inv-unit').value.trim() || 'g';
+            const stock = Number(document.getElementById('manual-inv-stock').value) || 0;
+
+            const key = name.toLowerCase();
             inventory[key] = {
-                name: name.trim(),
-                unit: unit.trim(),
+                name: name,
+                unit: unit,
                 stock: stock
             };
+
             saveInventory();
             renderInventoryTable();
+            closeManualInventoryModal();
+            alert(`✅ ¡Insumo "${name}" (${stock} ${unit}) guardado exitosamente en el inventario!`);
         }
 
         // --- INVOICE SCANNING & IA OCR FUNCTIONS ---
@@ -2897,12 +2956,30 @@
             bindClick('mode-btn-recipes', () => switchMode('recipes'));
             bindClick('mode-btn-inventory', () => switchMode('inventory'));
             bindClick('btn-sync-inventory-recipes', syncInventoryFromRecipes);
-            bindClick('btn-add-inventory-item', promptAddInventoryItem);
+            bindClick('btn-add-inventory-item', openManualInventoryModal);
+            bindClick('btn-close-manual-inv-modal', closeManualInventoryModal);
+            bindClick('btn-cancel-manual-inv-modal', closeManualInventoryModal);
+            bindClick('btn-save-manual-inv', saveManualInventoryItem);
             bindClick('btn-open-scan-modal', openScanModal);
             bindClick('btn-close-scan-modal', closeScanModal);
             bindClick('btn-cancel-scan-modal', closeScanModal);
             bindClick('btn-analyze-invoice', analyzeInvoiceWithAI);
             bindClick('btn-apply-scan-to-inventory', applyScanToInventory);
+
+            const manualNameInput = document.getElementById('manual-inv-name');
+            if (manualNameInput) {
+                manualNameInput.addEventListener('input', (e) => {
+                    const val = e.target.value.trim().toLowerCase();
+                    if (!val) return;
+                    const catalog = getRestaurantIngredientsCatalog();
+                    const unitInput = document.getElementById('manual-inv-unit');
+                    if (catalog[val] && unitInput) {
+                        unitInput.value = catalog[val].unit || 'g';
+                    } else if (inventory[val] && unitInput) {
+                        unitInput.value = inventory[val].unit || 'g';
+                    }
+                });
+            }
 
             const dropBox = document.getElementById('scan-drop-box');
             const scanFileInput = document.getElementById('scan-file-input');
@@ -3105,6 +3182,7 @@
 
         // Open Modal Form
         function openModal(id = null) {
+            editingRecipeId = id;
             updateIngredientsDatalist();
             const modal = document.getElementById('editor-modal');
             const titleEl = document.getElementById('modal-title');
@@ -3154,7 +3232,7 @@
             row.setAttribute('data-is-subrecipe', isSubRecipe ? 'true' : 'false');
 
             // All existing recipes (except the current one being edited) can be used as sub-recipes
-            const availableSubRecipes = (recipes || []).filter(r => r.id !== selectedRecipeId);
+            const availableSubRecipes = (recipes || []).filter(r => r.id !== editingRecipeId);
 
             let baseSelectOptions = '<option value="">-- Elegir Receta Integrada --</option>';
             availableSubRecipes.forEach(b => {
@@ -3234,7 +3312,7 @@
                 if (!val) return;
                 
                 // Automatic check if name matches ANY existing recipe (except current recipe being edited)
-                const recipeMatch = recipes.find(r => r.id !== selectedRecipeId && r.name.trim().toLowerCase() === val);
+                const recipeMatch = recipes.find(r => r.id !== editingRecipeId && r.name.trim().toLowerCase() === val);
                 if (recipeMatch) {
                     typeSelect.value = 'sub';
                     typeSelect.dispatchEvent(new Event('change'));
@@ -3315,8 +3393,8 @@
             });
 
             const modalTitle = document.getElementById('modal-title').textContent;
-            if (modalTitle.includes('Editar') && selectedRecipeId) {
-                const rIdx = recipes.findIndex(rec => rec.id === selectedRecipeId);
+            if (modalTitle.includes('Editar') && editingRecipeId) {
+                const rIdx = recipes.findIndex(rec => rec.id === editingRecipeId);
                 if (rIdx !== -1) {
                     recipes[rIdx] = { ...recipes[rIdx], name, category, mealType, image, servings, ingredients, steps };
                 }
