@@ -1071,7 +1071,7 @@
 
         .ing-input-row {
             display: grid;
-            grid-template-columns: 2fr 1fr 0.9fr 1.2fr 1.3fr auto;
+            grid-template-columns: 1.3fr 2fr 1fr 0.9fr 1fr 1.2fr auto;
             gap: 8px;
             align-items: center;
             margin-bottom: 8px;
@@ -1195,9 +1195,20 @@
         <div class="recipes-view" id="view-recipes" style="display: none;">
             <aside class="sidebar">
                 <div class="sidebar-header">
-                    <button class="btn-create" id="btn-new-recipe">
-                        <span>✨</span> Nueva Receta
-                    </button>
+                    <div style="display:flex; gap:8px; width:100%;">
+                        <button class="btn-create" id="btn-new-recipe" style="flex:1;">
+                            <span>✨</span> Nueva Receta
+                        </button>
+                        <button type="button" class="btn-secondary" id="btn-toggle-select-mode" style="padding: 8px 12px; font-weight:700; font-size:13px; white-space:nowrap; border-radius:var(--radius-sm);" title="Activar/desactivar modo selección múltiple">
+                            ☑️ Seleccionar
+                        </button>
+                    </div>
+                    <div id="bulk-actions-bar" style="display: none; align-items: center; justify-content: space-between; background: #fef2f2; border: 1px solid #fca5a5; padding: 8px 12px; border-radius: var(--radius-sm); width: 100%;">
+                        <span id="bulk-selected-count" style="font-size: 13px; font-weight: 700; color: #991b1b;">0 seleccionadas</span>
+                        <button type="button" id="btn-bulk-delete" class="btn-delete" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; background: #dc2626; color: white; border: none; cursor: pointer; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
                     <div class="search-container">
                         <span class="search-icon">🔍</span>
                         <input type="text" class="search-input" id="search-input" placeholder="Buscar por nombre...">
@@ -1422,6 +1433,80 @@
         let activeDayFilter = 'Todos';
         let activeOrderCategory = 'Todas';
         let currentMode = 'order'; // 'order' or 'recipes'
+
+        // Bulk Selection State
+        let isSelectModeActive = false;
+        let selectedRecipeIdsForBulk = new Set();
+
+        function toggleSelectMode() {
+            isSelectModeActive = !isSelectModeActive;
+            selectedRecipeIdsForBulk.clear();
+            const btnToggle = document.getElementById('btn-toggle-select-mode');
+            const bulkBar = document.getElementById('bulk-actions-bar');
+            
+            if (isSelectModeActive) {
+                if (btnToggle) {
+                    btnToggle.style.backgroundColor = '#dbeafe';
+                    btnToggle.style.color = '#1e40af';
+                    btnToggle.textContent = '✕ Cancelar';
+                }
+                if (bulkBar) bulkBar.style.display = 'flex';
+            } else {
+                if (btnToggle) {
+                    btnToggle.style.backgroundColor = '';
+                    btnToggle.style.color = '';
+                    btnToggle.textContent = '☑️ Seleccionar';
+                }
+                if (bulkBar) bulkBar.style.display = 'none';
+            }
+            updateBulkCountUI();
+            renderRecipesList();
+        }
+
+        function toggleRecipeSelection(id, e) {
+            if (e) e.stopPropagation();
+            if (selectedRecipeIdsForBulk.has(id)) {
+                selectedRecipeIdsForBulk.delete(id);
+            } else {
+                selectedRecipeIdsForBulk.add(id);
+            }
+            updateBulkCountUI();
+            renderRecipesList();
+        }
+
+        function updateBulkCountUI() {
+            const countSpan = document.getElementById('bulk-selected-count');
+            if (countSpan) {
+                countSpan.textContent = `${selectedRecipeIdsForBulk.size} seleccionada(s)`;
+            }
+        }
+
+        async function deleteSelectedRecipes() {
+            if (selectedRecipeIdsForBulk.size === 0) {
+                alert('Selecciona al menos una receta para eliminar.');
+                return;
+            }
+            const count = selectedRecipeIdsForBulk.size;
+            if (!confirm(`¿Estás seguro de eliminar las ${count} receta(s) seleccionadas?`)) return;
+
+            const idsToDelete = Array.from(selectedRecipeIdsForBulk);
+            recipes = recipes.filter(r => !selectedRecipeIdsForBulk.has(r.id));
+            if (selectedRecipeId && selectedRecipeIdsForBulk.has(selectedRecipeId)) {
+                selectedRecipeId = null;
+            }
+            selectedRecipeIdsForBulk.clear();
+            saveRecipes();
+
+            // Execute API DELETE requests
+            const deletePromises = idsToDelete.map(id => {
+                return fetch('/api/restaurant-recipes?id=' + encodeURIComponent(id), { method: 'DELETE' }).catch(err => console.error(err));
+            });
+            await Promise.all(deletePromises);
+
+            updateBulkCountUI();
+            renderRecipesList();
+            selectRecipe(selectedRecipeId);
+        }
 
         function loadPairingsMemory() {
             try {
@@ -2062,12 +2147,20 @@
 
             filtered.forEach(r => {
                 const item = document.createElement('div');
-                item.className = `recipe-card-item ${r.id === selectedRecipeId ? 'active' : ''}`;
+                const isSelectedForBulk = selectedRecipeIdsForBulk.has(r.id);
+                item.className = `recipe-card-item ${r.id === selectedRecipeId ? 'active' : ''} ${isSelectedForBulk ? 'selected-bulk' : ''}`;
                 
                 const totalCost = getItemTotalCost(r);
                 const mealIcon = r.mealType === 'Desayuno' ? '🍳' : r.mealType === 'Refrigerio' ? '☕' : r.mealType === 'Almuerzo' ? '🍲' : r.mealType === 'Cena' ? '🌙' : '🍽️';
 
+                const checkboxHtml = isSelectModeActive ? `
+                    <div style="display:flex; align-items:center; padding-left:10px;">
+                        <input type="checkbox" class="bulk-chk" ${isSelectedForBulk ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--primary); cursor:pointer;">
+                    </div>
+                ` : '';
+
                 item.innerHTML = `
+                    ${checkboxHtml}
                     <img src="${r.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=300&q=80'}" class="recipe-item-thumb" alt="${r.name}">
                     <div class="recipe-item-content">
                         <div class="recipe-item-title">${escapeHtml(r.name)}</div>
@@ -2079,7 +2172,13 @@
                     </div>
                 `;
 
-                item.addEventListener('click', () => selectRecipe(r.id));
+                if (isSelectModeActive) {
+                    item.addEventListener('click', (e) => toggleRecipeSelection(r.id, e));
+                    const chk = item.querySelector('.bulk-chk');
+                    if (chk) chk.addEventListener('click', (e) => toggleRecipeSelection(r.id, e));
+                } else {
+                    item.addEventListener('click', () => selectRecipe(r.id));
+                }
                 listEl.appendChild(item);
             });
         }
@@ -2247,6 +2346,10 @@
                     renderRecipesList();
                 });
             });
+
+            // Bulk Selection Actions
+            bindClick('btn-toggle-select-mode', toggleSelectMode);
+            bindClick('btn-bulk-delete', deleteSelectedRecipes);
 
             // Modal Trigger Actions
             bindClick('btn-new-recipe', () => openModal());
@@ -2418,36 +2521,92 @@
             row.setAttribute('data-subrecipe-id', subRecipeId || '');
             row.setAttribute('data-is-subrecipe', isSubRecipe ? 'true' : 'false');
 
+            const baseRecipes = recipes.filter(r => r.isBaseRecipe);
+
+            let baseSelectOptions = '<option value="">-- Elegir Sub-Receta --</option>';
+            baseRecipes.forEach(b => {
+                const uCost = getSubRecipeUnitCost(b.id);
+                baseSelectOptions += `<option value="${b.id}" ${b.id === subRecipeId ? 'selected' : ''}>🧪 ${escapeHtml(b.name)} ($${uCost.toLocaleString('es-CO')}/porción)</option>`;
+            });
+
             row.innerHTML = `
-                <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Nombre ingrediente o sub-receta" value="${escapeHtml(name)}">
+                <select class="form-select ing-type-select" style="font-weight:700; border-radius:var(--radius-sm);">
+                    <option value="raw" ${!isSubRecipe ? 'selected' : ''}>📦 Insumo</option>
+                    <option value="sub" ${isSubRecipe ? 'selected' : ''}>🧪 Sub-Receta</option>
+                </select>
+                <div class="ing-name-wrap" style="display:flex; flex:1; min-width:0;">
+                    <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Nombre ingrediente" value="${escapeHtml(name)}" style="${isSubRecipe ? 'display:none;' : ''}">
+                    <select class="form-select ing-sub-select" style="${isSubRecipe ? '' : 'display:none;'} font-weight:600;">
+                        ${baseSelectOptions}
+                    </select>
+                </div>
                 <input type="number" class="form-input ing-r-qty" placeholder="Cant. Receta" value="${recipeQty}">
-                <input type="text" class="form-input ing-unit" placeholder="Unidad" value="${escapeHtml(unit)}">
-                <input type="number" class="form-input ing-p-qty" placeholder="Cant. Paquete" value="${pkgQty}">
-                <input type="number" class="form-input ing-p-cost" placeholder="Costo Paquete ($)" value="${pkgCost}">
+                <input type="text" class="form-input ing-unit" placeholder="Unidad" value="${escapeHtml(isSubRecipe ? 'porción' : unit)}">
+                <input type="number" class="form-input ing-p-qty" placeholder="Cant. Paq." value="${isSubRecipe ? 1 : pkgQty}">
+                <input type="number" class="form-input ing-p-cost" placeholder="Costo Paq. ($)" value="${pkgCost}">
                 <button type="button" class="btn-remove-row">✕</button>
             `;
 
+            const typeSelect = row.querySelector('.ing-type-select');
             const nameInput = row.querySelector('.ing-name');
+            const subSelect = row.querySelector('.ing-sub-select');
             const unitInput = row.querySelector('.ing-unit');
             const pQtyInput = row.querySelector('.ing-p-qty');
             const pCostInput = row.querySelector('.ing-p-cost');
 
+            typeSelect.addEventListener('change', () => {
+                const isSub = typeSelect.value === 'sub';
+                row.setAttribute('data-is-subrecipe', isSub ? 'true' : 'false');
+                if (isSub) {
+                    nameInput.style.display = 'none';
+                    subSelect.style.display = 'block';
+                    unitInput.value = 'porción';
+                    pQtyInput.value = 1;
+                    if (subSelect.value) {
+                        const subMatch = recipes.find(r => r.id === subSelect.value);
+                        if (subMatch) {
+                            row.setAttribute('data-subrecipe-id', subMatch.id);
+                            pCostInput.value = getSubRecipeUnitCost(subMatch.id);
+                            nameInput.value = subMatch.name;
+                        }
+                    }
+                } else {
+                    nameInput.style.display = 'block';
+                    subSelect.style.display = 'none';
+                    row.setAttribute('data-subrecipe-id', '');
+                    if (unitInput.value === 'porción') unitInput.value = 'g';
+                }
+            });
+
+            subSelect.addEventListener('change', () => {
+                const subId = subSelect.value;
+                if (subId) {
+                    const subMatch = recipes.find(r => r.id === subId);
+                    if (subMatch) {
+                        row.setAttribute('data-subrecipe-id', subMatch.id);
+                        row.setAttribute('data-is-subrecipe', 'true');
+                        nameInput.value = subMatch.name;
+                        unitInput.value = 'porción';
+                        pQtyInput.value = 1;
+                        pCostInput.value = getSubRecipeUnitCost(subMatch.id);
+                    }
+                } else {
+                    row.setAttribute('data-subrecipe-id', '');
+                }
+            });
+
             nameInput.addEventListener('input', () => {
+                if (typeSelect.value === 'sub') return;
                 const val = nameInput.value.trim().toLowerCase();
                 
-                // Check if matching a Sub-Recipe (isBaseRecipe = true)
+                // Check if matching a Sub-Recipe name directly
                 const baseMatch = recipes.find(r => r.isBaseRecipe && r.name.trim().toLowerCase() === val);
                 if (baseMatch) {
-                    row.setAttribute('data-is-subrecipe', 'true');
-                    row.setAttribute('data-subrecipe-id', baseMatch.id);
-                    if (unitInput && !unitInput.value) unitInput.value = 'porción';
-                    const unitCost = getSubRecipeUnitCost(baseMatch.id);
-                    if (pQtyInput) pQtyInput.value = 1;
-                    if (pCostInput) pCostInput.value = unitCost;
+                    typeSelect.value = 'sub';
+                    typeSelect.dispatchEvent(new Event('change'));
+                    subSelect.value = baseMatch.id;
+                    subSelect.dispatchEvent(new Event('change'));
                     return;
-                } else {
-                    row.setAttribute('data-is-subrecipe', 'false');
-                    row.setAttribute('data-subrecipe-id', '');
                 }
 
                 // Check in raw ingredients catalog
@@ -2491,14 +2650,25 @@
 
             const ingredients = [];
             document.querySelectorAll('#form-ing-list .ing-input-row').forEach(row => {
-                const ingName = row.querySelector('.ing-name').value.trim();
+                const typeSelect = row.querySelector('.ing-type-select');
+                const isSubRecipe = typeSelect ? (typeSelect.value === 'sub') : (row.getAttribute('data-is-subrecipe') === 'true');
+                
+                let ingName = '';
+                let subRecipeId = '';
+
+                if (isSubRecipe) {
+                    const subSelect = row.querySelector('.ing-sub-select');
+                    subRecipeId = (subSelect && subSelect.value) ? subSelect.value : (row.getAttribute('data-subrecipe-id') || '');
+                    const subObj = recipes.find(r => r.id === subRecipeId);
+                    ingName = subObj ? subObj.name : row.querySelector('.ing-name').value.trim();
+                } else {
+                    ingName = row.querySelector('.ing-name').value.trim();
+                }
+
                 const recipeQty = Number(row.querySelector('.ing-r-qty').value) || 0;
-                const unit = row.querySelector('.ing-unit').value.trim() || 'g';
+                const unit = row.querySelector('.ing-unit').value.trim() || (isSubRecipe ? 'porción' : 'g');
                 const pkgQty = Number(row.querySelector('.ing-p-qty').value) || recipeQty || 1;
                 const pkgCost = Number(row.querySelector('.ing-p-cost').value) || 0;
-
-                const isSubRecipe = row.getAttribute('data-is-subrecipe') === 'true';
-                const subRecipeId = row.getAttribute('data-subrecipe-id') || '';
 
                 if (ingName) {
                     ingredients.push({ name: ingName, recipeQty, pkgQty, unit, pkgCost, isSubRecipe, subRecipeId });
