@@ -18,6 +18,7 @@ const KitchenManager = {
         }
         console.log("👨‍🍳 Initializing Kitchen Manager...");
         this.bindEvents();
+        this.setupSecurity();
         
         const hasAccess = await this.checkAccess();
         if (hasAccess) {
@@ -44,6 +45,7 @@ const KitchenManager = {
             clearInterval(this._syncInterval);
             this._syncInterval = null;
         }
+        this.stopLockPolling();
     },
 
     async syncActiveTimersSilently() {
@@ -217,6 +219,8 @@ const KitchenManager = {
                         this.startIntervals();
                     } else {
                         window.notify.error("El acceso aún está cerrado.");
+                        // Restart the 2-minute polling window
+                        this.startLockPolling();
                     }
                 } catch (err) {
                     console.error("Error rechecking access:", err);
@@ -2132,6 +2136,7 @@ const KitchenManager = {
             if (goHomeBtn) {
                 goHomeBtn.textContent = 'Inicio';
             }
+            this.stopLockPolling();
             return true;
         }
 
@@ -2160,13 +2165,16 @@ const KitchenManager = {
                     msgEl.textContent = `Próxima fecha de producción: ${nextProduction}`;
                 }
                 
-                // Clear any running intervals so no background requests are sent
+                // Clear active kitchen intervals
                 this.stopIntervals();
+                // Start the 2-minute auto-unlock polling window
+                this.startLockPolling();
                 return false;
             } else {
                 // Access approved, show active content and hide blocked screen
                 document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
                 document.getElementById('kitchen-active-content')?.classList.remove('hidden');
+                this.stopLockPolling();
                 return true;
             }
         } catch (e) {
@@ -2174,6 +2182,57 @@ const KitchenManager = {
             // Default to let it load if settings API fails
             return true;
         }
+    },
+
+    startLockPolling() {
+        this.stopLockPolling(); // Clear any existing intervals/timeouts
+        console.log("🔐 Starting production access lock polling (10s checks, 2m timeout)...");
+        
+        // 1. Setup the 10-second polling interval
+        this._lockPollingInterval = setInterval(async () => {
+            try {
+                const settings = await window.api('GET', '/api/store-settings');
+                const approved = settings.production_access_approved === 'true';
+                const nextProduction = settings.next_production_datetime || 'Pendiente de confirmación';
+                
+                const msgEl = document.getElementById('kitchen-next-production-msg');
+                if (msgEl) {
+                    msgEl.textContent = `Próxima fecha de producción: ${nextProduction}`;
+                }
+
+                if (approved) {
+                    console.log("🔓 Production access approved! Unlocking dynamically...");
+                    this.stopLockPolling();
+                    document.getElementById('kitchen-blocked-content')?.classList.add('hidden');
+                    document.getElementById('kitchen-active-content')?.classList.remove('hidden');
+                    
+                    // Reload active kitchen data
+                    await this.loadData();
+                    // Resume normal sync checks
+                    this.startIntervals();
+                }
+            } catch (err) {
+                console.error("Lock polling error:", err);
+            }
+        }, 10000); // Check every 10 seconds
+
+        // 2. Setup the 2-minute (120,000 ms) auto-expiration timeout
+        this._lockPollingTimeout = setTimeout(() => {
+            console.log("⏰ 2-minute wait screen timeout reached. Stopping background polling...");
+            this.stopLockPolling();
+        }, 120000);
+    },
+
+    stopLockPolling() {
+        if (this._lockPollingInterval) {
+            clearInterval(this._lockPollingInterval);
+            this._lockPollingInterval = null;
+        }
+        if (this._lockPollingTimeout) {
+            clearTimeout(this._lockPollingTimeout);
+            this._lockPollingTimeout = null;
+        }
+        console.log("🔓 Stopped production access lock polling.");
     },
 
     async loadAdminControls() {
@@ -2202,6 +2261,51 @@ const KitchenManager = {
         } catch (err) {
             console.error("Error loading admin production access controls:", err);
         }
+    },
+
+    setupSecurity() {
+        // 1. Add style tag for security features (blur)
+        if (!document.getElementById('kitchen-security-styles')) {
+            const style = document.createElement('style');
+            style.id = 'kitchen-security-styles';
+            style.textContent = `
+                .kitchen-blur-active {
+                    filter: blur(15px) grayscale(100%);
+                    pointer-events: none;
+                    user-select: none;
+                    transition: filter 0.15s ease-out;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // 2. Setup blur on focus loss listeners
+        const handleBlur = () => {
+            const activeContent = document.getElementById('kitchen-active-content');
+            if (activeContent) {
+                activeContent.classList.add('kitchen-blur-active');
+            }
+        };
+
+        const handleFocus = () => {
+            const activeContent = document.getElementById('kitchen-active-content');
+            if (activeContent) {
+                activeContent.classList.remove('kitchen-blur-active');
+            }
+        };
+
+        // Window events
+        window.addEventListener('blur', handleBlur);
+        window.addEventListener('focus', handleFocus);
+        
+        // Tab visibility events
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                handleBlur();
+            } else {
+                handleFocus();
+            }
+        });
     }
 };
 

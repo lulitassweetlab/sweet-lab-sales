@@ -1074,7 +1074,8 @@ async function fetchWithVersion(url, options = {}) {
 	// Check for version mismatch or forced logout
 	if (res.status === 426 || res.status === 403) {
 		try {
-			const data = await res.json();
+			const clone = res.clone();
+			const data = await clone.json();
 			if (data.action === 'force_reload' || data.action === 'force_logout') {
 				forceLogoutAndReload(data.message || 'Tu aplicación está desactualizada');
 				throw new Error('force_reload'); // Prevent further execution
@@ -1102,7 +1103,8 @@ async function api(method, url, body) {
 	// Check for version mismatch or forced logout
 	if (res.status === 426 || res.status === 403) {
 		try {
-			const data = await res.json();
+			const clone = res.clone();
+			const data = await clone.json();
 			if (data.action === 'force_reload' || data.action === 'force_logout') {
 				forceLogoutAndReload(data.message || 'Tu aplicación está desactualizada');
 				return; // Prevent further execution
@@ -1112,6 +1114,15 @@ async function api(method, url, body) {
 
 	if (!res.ok) {
 		const text = await res.text();
+		if (text.includes('production_access_denied') && window.KitchenManager) {
+			console.warn("⚠️ Production access was revoked by admin. Locking kitchen view immediately...");
+			try {
+				window.KitchenManager.stopIntervals();
+				window.KitchenManager.checkAccess();
+			} catch (err) {
+				console.error("Error invoking KitchenManager lock on access denial:", err);
+			}
+		}
 		throw new Error(`API ${method} ${url} failed: ${res.status} ${text}`);
 	}
 	return res.json();
