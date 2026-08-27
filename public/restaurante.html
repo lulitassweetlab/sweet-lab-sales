@@ -1330,11 +1330,6 @@
                     <input type="text" class="form-input" id="form-name" placeholder="Ej: Pechuga a la Plancha o Arroz Blanco preparado">
                 </div>
 
-                <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; background: var(--primary-light); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
-                    <input type="checkbox" id="form-is-base-recipe" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
-                    <label for="form-is-base-recipe" class="form-label" style="cursor: pointer; margin: 0; font-size: 13px;">🧪 Es una Preparación Base / Sub-Receta Reutilizable (ej: Arroz preparado, Vinagreta, Salsa)</label>
-                </div>
-
                 <div class="form-grid-2">
                     <div class="form-group">
                         <label class="form-label">Categoría de Menú</label>
@@ -2461,11 +2456,22 @@
             const datalist = document.getElementById('restaurant-ingredients-list');
             if (!datalist) return;
             datalist.innerHTML = '';
+
+            // Add all existing recipes to datalist suggestions
+            (recipes || []).forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.name;
+                datalist.appendChild(opt);
+            });
+
+            // Add raw ingredients from catalog
             const catalog = getRestaurantIngredientsCatalog();
             Object.values(catalog).forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item.name;
-                datalist.appendChild(opt);
+                if (!recipes.some(r => r.name.toLowerCase().trim() === item.name.toLowerCase())) {
+                    const opt = document.createElement('option');
+                    opt.value = item.name;
+                    datalist.appendChild(opt);
+                }
             });
         }
 
@@ -2482,7 +2488,6 @@
                 const r = recipes.find(rec => rec.id === id);
                 titleEl.textContent = 'Editar Ítem / Receta';
                 document.getElementById('form-name').value = r.name || '';
-                document.getElementById('form-is-base-recipe').checked = r.isBaseRecipe || false;
                 document.getElementById('form-category').value = r.category || 'Comida';
                 document.getElementById('form-meal').value = r.mealType || 'Cualquiera';
                 document.getElementById('form-image').value = r.image || '';
@@ -2496,7 +2501,6 @@
             } else {
                 titleEl.textContent = 'Nueva Receta / Ítem';
                 document.getElementById('form-name').value = '';
-                document.getElementById('form-is-base-recipe').checked = false;
                 document.getElementById('form-category').value = 'Comida';
                 document.getElementById('form-meal').value = 'Cualquiera';
                 document.getElementById('form-image').value = '';
@@ -2521,10 +2525,11 @@
             row.setAttribute('data-subrecipe-id', subRecipeId || '');
             row.setAttribute('data-is-subrecipe', isSubRecipe ? 'true' : 'false');
 
-            const baseRecipes = recipes.filter(r => r.isBaseRecipe);
+            // All existing recipes (except the current one being edited) can be used as sub-recipes
+            const availableSubRecipes = (recipes || []).filter(r => r.id !== selectedRecipeId);
 
-            let baseSelectOptions = '<option value="">-- Elegir Sub-Receta --</option>';
-            baseRecipes.forEach(b => {
+            let baseSelectOptions = '<option value="">-- Elegir Receta Integrada --</option>';
+            availableSubRecipes.forEach(b => {
                 const uCost = getSubRecipeUnitCost(b.id);
                 baseSelectOptions += `<option value="${b.id}" ${b.id === subRecipeId ? 'selected' : ''}>🧪 ${escapeHtml(b.name)} ($${uCost.toLocaleString('es-CO')}/porción)</option>`;
             });
@@ -2532,10 +2537,10 @@
             row.innerHTML = `
                 <select class="form-select ing-type-select" style="font-weight:700; border-radius:var(--radius-sm);">
                     <option value="raw" ${!isSubRecipe ? 'selected' : ''}>📦 Insumo</option>
-                    <option value="sub" ${isSubRecipe ? 'selected' : ''}>🧪 Sub-Receta</option>
+                    <option value="sub" ${isSubRecipe ? 'selected' : ''}>🧪 Receta</option>
                 </select>
                 <div class="ing-name-wrap" style="display:flex; flex:1; min-width:0;">
-                    <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Nombre ingrediente" value="${escapeHtml(name)}" style="${isSubRecipe ? 'display:none;' : ''}">
+                    <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Escribe ingrediente o receta..." value="${escapeHtml(name)}" style="${isSubRecipe ? 'display:none;' : ''}">
                     <select class="form-select ing-sub-select" style="${isSubRecipe ? '' : 'display:none;'} font-weight:600;">
                         ${baseSelectOptions}
                     </select>
@@ -2598,13 +2603,14 @@
             nameInput.addEventListener('input', () => {
                 if (typeSelect.value === 'sub') return;
                 const val = nameInput.value.trim().toLowerCase();
+                if (!val) return;
                 
-                // Check if matching a Sub-Recipe name directly
-                const baseMatch = recipes.find(r => r.isBaseRecipe && r.name.trim().toLowerCase() === val);
-                if (baseMatch) {
+                // Automatic check if name matches ANY existing recipe (except current recipe being edited)
+                const recipeMatch = recipes.find(r => r.id !== selectedRecipeId && r.name.trim().toLowerCase() === val);
+                if (recipeMatch) {
                     typeSelect.value = 'sub';
                     typeSelect.dispatchEvent(new Event('change'));
-                    subSelect.value = baseMatch.id;
+                    subSelect.value = recipeMatch.id;
                     subSelect.dispatchEvent(new Event('change'));
                     return;
                 }
@@ -2642,7 +2648,6 @@
                 return;
             }
 
-            const isBaseRecipe = document.getElementById('form-is-base-recipe').checked;
             const category = document.getElementById('form-category').value;
             const mealType = document.getElementById('form-meal').value;
             const image = document.getElementById('form-image').value.trim();
@@ -2685,11 +2690,11 @@
             if (modalTitle.includes('Editar') && selectedRecipeId) {
                 const rIdx = recipes.findIndex(rec => rec.id === selectedRecipeId);
                 if (rIdx !== -1) {
-                    recipes[rIdx] = { ...recipes[rIdx], name, isBaseRecipe, category, mealType, image, servings, ingredients, steps };
+                    recipes[rIdx] = { ...recipes[rIdx], name, category, mealType, image, servings, ingredients, steps };
                 }
             } else {
                 const newId = 'receta_' + Date.now();
-                recipes.unshift({ id: newId, name, isBaseRecipe, category, mealType, image, servings, ingredients, steps });
+                recipes.unshift({ id: newId, name, category, mealType, image, servings, ingredients, steps });
                 selectedRecipeId = newId;
             }
 
