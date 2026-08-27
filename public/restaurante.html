@@ -1559,15 +1559,20 @@
                     <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">💡 Sugerencias automáticas según los ingredientes registrados en tus recetas.</span>
                 </div>
 
-                <div class="form-grid-2">
+                <div class="form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px;">
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Unidad de Medida</label>
-                        <input type="text" class="form-input" id="manual-inv-unit" placeholder="Ej: g, ml, und, kg, porción" value="g">
+                        <label class="form-label" style="font-weight: 700;">Unidad</label>
+                        <input type="text" class="form-input" id="manual-inv-unit" placeholder="Ej: g, ml, und" value="g">
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Cantidad en Stock</label>
+                        <label class="form-label" style="font-weight: 700;">Cantidad</label>
                         <input type="number" class="form-input" id="manual-inv-stock" placeholder="Ej: 2000" value="1000" min="0" step="any">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Costo Compra ($)</label>
+                        <input type="number" class="form-input" id="manual-inv-cost" placeholder="Ej: 15000" value="0" min="0">
                     </div>
                 </div>
             </div>
@@ -1849,6 +1854,8 @@
             document.getElementById('manual-inv-name').value = '';
             document.getElementById('manual-inv-unit').value = 'g';
             document.getElementById('manual-inv-stock').value = '1000';
+            const costEl = document.getElementById('manual-inv-cost');
+            if (costEl) costEl.value = '0';
             document.getElementById('manual-inventory-modal').classList.add('active');
         }
 
@@ -1865,18 +1872,39 @@
 
             const unit = document.getElementById('manual-inv-unit').value.trim() || 'g';
             const stock = Number(document.getElementById('manual-inv-stock').value) || 0;
+            const cost = Number(document.getElementById('manual-inv-cost')?.value) || 0;
 
             const key = name.toLowerCase();
-            inventory[key] = {
-                name: name,
-                unit: unit,
-                stock: stock
-            };
+            if (inventory[key]) {
+                inventory[key].stock = (Number(inventory[key].stock) || 0) + stock;
+            } else {
+                inventory[key] = { name: name, unit: unit, stock: stock };
+            }
 
             saveInventory();
+
+            // Record purchase entry in cloud if cost > 0
+            if (cost > 0) {
+                try {
+                    await fetch('/api/restaurant-inventory', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'purchase',
+                            supplier_name: 'Compra Manual',
+                            total_cost: cost,
+                            items: [{ name, qty: stock, unit, cost }]
+                        })
+                    });
+                } catch (err) {
+                    console.error('[Restaurante] Error registrando compra manual en Neon DB:', err);
+                }
+            }
+
             renderInventoryTable();
             closeManualInventoryModal();
-            alert(`✅ ¡Insumo "${name}" (${stock} ${unit}) guardado exitosamente en el inventario!`);
+            const msgCost = cost > 0 ? ` con costo de $${cost.toLocaleString('es-CO')}` : '';
+            alert(`✅ ¡Insumo "${name}" (${stock} ${unit})${msgCost} guardado e ingresado al inventario!`);
         }
 
         // --- INVOICE SCANNING & IA OCR FUNCTIONS ---
@@ -2740,6 +2768,28 @@
             }
         }
 
+        function deductRecipeIngredientsFromInventory(recipe, multiplier = 1, visited = new Set()) {
+            if (!recipe || !recipe.ingredients) return;
+            if (recipe.id && visited.has(recipe.id)) return;
+            if (recipe.id) visited.add(recipe.id);
+
+            (recipe.ingredients || []).forEach(ing => {
+                if (ing.isSubRecipe && ing.subRecipeId) {
+                    const subMatch = recipes.find(r => r.id === ing.subRecipeId);
+                    if (subMatch) {
+                        const subQty = Number(ing.recipeQty || ing.qty) || 1;
+                        deductRecipeIngredientsFromInventory(subMatch, subQty * multiplier, new Set(visited));
+                    }
+                } else {
+                    const key = (ing.name || '').trim().toLowerCase();
+                    const reqQty = (Number(ing.recipeQty || ing.qty) || 0) * multiplier;
+                    if (key && inventory[key]) {
+                        inventory[key].stock = Math.max(0, (Number(inventory[key].stock) || 0) - reqQty);
+                    }
+                }
+            });
+        }
+
         function submitOrder() {
             const ids = Object.keys(cart);
             if (ids.length === 0) {
@@ -2760,13 +2810,20 @@
                 const cost = getItemTotalCost(item) * qty;
                 total += cost;
                 summary += `• ${qty}x ${item.name} - $${cost.toLocaleString('es-CO')}\n`;
+
+                // Deduct ingredients automatically from stock!
+                deductRecipeIngredientsFromInventory(item, qty);
             });
 
-            summary += `\nTOTAL PEDIDO: $${total.toLocaleString('es-CO')}\n\n💡 El sistema ha aprendido esta combinación para mejorar sus recomendaciones futuras.`;
+            // Save updated stock to Neon DB cloud!
+            saveInventory();
+
+            summary += `\nTOTAL PEDIDO: $${total.toLocaleString('es-CO')}\n\n📦 Insumos descontados del inventario en vivo.\n💡 El sistema ha aprendido esta combinación para recomendaciones futuras.`;
             alert(summary);
 
             cart = {};
             renderCart();
+            renderOrderingMenu();
         }
 
         // --- MODE 2: INTERNAL RECIPES RENDER ---
