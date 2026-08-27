@@ -1126,7 +1126,7 @@
                 👩‍🍳 Libro de Recetas
             </button>
             <button class="mode-btn" id="mode-btn-inventory">
-                📦 Inventario Insumos
+                📦 Inventario
             </button>
         </div>
 
@@ -1328,11 +1328,8 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
                     <div>
                         <h2 style="font-size: 22px; color: var(--navy-dark); display: flex; align-items: center; gap: 10px;">
-                            <span>📦</span> Inventario de Insumos del Restaurante
+                            <span>📦</span> Inventario
                         </h2>
-                        <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
-                            Control de stock de materias primas e insumos para determinar platos disponibles en tiempo real.
-                        </p>
                     </div>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button type="button" class="btn-primary" id="btn-open-scan-modal" style="background: #0284c7; font-weight: 700; padding: 10px 16px; border: none; border-radius: var(--radius-sm); color: white; cursor: pointer;">
@@ -1360,9 +1357,9 @@
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; font-weight: 800; text-transform: uppercase;">
                                 <th style="padding: 14px 20px;">Nombre Insumo / Materia Prima</th>
-                                <th style="padding: 14px 20px;">Unidad</th>
                                 <th style="padding: 14px 20px;">Stock Disponible</th>
-                                <th style="padding: 14px 20px;">Estado Stock</th>
+                                <th style="padding: 14px 20px;">Unidad</th>
+                                <th style="padding: 14px 20px;">Estado</th>
                                 <th style="padding: 14px 20px; text-align: right;">Acciones</th>
                             </tr>
                         </thead>
@@ -1809,10 +1806,10 @@
 
                 tr.innerHTML = `
                     <td style="padding:14px 20px; font-weight:700; color:var(--text);">${escapeHtml(item.name)}</td>
-                    <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
                     <td style="padding:14px 20px;">
                         <input type="number" class="form-input stock-input" value="${item.stock}" style="width:110px; padding:6px 10px; font-weight:700;" min="0">
                     </td>
+                    <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
                     <td style="padding:14px 20px;">
                         <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; ${isAvailable ? 'background:#ecfdf5; color:#047857;' : 'background:#fef2f2; color:#b91c1c;'}">
                             ${isAvailable ? '🟢 Disponible' : '🔴 Agotado'}
@@ -2798,13 +2795,13 @@
 
             msgEl.textContent = message;
             toast.style.opacity = '1';
-            toast.style.transform = 'translateX(-50%) translateY(0)';
+            toast.style.transform = 'translate(-50%, -50%) scale(1)';
             toast.style.pointerEvents = 'auto';
 
             if (toastTimeout) clearTimeout(toastTimeout);
             toastTimeout = setTimeout(() => {
                 toast.style.opacity = '0';
-                toast.style.transform = 'translateX(-50%) translateY(-20px)';
+                toast.style.transform = 'translate(-50%, -50%) scale(0.85)';
                 toast.style.pointerEvents = 'none';
             }, duration);
         }
@@ -3521,9 +3518,9 @@
             switchMode('order');
         });
     </script>
-    <!-- Floating Popover Toast Notification -->
-    <div id="toast-popover" style="position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #059669; color: white; padding: 14px 28px; border-radius: 30px; font-weight: 800; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 10px; z-index: 99999; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
-        <span style="font-size: 20px;">🎉</span>
+    <!-- Floating Popover Toast Notification (Center of screen, Navy Blue, 90% opacity, larger font) -->
+    <div id="toast-popover" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); background: rgba(15, 23, 42, 0.90); backdrop-filter: blur(10px); color: white; padding: 22px 44px; border-radius: 40px; font-weight: 800; font-size: 22px; box-shadow: 0 20px 40px -5px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 14px; z-index: 99999; opacity: 0; pointer-events: none; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); border: 1px solid rgba(255,255,255,0.15);">
+        <span style="font-size: 28px;">🎉</span>
         <span id="toast-message">¡Pedido exitoso!</span>
     </div>
 
