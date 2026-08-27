@@ -1125,6 +1125,9 @@
             <button class="mode-btn" id="mode-btn-recipes">
                 👩‍🍳 Libro de Recetas
             </button>
+            <button class="mode-btn" id="mode-btn-inventory">
+                📦 Inventario Insumos
+            </button>
         </div>
 
         <div class="header-actions">
@@ -1150,6 +1153,9 @@
                     <button class="cat-pill" data-cat="Bebida">🥤 Bebidas</button>
                     <button class="cat-pill" data-cat="Postre">🍰 Postres</button>
                     <button class="cat-pill" data-cat="Adicionales">🍟 Adicionales</button>
+                    <button type="button" class="cat-pill pill-disponibles" id="btn-filter-disponibles" style="background: #ecfdf5; border-color: #6ee7b7; color: #047857; font-weight: 800; transition: var(--transition);">
+                        💡 Disponibles
+                    </button>
                 </div>
 
                 <!-- Menu Cards Grid -->
@@ -1315,6 +1321,55 @@
                 </div>
             </main>
         </div>
+
+        <!-- MODE 3: INVENTORY VIEW -->
+        <div class="inventory-view" id="view-inventory" style="display: none; flex: 1; height: 100%; overflow: hidden;">
+            <div style="flex: 1; display: flex; flex-direction: column; padding: 32px; gap: 24px; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <div>
+                        <h2 style="font-size: 22px; color: var(--navy-dark); display: flex; align-items: center; gap: 10px;">
+                            <span>📦</span> Inventario de Insumos del Restaurante
+                        </h2>
+                        <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
+                            Control de stock de materias primas e insumos para determinar platos disponibles en tiempo real.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-secondary" id="btn-sync-inventory-recipes" style="font-weight: 700; padding: 10px 16px;">
+                            ⚡ Sincronizar Insumos desde Recetas
+                        </button>
+                        <button type="button" class="btn-primary" id="btn-add-inventory-item" style="font-weight: 700; padding: 10px 16px;">
+                            + Agregar Insumo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search & Counter Bar for Inventory -->
+                <div style="display: flex; gap: 16px; align-items: center; background: white; padding: 14px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+                    <span style="font-size: 18px;">🔍</span>
+                    <input type="text" id="inventory-search-input" placeholder="Buscar insumo en inventario..." style="flex: 1; border: none; outline: none; font-size: 14px; font-family: inherit;">
+                    <span id="inventory-total-count" style="font-size: 12px; font-weight: 700; color: var(--primary-hover); background: var(--primary-light); padding: 4px 10px; border-radius: 10px;">0 insumos</span>
+                </div>
+
+                <!-- Inventory Table -->
+                <div style="background: white; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; font-weight: 800; text-transform: uppercase;">
+                                <th style="padding: 14px 20px;">Nombre Insumo / Materia Prima</th>
+                                <th style="padding: 14px 20px;">Unidad</th>
+                                <th style="padding: 14px 20px;">Stock Disponible</th>
+                                <th style="padding: 14px 20px;">Estado Stock</th>
+                                <th style="padding: 14px 20px; text-align: right;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body">
+                            <!-- Dynamic Inventory Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Form Editor -->
@@ -1420,14 +1475,17 @@
     <script>
         const STORAGE_KEY = 'sweetlab_restaurante_recetas';
         const PAIRINGS_STORAGE_KEY = 'sweetlab_restaurante_pairings';
+        const INVENTORY_STORAGE_KEY = 'sweetlab_restaurante_inventario';
         let recipes = [];
         let cart = {}; // { recipeId: count }
         let pairingsMemory = {}; // { recipeId: { pairedRecipeId: count } }
+        let inventory = {}; // { [lowercaseName]: { name: string, unit: string, stock: number } }
         let selectedRecipeId = null;
         let activeMealFilter = 'Todas';
         let activeDayFilter = 'Todos';
         let activeOrderCategory = 'Todas';
-        let currentMode = 'order'; // 'order' or 'recipes'
+        let onlyAvailableFilter = false;
+        let currentMode = 'order'; // 'order', 'recipes', or 'inventory'
 
         // Bulk Selection State
         let isSelectModeActive = false;
@@ -1510,6 +1568,147 @@
             } catch (e) {
                 pairingsMemory = {};
             }
+        }
+
+        // Isolated Restaurant Inventory Functions
+        function loadInventory() {
+            try {
+                const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
+                if (stored) {
+                    inventory = JSON.parse(stored);
+                } else {
+                    syncInventoryFromRecipes();
+                }
+            } catch (e) {
+                inventory = {};
+            }
+        }
+
+        function saveInventory() {
+            try {
+                localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+            } catch (e) {
+                console.error('[Restaurante] Error guardando inventario localmente');
+            }
+        }
+
+        function syncInventoryFromRecipes() {
+            (recipes || []).forEach(r => {
+                (r.ingredients || []).forEach(ing => {
+                    if (ing && ing.name && !ing.isSubRecipe) {
+                        const key = ing.name.trim().toLowerCase();
+                        if (!inventory[key]) {
+                            inventory[key] = {
+                                name: ing.name.trim(),
+                                unit: ing.unit || 'g',
+                                stock: Number(ing.pkgQty) || 1000
+                            };
+                        }
+                    }
+                });
+            });
+            saveInventory();
+            renderInventoryTable();
+        }
+
+        function isRecipe100PercentAvailable(recipe, visited = new Set()) {
+            if (!recipe || !recipe.ingredients || recipe.ingredients.length === 0) return false;
+            if (recipe.id && visited.has(recipe.id)) return true;
+            if (recipe.id) visited.add(recipe.id);
+
+            for (const ing of recipe.ingredients) {
+                if (ing.isSubRecipe && ing.subRecipeId) {
+                    const subMatch = recipes.find(r => r.id === ing.subRecipeId);
+                    if (!subMatch || !isRecipe100PercentAvailable(subMatch, new Set(visited))) {
+                        return false;
+                    }
+                } else {
+                    const key = (ing.name || '').trim().toLowerCase();
+                    const reqQty = Number(ing.recipeQty || ing.qty) || 0;
+                    const stockItem = inventory[key];
+                    const availableStock = stockItem ? (Number(stockItem.stock) || 0) : 0;
+                    if (availableStock < reqQty || reqQty <= 0) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventory-table-body');
+            const countEl = document.getElementById('inventory-total-count');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const searchQuery = (document.getElementById('inventory-search-input')?.value || '').toLowerCase().trim();
+            const keys = Object.keys(inventory).filter(k => inventory[k].name.toLowerCase().includes(searchQuery));
+
+            if (countEl) countEl.textContent = `${keys.length} insumo(s)`;
+
+            if (keys.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados en el inventario del restaurante. Haz clic en "Sincronizar Insumos desde Recetas" o "+ Agregar Insumo".</td></tr>';
+                return;
+            }
+
+            keys.forEach(key => {
+                const item = inventory[key];
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border)';
+                
+                const isAvailable = Number(item.stock) > 0;
+
+                tr.innerHTML = `
+                    <td style="padding:14px 20px; font-weight:700; color:var(--text);">${escapeHtml(item.name)}</td>
+                    <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
+                    <td style="padding:14px 20px;">
+                        <input type="number" class="form-input stock-input" value="${item.stock}" style="width:110px; padding:6px 10px; font-weight:700;" min="0">
+                    </td>
+                    <td style="padding:14px 20px;">
+                        <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; ${isAvailable ? 'background:#ecfdf5; color:#047857;' : 'background:#fef2f2; color:#b91c1c;'}">
+                            ${isAvailable ? '🟢 Disponible' : '🔴 Agotado'}
+                        </span>
+                    </td>
+                    <td style="padding:14px 20px; text-align:right;">
+                        <button type="button" class="btn-remove-inv" style="background:none; border:none; color:#ef4444; font-weight:700; cursor:pointer; font-size:16px;" title="Eliminar insumo">
+                            🗑️
+                        </button>
+                    </td>
+                `;
+
+                const stockInput = tr.querySelector('.stock-input');
+                stockInput.addEventListener('input', (e) => {
+                    const val = Math.max(0, Number(e.target.value) || 0);
+                    inventory[key].stock = val;
+                    saveInventory();
+                });
+
+                tr.querySelector('.btn-remove-inv').addEventListener('click', () => {
+                    if (confirm(`¿Eliminar ${item.name} del inventario?`)) {
+                        delete inventory[key];
+                        saveInventory();
+                        renderInventoryTable();
+                    }
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function promptAddInventoryItem() {
+            const name = prompt('Nombre del insumo / materia prima:');
+            if (!name || !name.trim()) return;
+            const unit = prompt('Unidad de medida (ej: g, ml, und, porción):', 'g') || 'g';
+            const stock = Number(prompt('Cantidad inicial disponible en stock:', '1000')) || 0;
+            
+            const key = name.trim().toLowerCase();
+            inventory[key] = {
+                name: name.trim(),
+                unit: unit.trim(),
+                stock: stock
+            };
+            saveInventory();
+            renderInventoryTable();
         }
 
         function savePairingsMemory() {
@@ -1938,27 +2137,32 @@
             }
         }
 
-        // Switch Between Modes ('order' or 'recipes')
+        // Switch Between Modes ('order', 'recipes', or 'inventory')
         function switchMode(mode) {
             currentMode = mode;
             const btnOrder = document.getElementById('mode-btn-order');
             const btnRecipes = document.getElementById('mode-btn-recipes');
+            const btnInventory = document.getElementById('mode-btn-inventory');
             const viewOrder = document.getElementById('view-ordering');
             const viewRecipes = document.getElementById('view-recipes');
+            const viewInventory = document.getElementById('view-inventory');
+
+            [btnOrder, btnRecipes, btnInventory].forEach(b => b && b.classList.remove('active'));
+            [viewOrder, viewRecipes, viewInventory].forEach(v => v && (v.style.display = 'none'));
 
             if (mode === 'order') {
-                btnOrder.classList.add('active');
-                btnRecipes.classList.remove('active');
-                viewOrder.style.display = 'flex';
-                viewRecipes.style.display = 'none';
+                if (btnOrder) btnOrder.classList.add('active');
+                if (viewOrder) viewOrder.style.display = 'flex';
                 renderOrderingMenu();
                 renderCart();
-            } else {
-                btnRecipes.classList.add('active');
-                btnOrder.classList.remove('active');
-                viewRecipes.style.display = 'flex';
-                viewOrder.style.display = 'none';
+            } else if (mode === 'recipes') {
+                if (btnRecipes) btnRecipes.classList.add('active');
+                if (viewRecipes) viewRecipes.style.display = 'flex';
                 renderRecipesList();
+            } else if (mode === 'inventory') {
+                if (btnInventory) btnInventory.classList.add('active');
+                if (viewInventory) viewInventory.style.display = 'flex';
+                renderInventoryTable();
             }
         }
 
@@ -1968,25 +2172,41 @@
             grid.innerHTML = '';
 
             const filtered = recipes.filter(r => {
-                if (activeOrderCategory === 'Todas') return true;
                 const cat = r.category || 'Comida';
                 const meal = r.mealType || 'Almuerzo';
-                return cat === activeOrderCategory || meal === activeOrderCategory;
+                const matchCategory = activeOrderCategory === 'Todas' || cat === activeOrderCategory || meal === activeOrderCategory;
+                
+                if (!matchCategory) return false;
+
+                if (onlyAvailableFilter) {
+                    return isRecipe100PercentAvailable(r);
+                }
+
+                return true;
             });
 
             if (filtered.length === 0) {
-                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">No hay ítems registrados en esta categoría.</div>';
+                const emptyMsg = onlyAvailableFilter 
+                    ? 'No hay platos con 100% de ingredientes disponibles en stock para esta categoría.'
+                    : 'No hay ítems registrados en esta categoría.';
+                grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">${emptyMsg}</div>`;
                 return;
             }
 
             filtered.forEach(item => {
                 const cost = getItemTotalCost(item);
+                const isAvailable = isRecipe100PercentAvailable(item);
                 const catIcon = item.category === 'Bebida' ? '🥤' : item.category === 'Postre' ? '🍰' : (item.category === 'Adicionales' || item.category === 'Otros') ? '🍟' : '🍲';
                 
                 const card = document.createElement('div');
                 card.className = 'menu-card';
                 card.innerHTML = `
-                    <img src="${item.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=500&q=80'}" class="menu-card-img" alt="${item.name}">
+                    <div style="position:relative;">
+                        <img src="${item.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=500&q=80'}" class="menu-card-img" alt="${item.name}">
+                        <span style="position:absolute; top:10px; right:10px; font-size:11px; font-weight:800; padding:4px 8px; border-radius:8px; backdrop-filter:blur(6px); ${isAvailable ? 'background:rgba(16, 185, 129, 0.9); color:white;' : 'background:rgba(239, 68, 68, 0.9); color:white;'}">
+                            ${isAvailable ? '🟢 En Stock' : '⚠️ Sin Stock'}
+                        </span>
+                    </div>
                     <div class="menu-card-body">
                         <div class="menu-card-header">
                             <div class="menu-card-title">${escapeHtml(item.name)}</div>
@@ -2307,6 +2527,29 @@
             bindClick('btn-back-home', () => { window.location.href = '/'; });
             bindClick('mode-btn-order', () => switchMode('order'));
             bindClick('mode-btn-recipes', () => switchMode('recipes'));
+            bindClick('mode-btn-inventory', () => switchMode('inventory'));
+            bindClick('btn-sync-inventory-recipes', syncInventoryFromRecipes);
+            bindClick('btn-add-inventory-item', promptAddInventoryItem);
+
+            const invSearch = document.getElementById('inventory-search-input');
+            if (invSearch) invSearch.addEventListener('input', renderInventoryTable);
+
+            const btnDisponibles = document.getElementById('btn-filter-disponibles');
+            if (btnDisponibles) {
+                btnDisponibles.addEventListener('click', () => {
+                    onlyAvailableFilter = !onlyAvailableFilter;
+                    if (onlyAvailableFilter) {
+                        btnDisponibles.style.backgroundColor = '#047857';
+                        btnDisponibles.style.color = '#ffffff';
+                        btnDisponibles.style.borderColor = '#047857';
+                    } else {
+                        btnDisponibles.style.backgroundColor = '#ecfdf5';
+                        btnDisponibles.style.color = '#047857';
+                        btnDisponibles.style.borderColor = '#6ee7b7';
+                    }
+                    renderOrderingMenu();
+                });
+            }
 
             // Ordering Category Pills
             document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
@@ -2741,6 +2984,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadRecipes();
             loadPairingsMemory();
+            loadInventory();
             setupEventListeners();
             switchMode('order');
         });
