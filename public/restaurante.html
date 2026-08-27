@@ -1413,13 +1413,70 @@
     <!-- Application Script -->
     <script>
         const STORAGE_KEY = 'sweetlab_restaurante_recetas';
+        const PAIRINGS_STORAGE_KEY = 'sweetlab_restaurante_pairings';
         let recipes = [];
         let cart = {}; // { recipeId: count }
+        let pairingsMemory = {}; // { recipeId: { pairedRecipeId: count } }
         let selectedRecipeId = null;
         let activeMealFilter = 'Todas';
         let activeDayFilter = 'Todos';
         let activeOrderCategory = 'Todas';
         let currentMode = 'order'; // 'order' or 'recipes'
+
+        function loadPairingsMemory() {
+            try {
+                const stored = localStorage.getItem(PAIRINGS_STORAGE_KEY);
+                pairingsMemory = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                pairingsMemory = {};
+            }
+        }
+
+        function savePairingsMemory() {
+            try {
+                localStorage.setItem(PAIRINGS_STORAGE_KEY, JSON.stringify(pairingsMemory));
+            } catch (e) {
+                console.error('[Restaurante] Error guardando la memoria de combinaciones');
+            }
+        }
+
+        function learnPairingsFromOrder(cartIds) {
+            if (!Array.isArray(cartIds) || cartIds.length < 2) return;
+            for (let i = 0; i < cartIds.length; i++) {
+                const idA = cartIds[i];
+                if (!pairingsMemory[idA]) pairingsMemory[idA] = {};
+                for (let j = 0; j < cartIds.length; j++) {
+                    if (i === j) continue;
+                    const idB = cartIds[j];
+                    pairingsMemory[idA][idB] = (pairingsMemory[idA][idB] || 0) + 1;
+                }
+            }
+            savePairingsMemory();
+        }
+
+        function getRecommendedItems() {
+            const currentIds = Object.keys(cart);
+            if (currentIds.length === 0) return [];
+            
+            const scores = {};
+            currentIds.forEach(id => {
+                const pairedMap = pairingsMemory[id] || {};
+                Object.entries(pairedMap).forEach(([pId, count]) => {
+                    if (!cart[pId]) {
+                        scores[pId] = (scores[pId] || 0) + count;
+                    }
+                });
+            });
+
+            const sortedIds = Object.keys(scores).sort((a, b) => scores[b] - scores[a]);
+            const recommendations = [];
+            for (const recId of sortedIds) {
+                const item = recipes.find(r => r.id === recId);
+                if (item) recommendations.push(item);
+                if (recommendations.length >= 3) break;
+            }
+            return recommendations;
+        }
 
         // Helper to calculate exact ingredient cost in recipe
         function computeIngCost(recipeQty, pkgQty, pkgCost) {
@@ -1731,15 +1788,22 @@
                 const res = await fetch('/api/restaurant-recipes');
                 if (res.ok) {
                     const remoteData = await res.json();
-                    if (Array.isArray(remoteData) && remoteData.length > 0) {
-                        recipes = remoteData;
-                    } else {
-                        recipes = SEED_DATA;
-                        saveRecipesToNeon(SEED_DATA);
+                    if (Array.isArray(remoteData)) {
+                        const isInitialized = localStorage.getItem('sweetlab_restaurante_init') === 'true';
+                        if (remoteData.length > 0) {
+                            recipes = remoteData;
+                            localStorage.setItem('sweetlab_restaurante_init', 'true');
+                        } else if (!isInitialized) {
+                            recipes = SEED_DATA;
+                            saveRecipesToNeon(SEED_DATA);
+                            localStorage.setItem('sweetlab_restaurante_init', 'true');
+                        } else {
+                            recipes = [];
+                        }
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+                        refreshCurrentModeView();
+                        return;
                     }
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
-                    refreshCurrentModeView();
-                    return;
                 }
             } catch (err) {
                 console.error('[Restaurante] Error cargando desde Neon:', err);
@@ -1748,7 +1812,15 @@
             // Fallback to localStorage if Neon is offline
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
-                recipes = stored ? JSON.parse(stored) : SEED_DATA;
+                const isInitialized = localStorage.getItem('sweetlab_restaurante_init') === 'true';
+                if (stored !== null) {
+                    recipes = JSON.parse(stored);
+                } else if (!isInitialized) {
+                    recipes = SEED_DATA;
+                    localStorage.setItem('sweetlab_restaurante_init', 'true');
+                } else {
+                    recipes = [];
+                }
             } catch (e) {
                 recipes = SEED_DATA;
             }
@@ -2133,12 +2205,14 @@
 
         // Setup Event Listeners
         function setupEventListeners() {
-            document.getElementById('btn-back-home').addEventListener('click', () => {
-                window.location.href = '/';
-            });
+            const bindClick = (id, fn) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('click', fn);
+            };
 
-            document.getElementById('mode-btn-order').addEventListener('click', () => switchMode('order'));
-            document.getElementById('mode-btn-recipes').addEventListener('click', () => switchMode('recipes'));
+            bindClick('btn-back-home', () => { window.location.href = '/'; });
+            bindClick('mode-btn-order', () => switchMode('order'));
+            bindClick('mode-btn-recipes', () => switchMode('recipes'));
 
             // Ordering Category Pills
             document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
@@ -2150,10 +2224,11 @@
                 });
             });
 
-            document.getElementById('btn-submit-order').addEventListener('click', submitOrder);
+            bindClick('btn-submit-order', submitOrder);
 
             // Recipes filters & search
-            document.getElementById('search-input').addEventListener('input', renderRecipesList);
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.addEventListener('input', renderRecipesList);
 
             document.querySelectorAll('#meal-pills .pill-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -2174,15 +2249,15 @@
             });
 
             // Modal Trigger Actions
-            document.getElementById('btn-new-recipe').addEventListener('click', () => openModal());
-            document.getElementById('btn-edit').addEventListener('click', () => openModal(selectedRecipeId));
-            document.getElementById('btn-close-modal').addEventListener('click', closeModal);
-            document.getElementById('btn-cancel-modal').addEventListener('click', closeModal);
-            document.getElementById('btn-delete').addEventListener('click', deleteRecipe);
-            document.getElementById('btn-save-recipe').addEventListener('click', saveRecipeFromModal);
+            bindClick('btn-new-recipe', () => openModal());
+            bindClick('btn-edit', () => openModal(selectedRecipeId));
+            bindClick('btn-close-modal', closeModal);
+            bindClick('btn-cancel-modal', closeModal);
+            bindClick('btn-delete', deleteRecipe);
+            bindClick('btn-save-recipe', saveRecipeFromModal);
 
-            document.getElementById('btn-add-ing-row').addEventListener('click', () => addIngRow());
-            document.getElementById('btn-add-step-row').addEventListener('click', () => addStepRow());
+            bindClick('btn-add-ing-row', () => addIngRow());
+            bindClick('btn-add-step-row', () => addStepRow());
 
             // Image Handlers
             const btnSelectImg = document.getElementById('btn-select-image');
