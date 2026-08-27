@@ -2790,27 +2790,39 @@
             });
         }
 
+        let toastTimeout = null;
+        function showToast(message = '¡Pedido exitoso!', duration = 6000) {
+            const toast = document.getElementById('toast-popover');
+            const msgEl = document.getElementById('toast-message');
+            if (!toast || !msgEl) return;
+
+            msgEl.textContent = message;
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+            toast.style.pointerEvents = 'auto';
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(-20px)';
+                toast.style.pointerEvents = 'none';
+            }, duration);
+        }
+
         function submitOrder() {
             const ids = Object.keys(cart);
             if (ids.length === 0) {
-                alert('El pedido está vacío. Agrega al menos un elemento.');
+                showToast('⚠️ El pedido está vacío. Agrega al menos un elemento.', 4000);
                 return;
             }
 
             // Learn pairings from this order!
             learnPairingsFromOrder(ids);
 
-            let summary = '✅ ¡PEDIDO REGISTRADO EXITOSAMENTE!\n\nResumen del Pedido:\n';
-            let total = 0;
-
             ids.forEach(id => {
                 const item = recipes.find(r => r.id === id);
                 if (!item) return;
                 const qty = cart[id];
-                const cost = getItemTotalCost(item) * qty;
-                total += cost;
-                summary += `• ${qty}x ${item.name} - $${cost.toLocaleString('es-CO')}\n`;
-
                 // Deduct ingredients automatically from stock!
                 deductRecipeIngredientsFromInventory(item, qty);
             });
@@ -2818,8 +2830,8 @@
             // Save updated stock to Neon DB cloud!
             saveInventory();
 
-            summary += `\nTOTAL PEDIDO: $${total.toLocaleString('es-CO')}\n\n📦 Insumos descontados del inventario en vivo.\n💡 El sistema ha aprendido esta combinación para recomendaciones futuras.`;
-            alert(summary);
+            // Show 6-second popover toast
+            showToast('🎉 ¡Pedido exitoso!', 6000);
 
             cart = {};
             renderCart();
@@ -3509,6 +3521,12 @@
             switchMode('order');
         });
     </script>
+    <!-- Floating Popover Toast Notification -->
+    <div id="toast-popover" style="position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #059669; color: white; padding: 14px 28px; border-radius: 30px; font-weight: 800; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 10px; z-index: 99999; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+        <span style="font-size: 20px;">🎉</span>
+        <span id="toast-message">¡Pedido exitoso!</span>
+    </div>
+
     <!-- Datalist for Isolated Restaurant Ingredients Autocomplete -->
     <datalist id="restaurant-ingredients-list"></datalist>
 
