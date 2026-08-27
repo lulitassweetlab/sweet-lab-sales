@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 69; // 69: add restaurant_recipes table for isolated restaurant menu
+const SCHEMA_VERSION = 70; // 70: add restaurant_inventory and restaurant_purchases tables for isolated restaurant module
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -814,6 +814,29 @@ export async function ensureSchema() {
 						)
 					`;
 					await sql`UPDATE schema_meta SET version = 69`;
+				}
+
+				if (Number(meta[0].version) < 70) {
+					console.log('Migrating to v70: Creating restaurant_inventory and restaurant_purchases tables...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS restaurant_inventory (
+							key TEXT PRIMARY KEY,
+							name TEXT NOT NULL,
+							unit TEXT NOT NULL DEFAULT 'g',
+							stock NUMERIC NOT NULL DEFAULT 0,
+							updated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`
+						CREATE TABLE IF NOT EXISTS restaurant_purchases (
+							id TEXT PRIMARY KEY,
+							supplier_name TEXT DEFAULT '',
+							total_cost NUMERIC NOT NULL DEFAULT 0,
+							items JSONB NOT NULL DEFAULT '[]'::jsonb,
+							created_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 70`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

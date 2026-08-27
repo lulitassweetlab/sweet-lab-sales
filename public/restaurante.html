@@ -1641,8 +1641,27 @@
             }
         }
 
-        // Isolated Restaurant Inventory Functions
-        function loadInventory() {
+        // Isolated Restaurant Inventory Functions (Neon DB Cloud Synced)
+        async function loadInventory() {
+            try {
+                const res = await fetch('/api/restaurant-inventory');
+                if (res.ok) {
+                    const remoteInventory = await res.json();
+                    if (typeof remoteInventory === 'object' && remoteInventory !== null) {
+                        const keys = Object.keys(remoteInventory);
+                        if (keys.length > 0) {
+                            inventory = remoteInventory;
+                            localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+                            renderInventoryTable();
+                            return;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[Restaurante] Error cargando inventario desde Neon DB:', err);
+            }
+
+            // Fallback to localStorage
             try {
                 const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
                 if (stored) {
@@ -1653,6 +1672,19 @@
             } catch (e) {
                 inventory = {};
             }
+            renderInventoryTable();
+        }
+
+        async function saveInventoryToNeon(data) {
+            try {
+                await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } catch (err) {
+                console.error('[Restaurante] Error guardando inventario en Neon DB:', err);
+            }
         }
 
         function saveInventory() {
@@ -1661,6 +1693,7 @@
             } catch (e) {
                 console.error('[Restaurante] Error guardando inventario localmente');
             }
+            saveInventoryToNeon(inventory);
         }
 
         function syncInventoryFromRecipes() {
@@ -1754,11 +1787,16 @@
                     saveInventory();
                 });
 
-                tr.querySelector('.btn-remove-inv').addEventListener('click', () => {
+                tr.querySelector('.btn-remove-inv').addEventListener('click', async () => {
                     if (confirm(`¿Eliminar ${item.name} del inventario?`)) {
                         delete inventory[key];
                         saveInventory();
                         renderInventoryTable();
+                        try {
+                            await fetch(`/api/restaurant-inventory?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+                        } catch (err) {
+                            console.error('[Restaurante] Error eliminando insumo en Neon DB:', err);
+                        }
                     }
                 });
 
@@ -1988,7 +2026,7 @@
             }
         }
 
-        function applyScanToInventory() {
+        async function applyScanToInventory() {
             const rows = document.querySelectorAll('#scan-items-tbody tr');
             if (rows.length === 0) {
                 alert('No hay productos en la lista para ingresar.');
@@ -1996,10 +2034,14 @@
             }
 
             let addedCount = 0;
+            const purchaseItems = [];
+            let totalCostSum = 0;
+
             rows.forEach(tr => {
                 const name = tr.querySelector('.scan-row-name').value.trim();
                 const qty = Number(tr.querySelector('.scan-row-qty').value) || 0;
                 const unit = tr.querySelector('.scan-row-unit').value.trim() || 'g';
+                const cost = Number(tr.querySelector('.scan-row-cost').value) || 0;
 
                 if (name && qty > 0) {
                     const key = name.toLowerCase();
@@ -2008,14 +2050,33 @@
                     } else {
                         inventory[key] = { name: name, unit: unit, stock: qty };
                     }
+                    purchaseItems.push({ name, qty, unit, cost });
+                    totalCostSum += cost;
                     addedCount++;
                 }
             });
 
             saveInventory();
+
+            // Record purchase entry & inventory sync in cloud Neon DB
+            try {
+                await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'purchase',
+                        supplier_name: 'Factura Escaneada IA',
+                        total_cost: totalCostSum,
+                        items: purchaseItems
+                    })
+                });
+            } catch (err) {
+                console.error('[Restaurante] Error registrando compra en Neon DB:', err);
+            }
+
             renderInventoryTable();
             closeScanModal();
-            alert(`✅ ¡Se ingresaron ${addedCount} insumo(s) exitosamente al inventario del restaurante!`);
+            alert(`✅ ¡Se ingresaron ${addedCount} insumo(s) exitosamente al inventario del restaurante y se guardaron en la nube!`);
         }
 
         function savePairingsMemory() {
