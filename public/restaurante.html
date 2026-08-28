@@ -5308,7 +5308,7 @@
             let invChanged = false;
             ingredients.forEach(ing => {
                 if (!ing.isSubRecipe && ing.name) {
-                    const key = cleanIngredientText(ing.name);
+                    const key = ing.name.trim().toLowerCase();
                     const uCost = (ing.pkgCost && ing.pkgQty > 0) ? (ing.pkgCost / ing.pkgQty) : 0;
                     if (inventory[key]) {
                         // Preserve base inventory unit if already set to g or ml, do not overwrite with 'u'
@@ -5323,6 +5323,7 @@
                             inventory[key].lastUnitCost = uCost;
                         }
                         invChanged = true;
+                    } else {
                         // Create in inventory with stock 0 until a real purchase is made
                         const learnedChoice = getLearnedChoice(ing.name.trim());
                         const finalCat = learnedChoice.category || '';
