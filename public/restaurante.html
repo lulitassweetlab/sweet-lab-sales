@@ -2136,6 +2136,17 @@
             return 14;
         }
 
+        function formatExpiryDate(dateVal) {
+            if (!dateVal) return '';
+            try {
+                const d = new Date(dateVal);
+                if (isNaN(d.getTime())) return '';
+                return d.toISOString().split('T')[0];
+            } catch (e) {
+                return '';
+            }
+        }
+
         function calculateExpiryDate(purchaseDateStr, days) {
             const baseDate = purchaseDateStr ? new Date(purchaseDateStr) : new Date();
             const result = new Date(baseDate);
@@ -2629,7 +2640,7 @@
                     tr.style.borderBottom = '1px solid var(--border)';
                     
                     if (!item.expiryDays) item.expiryDays = getRememberedExpiryDays(item.name);
-                    if (!item.expiryDate) item.expiryDate = calculateExpiryDate(item.lastPurchasedAt, item.expiryDays);
+                    item.expiryDate = formatExpiryDate(item.expiryDate) || calculateExpiryDate(item.lastPurchasedAt, item.expiryDays);
 
                     const expInfo = getExpiryStatus(item.expiryDate);
                     if (expInfo.status === 'warning' || expInfo.status === 'expired') {

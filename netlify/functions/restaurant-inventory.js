@@ -4,6 +4,17 @@ function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+function formatExpiryDate(dateVal) {
+	if (!dateVal) return null;
+	try {
+		const d = new Date(dateVal);
+		if (isNaN(d.getTime())) return null;
+		return d.toISOString().split('T')[0];
+	} catch (e) {
+		return null;
+	}
+}
+
 export async function handler(event) {
 	try {
 		await ensureSchema();
@@ -140,7 +151,7 @@ export async function handler(event) {
 						lastPkgQty: Number(r.lastPkgQty) || 1,
 						lastPurchasedAt: r.lastPurchasedAt || r.updatedAt,
 						expiryDays: Number(r.expiryDays) || 14,
-						expiryDate: r.expiryDate ? r.expiryDate.toString().split('T')[0] : null
+						expiryDate: formatExpiryDate(r.expiryDate)
 					};
 				});
 
@@ -196,7 +207,7 @@ export async function handler(event) {
 						const category = (item.category || '').trim();
 						const portionGrams = Number(item.portionGrams || item.portion_grams) || 0;
 						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
-						const expiryDate = item.expiryDate || item.expiry_date || null;
+						const expiryDate = formatExpiryDate(item.expiryDate || item.expiry_date);
 
 						await sql`
 							INSERT INTO restaurant_inventory (key, name, category, unit, stock, portion_grams, supplier_name, last_unit_cost, prev_unit_cost, last_pkg_cost, last_pkg_qty, last_purchased_at, expiry_days, expiry_date, updated_at)
@@ -238,7 +249,7 @@ export async function handler(event) {
 						const lastPkgCost = Number(item.lastPkgCost || item.last_pkg_cost) || 0;
 						const lastPkgQty = Number(item.lastPkgQty || item.last_pkg_qty) || 1;
 						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
-						const expiryDate = item.expiryDate || item.expiry_date || null;
+						const expiryDate = formatExpiryDate(item.expiryDate || item.expiry_date);
 						const lastPurchasedAt = item.lastPurchasedAt || item.last_purchased_at || null;
 
 						await sql`
@@ -285,7 +296,7 @@ export async function handler(event) {
 						const lastPkgCost = Number(item.lastPkgCost || item.last_pkg_cost) || 0;
 						const lastPkgQty = Number(item.lastPkgQty || item.last_pkg_qty) || 1;
 						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
-						const expiryDate = item.expiryDate || item.expiry_date || null;
+						const expiryDate = formatExpiryDate(item.expiryDate || item.expiry_date);
 						const lastPurchasedAt = item.lastPurchasedAt || item.last_purchased_at || null;
 
 						await sql`
