@@ -1230,12 +1230,32 @@
             from { transform: translateY(0) scale(1); }
             to { transform: translateY(-10px) scale(1.08); }
         }
+
+        @keyframes splashAutoFade {
+            0% { opacity: 1; pointer-events: all; }
+            70% { opacity: 1; pointer-events: all; }
+            99% { opacity: 0; pointer-events: none; }
+            100% { opacity: 0; pointer-events: none; display: none; visibility: hidden; }
+        }
+
+        #app-loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #0f172a;
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: splashAutoFade 1s ease 0.1s forwards;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
     <!-- Smooth Initial Splash / Loading Screen -->
-    <div id="app-loading-screen" style="position: fixed; inset: 0; background: #0f172a; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.35s ease, visibility 0.35s ease;">
+    <div id="app-loading-screen">
         <div style="font-size: 48px; margin-bottom: 14px; animation: splashBounce 0.9s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);">🍽️</div>
         <div style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Menú de Recetas</div>
         <div style="font-size: 13px; color: #94a3b8; margin-top: 6px; font-weight: 600;">Preparando tu carta...</div>
@@ -6411,21 +6431,18 @@
 
         function dismissSplashScreen() {
             const loader = document.getElementById('app-loading-screen');
-            if (loader && loader.style.display !== 'none' && loader.dataset.dismissed !== 'true') {
-                loader.dataset.dismissed = 'true';
+            if (loader) {
                 loader.style.opacity = '0';
                 loader.style.pointerEvents = 'none';
                 setTimeout(() => {
                     loader.style.display = 'none';
-                }, 350);
+                    loader.style.visibility = 'hidden';
+                }, 300);
             }
         }
 
         // Initialize App
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Guaranteed dismissal timer (around 700ms visible + 300ms smooth fade = 1s total)
-            const safetyTimer = setTimeout(dismissSplashScreen, 700);
-
+        async function initRestauranteApp() {
             try {
                 loadPairingsMemory();
                 loadExpiryMemory();
@@ -6445,10 +6462,15 @@
             } catch (err) {
                 console.error('[Restaurante] Init error:', err);
             } finally {
-                clearTimeout(safetyTimer);
-                setTimeout(dismissSplashScreen, 600);
+                setTimeout(dismissSplashScreen, 400);
             }
-        });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initRestauranteApp);
+        } else {
+            initRestauranteApp();
+        }
     </script>
     <!-- Floating Popover Toast Notification (Center of screen, Navy Blue, 90% opacity, larger font) -->
     <div id="toast-popover" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); background: rgba(15, 23, 42, 0.90); backdrop-filter: blur(10px); color: white; padding: 22px 44px; border-radius: 40px; font-weight: 800; font-size: 22px; box-shadow: 0 20px 40px -5px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 14px; z-index: 99999; opacity: 0; pointer-events: none; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); border: 1px solid rgba(255,255,255,0.15);">
