@@ -1382,8 +1382,8 @@
                                 <th class="sortable-th" data-sort="stock" style="padding: 14px 20px; cursor: pointer; user-select: none;" title="Haz clic para ordenar por Disponible">
                                     Disponible <span class="sort-indicator" style="color: var(--primary); margin-left: 3px; font-size: 11px;"></span>
                                 </th>
-                                <th class="sortable-th" data-sort="unit" style="padding: 14px 20px; cursor: pointer; user-select: none;" title="Haz clic para ordenar por Unidad">
-                                    Unidad <span class="sort-indicator" style="color: var(--primary); margin-left: 3px; font-size: 11px;"></span>
+                                <th class="sortable-th" data-sort="unit" style="padding: 14px 20px; cursor: pointer; user-select: none;" title="Haz clic para ordenar por Medida">
+                                    Medida <span class="sort-indicator" style="color: var(--primary); margin-left: 3px; font-size: 11px;"></span>
                                 </th>
                                 <th class="sortable-th" data-sort="supplier" style="padding: 14px 20px; cursor: pointer; user-select: none;" title="Haz clic para ordenar por Comercio">
                                     Comercio <span class="sort-indicator" style="color: var(--primary); margin-left: 3px; font-size: 11px;"></span>
@@ -1475,7 +1475,7 @@
                     <div style="display:grid; grid-template-columns: 2fr 1fr 0.9fr 1.2fr 1.3fr auto; gap:8px; padding:6px 10px; font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">
                         <div>Ingrediente</div>
                         <div>Cant. Receta</div>
-                        <div>Unidad</div>
+                        <div>Medida</div>
                         <div>Cant. Paquete</div>
                         <div>Costo Paquete ($)</div>
                         <div></div>
@@ -1558,7 +1558,7 @@
                                     <th style="padding: 10px 14px;">Insumo (Restaurante)</th>
                                     <th style="padding: 10px 14px; width: 110px;">Grupo</th>
                                     <th style="padding: 10px 14px; width: 100px;">Cant. Comprada</th>
-                                    <th style="padding: 10px 14px; width: 70px;">Unidad</th>
+                                    <th style="padding: 10px 14px; width: 70px;">Medida</th>
                                     <th style="padding: 10px 14px; width: 80px;">Porción</th>
                                     <th style="padding: 10px 14px; width: 110px;">Costo Total ($)</th>
                                     <th style="padding: 10px 14px; width: 40px;"></th>
@@ -1605,8 +1605,8 @@
 
                 <div class="form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px;">
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Unidad</label>
-                        <input type="text" class="form-input" id="manual-inv-unit" placeholder="Ej: g, ml, und" value="g">
+                        <label class="form-label" style="font-weight: 700;">Medida</label>
+                        <input type="text" class="form-input" id="manual-inv-unit" placeholder="Ej: g, ml, u" value="g">
                     </div>
 
                     <div class="form-group">
@@ -1684,7 +1684,7 @@
                 <div class="form-group">
                     <label class="form-label" style="font-weight: 700;">Cantidad por Porción (<span id="portion-modal-unit-label">g</span>)</label>
                     <input type="number" class="form-input" id="portion-modal-input" placeholder="Ej: 250" style="font-size: 16px; font-weight: 700;" min="0" step="any">
-                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 6px; display: block;">Ingresa cuántos gramos, ml o unidades equivalen a 1 porción completa.</span>
+                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 6px; display: block;">Ingresa cuántos g, ml o u equivalen a 1 porción completa.</span>
                 </div>
             </div>
 
@@ -2016,6 +2016,16 @@
             }
         }
 
+        function normalizeUnit(unit) {
+            if (!unit) return 'g';
+            const clean = String(unit).trim().toLowerCase();
+            if (clean === 'unidad' || clean === 'unidades' || clean === 'und' || clean === 'unds' || clean === 'unit' || clean === 'u.' || clean === 'u' || clean === 'und.' || clean === 'uds' || clean === 'ud') return 'u';
+            if (clean === 'gramo' || clean === 'gramos' || clean === 'gr' || clean === 'grs' || clean === 'g' || clean === 'g.') return 'g';
+            if (clean === 'mililitro' || clean === 'mililitros' || clean === 'ml' || clean === 'cc' || clean === 'ml.') return 'ml';
+            if (clean === 'porción' || clean === 'porcion' || clean === 'porciones') return 'porción';
+            return clean;
+        }
+
         // Isolated Restaurant Inventory Functions (Neon DB Cloud Synced)
         async function loadInventory() {
             try {
@@ -2026,6 +2036,9 @@
                         const keys = Object.keys(remoteInventory);
                         if (keys.length > 0) {
                             inventory = remoteInventory;
+                            Object.keys(inventory).forEach(k => {
+                                if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
+                            });
                             localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
                             seedLearnedAssociationsFromInventory();
                             renderInventoryTable();
@@ -2042,6 +2055,9 @@
                 const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
                 if (stored) {
                     inventory = JSON.parse(stored);
+                    Object.keys(inventory).forEach(k => {
+                        if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
+                    });
                 } else {
                     syncInventoryFromRecipes();
                 }
@@ -2307,10 +2323,10 @@
                                 : `<div class="btn-set-portion" style="font-size:11px; color:var(--text-muted); margin-top:3px; cursor:pointer; font-weight:600; text-decoration:underline;" title="Definir equivalencia en porciones">porciones</div>`
                             }
                         </td>
-                        <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
+                        <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(normalizeUnit(item.unit))}</td>
                         <td style="padding:14px 20px;">
                             <input type="text" class="form-input supplier-input" list="restaurant-suppliers-list" value="${escapeHtml(item.supplierName || '')}" placeholder="Ej: Ricatas..." autocomplete="off" style="width:130px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
-                            ${lastCost > 0 ? `<div style="font-size:10px; color:var(--text-muted); margin-top:3px; font-weight:600;">$${lastCost.toLocaleString('es-CO')}/${item.unit || 'u'} ${diffBadgeHtml}</div>` : ''}
+                            ${lastCost > 0 ? `<div style="font-size:10px; color:var(--text-muted); margin-top:3px; font-weight:600;">$${lastCost.toLocaleString('es-CO')}/${normalizeUnit(item.unit)} ${diffBadgeHtml}</div>` : ''}
                         </td>
                         <td style="padding:14px 20px;">
                             <input type="date" class="form-input expiry-date-input" value="${item.expiryDate || ''}" style="width:140px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
@@ -2570,7 +2586,8 @@
 
                 history.forEach((entry, idx) => {
                     const dateStr = entry.createdAt ? new Date(entry.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Fecha desconocida';
-                    const unitCostStr = entry.unitCost > 0 ? `$${entry.unitCost.toLocaleString('es-CO')}/${entry.unit || 'u'}` : 'N/A';
+                    const displayEntryUnit = normalizeUnit(entry.unit);
+                    const unitCostStr = entry.unitCost > 0 ? `$${entry.unitCost.toLocaleString('es-CO')}/${displayEntryUnit}` : 'N/A';
                     const totalCostStr = entry.cost > 0 ? `$${entry.cost.toLocaleString('es-CO')}` : 'N/A';
 
                     let diffBadgeHtml = '';
@@ -2601,7 +2618,7 @@
                                 </div>
                                 <div style="text-align:right;">
                                     <div style="font-weight:800; color:var(--primary); font-size:15px;">${unitCostStr}</div>
-                                    <div style="font-size:11px; color:var(--text-muted);">${entry.qty} ${escapeHtml(entry.unit || 'u')} (Total: ${totalCostStr})</div>
+                                    <div style="font-size:11px; color:var(--text-muted);">${entry.qty} ${escapeHtml(displayEntryUnit)} (Total: ${totalCostStr})</div>
                                 </div>
                             </div>
                         </div>
@@ -2667,7 +2684,7 @@
             }
 
             const category = document.getElementById('manual-inv-category')?.value.trim() || '';
-            const unit = document.getElementById('manual-inv-unit').value.trim() || 'g';
+            const unit = normalizeUnit(document.getElementById('manual-inv-unit')?.value.trim() || 'g');
             const stock = Number(document.getElementById('manual-inv-stock').value) || 0;
             const cost = Number(document.getElementById('manual-inv-cost')?.value) || 0;
             const supplierName = document.getElementById('manual-inv-supplier')?.value.trim() || '';
@@ -3095,7 +3112,7 @@
                 const name = tr.querySelector('.scan-row-name').value.trim();
                 const category = tr.querySelector('.scan-row-category')?.value.trim() || '';
                 const qty = Number(tr.querySelector('.scan-row-qty').value) || 0;
-                const unit = tr.querySelector('.scan-row-unit').value.trim() || 'g';
+                const unit = normalizeUnit(tr.querySelector('.scan-row-unit').value.trim() || 'g');
                 const portionGrams = Number(tr.querySelector('.scan-row-portion')?.value) || 0;
                 const cost = Number(tr.querySelector('.scan-row-cost').value) || 0;
                 const newUnitCost = qty > 0 ? (cost / qty) : 0;
@@ -3963,7 +3980,8 @@
                             <div style="font-weight:800; color:var(--text); margin-bottom:6px;">Ingredientes de ${escapeHtml(subObj.name)}:</div>
                             <ul style="margin:0; padding-left:20px; color:var(--text-muted);">`;
                         subObj.ingredients.forEach(subIng => {
-                            subDetailsHtml += `<li><strong>${escapeHtml(subIng.name)}:</strong> ${subIng.recipeQty || subIng.qty} ${escapeHtml(subIng.unit || 'g')} (Paquete ${subIng.pkgQty || 1} ${escapeHtml(subIng.unit || 'g')} = $${(subIng.pkgCost || 0).toLocaleString('es-CO')})</li>`;
+                            const subUnit = normalizeUnit(subIng.unit);
+                            subDetailsHtml += `<li><strong>${escapeHtml(subIng.name)}:</strong> ${subIng.recipeQty || subIng.qty} ${escapeHtml(subUnit)} (Paquete ${subIng.pkgQty || 1} ${escapeHtml(subUnit)} = $${(subIng.pkgCost || 0).toLocaleString('es-CO')})</li>`;
                         });
                         subDetailsHtml += `</ul></div>`;
 
@@ -3982,11 +4000,12 @@
                     const pQty = Number(ing.pkgQty || ing.recipeQty || 1) || 1;
                     const pCost = Number(ing.pkgCost || ing.cost || 0);
                     const calcCost = computeIngCost(rQty, pQty, pCost);
+                    const displayUnit = normalizeUnit(ing.unit);
 
                     tr.innerHTML = `
                         <td style="font-weight:600;">${escapeHtml(ing.name)}</td>
-                        <td style="font-weight:700; color:var(--primary-hover);">${rQty} ${escapeHtml(ing.unit || 'g')}</td>
-                        <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(ing.unit || 'g')} ($${pCost.toLocaleString('es-CO')})</td>
+                        <td style="font-weight:700; color:var(--primary-hover);">${rQty} ${escapeHtml(displayUnit)}</td>
+                        <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(displayUnit)} ($${pCost.toLocaleString('es-CO')})</td>
                         <td class="ing-cost">$${calcCost.toLocaleString('es-CO')}</td>
                     `;
                     tbody.appendChild(tr);
@@ -4389,7 +4408,7 @@
                     </select>
                 </div>
                 <input type="number" class="form-input ing-r-qty" placeholder="Cant. Receta" value="${recipeQty}">
-                <input type="text" class="form-input ing-unit" placeholder="Unidad" value="${escapeHtml(isSubRecipe ? 'porción' : unit)}">
+                <input type="text" class="form-input ing-unit" placeholder="Medida" value="${escapeHtml(isSubRecipe ? 'porción' : normalizeUnit(unit))}">
                 <input type="number" class="form-input ing-p-qty" placeholder="Cant. Paq." value="${isSubRecipe ? 1 : pkgQty}">
                 <input type="number" class="form-input ing-p-cost" placeholder="Costo Paq. ($)" value="${pkgCost}">
                 <button type="button" class="btn-remove-row">✕</button>
@@ -4449,12 +4468,17 @@
                 if (!val) return;
                 
                 // Automatic check if name matches ANY existing recipe (except current recipe being edited)
-                const recipeMatch = recipes.find(r => r.id !== editingRecipeId && r.name.trim().toLowerCase() === val);
-                if (recipeMatch) {
+                const matchedRecipe = recipes.find(r => r.id !== editingRecipeId && r.name.toLowerCase() === val);
+                if (matchedRecipe) {
                     typeSelect.value = 'sub';
-                    typeSelect.dispatchEvent(new Event('change'));
-                    subSelect.value = recipeMatch.id;
-                    subSelect.dispatchEvent(new Event('change'));
+                    row.setAttribute('data-is-subrecipe', 'true');
+                    row.setAttribute('data-subrecipe-id', matchedRecipe.id);
+                    nameInput.style.display = 'none';
+                    subSelect.style.display = 'block';
+                    subSelect.value = matchedRecipe.id;
+                    unitInput.value = 'porción';
+                    pQtyInput.value = 1;
+                    pCostInput.value = getSubRecipeUnitCost(matchedRecipe.id);
                     return;
                 }
 
@@ -4462,7 +4486,7 @@
                 const catalog = getRestaurantIngredientsCatalog();
                 if (catalog[val]) {
                     const match = catalog[val];
-                    if (unitInput) unitInput.value = match.unit || 'g';
+                    if (unitInput) unitInput.value = normalizeUnit(match.unit) || 'g';
                     if (pQtyInput) pQtyInput.value = match.pkgQty || '';
                     if (pCostInput) pCostInput.value = match.pkgCost || '';
                 }
@@ -4514,7 +4538,8 @@
                 }
 
                 const recipeQty = Number(row.querySelector('.ing-r-qty').value) || 0;
-                const unit = row.querySelector('.ing-unit').value.trim() || (isSubRecipe ? 'porción' : 'g');
+                const rawUnit = row.querySelector('.ing-unit').value.trim();
+                const unit = isSubRecipe ? 'porción' : (normalizeUnit(rawUnit) || 'g');
                 const pkgQty = Number(row.querySelector('.ing-p-qty').value) || recipeQty || 1;
                 const pkgCost = Number(row.querySelector('.ing-p-cost').value) || 0;
 
