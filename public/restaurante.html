@@ -1718,12 +1718,16 @@
         const INVENTORY_STORAGE_KEY = 'sweetlab_restaurante_inventario';
         const EXPIRY_MEMORY_KEY = 'sweetlab_restaurante_expiry_memory';
         const PRODUCT_MEMORY_KEY = 'sweetlab_restaurante_product_memory';
+        const LEARNED_ASSOCIATIONS_KEY = 'sweetlab_restaurante_learned_associations';
+        const FREQUENCY_STATS_KEY = 'sweetlab_restaurante_freq_stats';
         let recipes = [];
         let cart = {}; // { recipeId: count }
         let pairingsMemory = {}; // { recipeId: { pairedRecipeId: count } }
         let inventory = {}; // { [lowercaseName]: { name: string, unit: string, stock: number } }
         let expiryMemory = {}; // { [lowercaseName]: days: number }
         let productMemory = {}; // { [lowercaseName]: { name: string, unit: string, qty: number } }
+        let learnedAssociations = {}; // { [lowercaseName]: { category: string, supplierName: string, lastUsed: number } }
+        let frequencyStats = { categories: {}, suppliers: {} }; // { categories: { [cat]: count }, suppliers: { [sup]: count } }
         let selectedRecipeId = null;
         let editingRecipeId = null;
         let activeMealFilter = 'Todas';
@@ -1731,6 +1735,76 @@
         let activeOrderCategory = 'Todas';
         let onlyAvailableFilter = false;
         let currentMode = 'order'; // 'order', 'recipes', or 'inventory'
+
+        function loadLearnedAssociations() {
+            try {
+                const storedAssoc = localStorage.getItem(LEARNED_ASSOCIATIONS_KEY);
+                if (storedAssoc) learnedAssociations = JSON.parse(storedAssoc);
+            } catch (e) {
+                learnedAssociations = {};
+            }
+
+            try {
+                const storedStats = localStorage.getItem(FREQUENCY_STATS_KEY);
+                if (storedStats) frequencyStats = JSON.parse(storedStats);
+            } catch (e) {
+                frequencyStats = { categories: {}, suppliers: {} };
+            }
+            if (!frequencyStats.categories) frequencyStats.categories = {};
+            if (!frequencyStats.suppliers) frequencyStats.suppliers = {};
+        }
+
+        function saveLearnedAssociations() {
+            try {
+                localStorage.setItem(LEARNED_ASSOCIATIONS_KEY, JSON.stringify(learnedAssociations));
+                localStorage.setItem(FREQUENCY_STATS_KEY, JSON.stringify(frequencyStats));
+            } catch (e) {}
+        }
+
+        function learnIngredientChoice(name, category, supplierName) {
+            if (!name) return;
+            const key = name.trim().toLowerCase();
+            const cat = (category || '').trim();
+            const sup = (supplierName || '').trim();
+
+            if (!learnedAssociations[key]) {
+                learnedAssociations[key] = {};
+            }
+            if (cat) {
+                learnedAssociations[key].category = cat;
+                frequencyStats.categories[cat] = (frequencyStats.categories[cat] || 0) + 1;
+            }
+            if (sup) {
+                learnedAssociations[key].supplierName = sup;
+                frequencyStats.suppliers[sup] = (frequencyStats.suppliers[sup] || 0) + 1;
+            }
+            learnedAssociations[key].lastUsed = Date.now();
+
+            saveLearnedAssociations();
+            updateCategoriesDatalist();
+            updateSuppliersDatalist();
+        }
+
+        function getLearnedChoice(name) {
+            if (!name) return { category: '', supplierName: '' };
+            const key = name.trim().toLowerCase();
+            if (learnedAssociations[key]) {
+                return learnedAssociations[key];
+            }
+            // Fuzzy lookup
+            const matchKey = Object.keys(learnedAssociations).find(k => k === key || k.includes(key) || key.includes(k));
+            if (matchKey && learnedAssociations[matchKey]) {
+                return learnedAssociations[matchKey];
+            }
+            // Fallback check inventory
+            if (inventory[key]) {
+                return {
+                    category: inventory[key].category || '',
+                    supplierName: inventory[key].supplierName || ''
+                };
+            }
+            return { category: '', supplierName: '' };
+        }
 
         async function loadProductMemory() {
             try {
@@ -1945,6 +2019,7 @@
                         if (keys.length > 0) {
                             inventory = remoteInventory;
                             localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+                            seedLearnedAssociationsFromInventory();
                             renderInventoryTable();
                             return;
                         }
@@ -1965,7 +2040,49 @@
             } catch (e) {
                 inventory = {};
             }
+            seedLearnedAssociationsFromInventory();
             renderInventoryTable();
+        }
+
+        function seedLearnedAssociationsFromInventory() {
+            let changed = false;
+            Object.values(inventory || {}).forEach(item => {
+                if (item && item.name) {
+                    const key = item.name.trim().toLowerCase();
+                    const cat = (item.category || '').trim();
+                    const sup = (item.supplierName || '').trim();
+                    if (!learnedAssociations[key]) {
+                        learnedAssociations[key] = {
+                            category: cat,
+                            supplierName: sup,
+                            lastUsed: Date.now()
+                        };
+                        changed = true;
+                    } else {
+                        if (cat && !learnedAssociations[key].category) {
+                            learnedAssociations[key].category = cat;
+                            changed = true;
+                        }
+                        if (sup && !learnedAssociations[key].supplierName) {
+                            learnedAssociations[key].supplierName = sup;
+                            changed = true;
+                        }
+                    }
+                    if (cat && !frequencyStats.categories[cat]) {
+                        frequencyStats.categories[cat] = 1;
+                        changed = true;
+                    }
+                    if (sup && !frequencyStats.suppliers[sup]) {
+                        frequencyStats.suppliers[sup] = 1;
+                        changed = true;
+                    }
+                }
+            });
+            if (changed) {
+                saveLearnedAssociations();
+                updateCategoriesDatalist();
+                updateSuppliersDatalist();
+            }
         }
 
         async function saveInventoryToNeon(data) {
@@ -2138,7 +2255,7 @@
                             const val = e.target.value.trim();
                             inventory[key].category = val;
                             saveInventory();
-                            updateCategoriesDatalist();
+                            learnIngredientChoice(item.name, val, inventory[key].supplierName);
                         });
                     }
 
@@ -2147,7 +2264,7 @@
                         const val = e.target.value.trim();
                         inventory[key].supplierName = val;
                         saveInventory();
-                        updateSuppliersDatalist();
+                        learnIngredientChoice(item.name, inventory[key].category, val);
                     });
 
                     const btnHistory = tr.querySelector('.btn-view-history');
@@ -2408,16 +2525,23 @@
             updateIngredientsDatalist();
             updateSuppliersDatalist();
             updateCategoriesDatalist();
-            document.getElementById('manual-inv-name').value = '';
+            const nameInput = document.getElementById('manual-inv-name');
+            if (nameInput) nameInput.value = '';
             const catEl = document.getElementById('manual-inv-category');
-            if (catEl) catEl.value = '';
+            if (catEl) {
+                catEl.value = '';
+                delete catEl.dataset.autofilled;
+            }
             document.getElementById('manual-inv-unit').value = 'g';
             document.getElementById('manual-inv-stock').value = '1000';
             const costEl = document.getElementById('manual-inv-cost');
             if (costEl) costEl.value = '0';
 
             const supplierEl = document.getElementById('manual-inv-supplier');
-            if (supplierEl) supplierEl.value = '';
+            if (supplierEl) {
+                supplierEl.value = '';
+                delete supplierEl.dataset.autofilled;
+            }
 
             const portionEl = document.getElementById('manual-inv-portion-grams');
             if (portionEl) portionEl.value = '0';
@@ -2454,6 +2578,7 @@
             if (!expiryDate) expiryDate = calculateExpiryDate(new Date(), expiryDays);
 
             rememberIngredientExpiry(name, expiryDays);
+            learnIngredientChoice(name, category, supplierName);
 
             const key = name.toLowerCase();
             const nowIso = new Date().toISOString();
@@ -2787,6 +2912,11 @@
                             suggestedCategory = inventory[invMatchKey].category || '';
                         }
 
+                        const learnedChoice = getLearnedChoice(suggestedName) || getLearnedChoice(originalName);
+                        if (!suggestedCategory && learnedChoice && learnedChoice.category) {
+                            suggestedCategory = learnedChoice.category;
+                        }
+
                         // Check learned product package memory
                         const learned = getLearnedPackage(originalName) || getLearnedPackage(suggestedName);
                         let finalQty = it.qty || 1;
@@ -2875,6 +3005,9 @@
                     const nowIso = new Date().toISOString();
                     const remDays = getRememberedExpiryDays(name);
                     const calcExpDate = calculateExpiryDate(nowIso, remDays);
+
+                    rememberIngredientExpiry(name, remDays);
+                    learnIngredientChoice(name, category, supplierName);
 
                     if (inventory[key]) {
                         inventory[key].stock = (Number(inventory[key].stock) || 0) + qty;
@@ -3812,6 +3945,21 @@
             bindClick('btn-close-daily-history-modal-footer', closeDailyHistoryModal);
 
             const manualNameInput = document.getElementById('manual-inv-name');
+            const manualCategoryInput = document.getElementById('manual-inv-category');
+            const manualSupplierInput = document.getElementById('manual-inv-supplier');
+
+            if (manualCategoryInput) {
+                manualCategoryInput.addEventListener('input', () => {
+                    delete manualCategoryInput.dataset.autofilled;
+                });
+            }
+
+            if (manualSupplierInput) {
+                manualSupplierInput.addEventListener('input', () => {
+                    delete manualSupplierInput.dataset.autofilled;
+                });
+            }
+
             if (manualNameInput) {
                 manualNameInput.addEventListener('input', (e) => {
                     const val = e.target.value.trim().toLowerCase();
@@ -3823,6 +3971,28 @@
                     } else if (inventory[val] && unitInput) {
                         unitInput.value = inventory[val].unit || 'g';
                     }
+
+                    const learnedChoice = getLearnedChoice(val);
+                    if (manualCategoryInput) {
+                        if (!manualCategoryInput.value || manualCategoryInput.dataset.autofilled === 'true') {
+                            if (learnedChoice.category) {
+                                manualCategoryInput.value = learnedChoice.category;
+                                manualCategoryInput.dataset.autofilled = 'true';
+                            }
+                        }
+                    }
+
+                    if (manualSupplierInput) {
+                        if (!manualSupplierInput.value || manualSupplierInput.dataset.autofilled === 'true') {
+                            if (learnedChoice.supplierName) {
+                                manualSupplierInput.value = learnedChoice.supplierName;
+                                manualSupplierInput.dataset.autofilled = 'true';
+                            }
+                        }
+                    }
+
+                    updateCategoriesDatalist(learnedChoice.category);
+                    updateSuppliersDatalist(learnedChoice.supplierName);
 
                     const remDays = getRememberedExpiryDays(val);
                     const daysEl = document.getElementById('manual-inv-expiry-days');
@@ -4303,7 +4473,7 @@
                 .replace(/'/g, '&#039;');
         }
 
-        function updateSuppliersDatalist() {
+        function updateSuppliersDatalist(preferredSupplier = '') {
             const datalist = document.getElementById('restaurant-suppliers-list');
             if (!datalist) return;
             const suppliers = new Set();
@@ -4312,13 +4482,30 @@
                     suppliers.add(item.supplierName.trim());
                 }
             });
+            Object.values(learnedAssociations || {}).forEach(item => {
+                if (item.supplierName && item.supplierName.trim()) {
+                    suppliers.add(item.supplierName.trim());
+                }
+            });
+            Object.keys(frequencyStats.suppliers || {}).forEach(sup => {
+                if (sup && sup.trim()) suppliers.add(sup.trim());
+            });
 
-            datalist.innerHTML = Array.from(suppliers)
+            const sorted = Array.from(suppliers).sort((a, b) => {
+                if (preferredSupplier && a.toLowerCase() === preferredSupplier.toLowerCase()) return -1;
+                if (preferredSupplier && b.toLowerCase() === preferredSupplier.toLowerCase()) return 1;
+                const countA = frequencyStats.suppliers[a] || 0;
+                const countB = frequencyStats.suppliers[b] || 0;
+                if (countB !== countA) return countB - countA;
+                return a.localeCompare(b);
+            });
+
+            datalist.innerHTML = sorted
                 .map(sup => `<option value="${escapeHtml(sup)}"></option>`)
                 .join('');
         }
 
-        function updateCategoriesDatalist() {
+        function updateCategoriesDatalist(preferredCategory = '') {
             const datalist = document.getElementById('restaurant-categories-list');
             if (!datalist) return;
             const categories = new Set([
@@ -4330,8 +4517,25 @@
                     categories.add(item.category.trim());
                 }
             });
+            Object.values(learnedAssociations || {}).forEach(item => {
+                if (item.category && item.category.trim()) {
+                    categories.add(item.category.trim());
+                }
+            });
+            Object.keys(frequencyStats.categories || {}).forEach(cat => {
+                if (cat && cat.trim()) categories.add(cat.trim());
+            });
 
-            datalist.innerHTML = Array.from(categories)
+            const sorted = Array.from(categories).sort((a, b) => {
+                if (preferredCategory && a.toLowerCase() === preferredCategory.toLowerCase()) return -1;
+                if (preferredCategory && b.toLowerCase() === preferredCategory.toLowerCase()) return 1;
+                const countA = frequencyStats.categories[a] || 0;
+                const countB = frequencyStats.categories[b] || 0;
+                if (countB !== countA) return countB - countA;
+                return a.localeCompare(b);
+            });
+
+            datalist.innerHTML = sorted
                 .map(cat => `<option value="${escapeHtml(cat)}"></option>`)
                 .join('');
         }
@@ -4342,6 +4546,7 @@
             loadPairingsMemory();
             loadExpiryMemory();
             loadProductMemory();
+            loadLearnedAssociations();
             loadInventory();
             updateSuppliersDatalist();
             updateCategoriesDatalist();
