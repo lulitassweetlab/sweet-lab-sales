@@ -987,6 +987,14 @@
             animation: slideUp 0.3s ease-out;
         }
 
+        #editor-modal input::placeholder,
+        #editor-modal textarea::placeholder,
+        #editor-modal select::placeholder {
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            color: rgba(71, 85, 105, 0.65) !important;
+        }
+
         .modal-header {
             padding: 20px 28px;
             border-bottom: 1px solid var(--border);
@@ -1415,30 +1423,28 @@
             </div>
             <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
                 <div class="form-group">
-                    <input type="text" class="form-input" id="form-name" placeholder="Nombre de la receta (ej: Pechuga a la Plancha, Arroz Blanco...)" style="font-size: 15px; font-weight: 700; padding: 10px 14px;">
+                    <input type="text" class="form-input" id="form-name" placeholder="Nombre de receta" style="font-size: 14px; font-weight: 700; padding: 10px 14px;">
                 </div>
 
-                <div class="form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
                         <select class="form-select" id="form-category" style="font-weight: 700;">
-                            <option value="Comida">🍲 Categoría: Comida</option>
-                            <option value="Bebida">🥤 Categoría: Bebida</option>
-                            <option value="Postre">🍰 Categoría: Postre</option>
-                            <option value="Adicionales">🍟 Categoría: Adicionales</option>
+                            <option value="Comida">Comida</option>
+                            <option value="Bebida">Bebida</option>
+                            <option value="Postre">Postre</option>
+                            <option value="Adicionales">Adicionales</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <select class="form-select" id="form-meal" style="font-weight: 700;">
-                            <option value="Cualquiera">🕒 Momento: Cualquiera</option>
-                            <option value="Almuerzo">🍲 Momento: Almuerzo</option>
-                            <option value="Desayuno">🍳 Momento: Desayuno</option>
-                            <option value="Refrigerio">☕ Momento: Refrigerio</option>
-                            <option value="Cena">🌙 Momento: Cena</option>
+                            <option value="Cualquiera">Momento: Cualquiera</option>
+                            <option value="Almuerzo">Almuerzo</option>
+                            <option value="Desayuno">Desayuno</option>
+                            <option value="Refrigerio">Refrigerio</option>
+                            <option value="Cena">Cena</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <input type="number" class="form-input" id="form-servings" placeholder="Porciones (ej: 1)" value="1" min="1" style="font-weight: 700;">
-                    </div>
+                    <input type="hidden" id="form-servings" value="1">
                 </div>
 
                 <div style="display: flex; gap: 12px; align-items: center;">
@@ -1459,15 +1465,6 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                         <span style="font-weight: 800; font-size: 14px; color: var(--navy-dark);">Ingredientes</span>
                         <button type="button" class="btn-secondary" id="btn-add-ing-row" style="padding:4px 12px; font-size:12px; font-weight:700;">+ Agregar Ingrediente</button>
-                    </div>
-                    
-                    <div style="display:grid; grid-template-columns: 2fr 1fr 0.9fr 1.2fr 1.3fr auto; gap:8px; padding:6px 10px; font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">
-                        <div>Ingrediente</div>
-                        <div>Cant. Receta</div>
-                        <div>Medida</div>
-                        <div>Cant. Paquete</div>
-                        <div>Costo Paquete ($)</div>
-                        <div></div>
                     </div>
 
                     <div id="form-ing-list">
