@@ -1540,8 +1540,8 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" id="btn-cancel-scan-modal">Cancelar</button>
-                <button type="button" class="btn-primary" id="btn-apply-scan-to-inventory" style="display: none; background: #10b981;">
-                    ✅ Sumar al Inventario del Restaurante
+                <button type="button" class="btn-primary" id="btn-apply-scan-to-inventory" style="display: none; background: #10b981; font-weight: 700;">
+                    Agregar compra
                 </button>
             </div>
         </div>
@@ -1601,8 +1601,8 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" id="btn-cancel-manual-inv-modal">Cancelar</button>
-                <button type="button" class="btn-primary" id="btn-save-manual-inv" style="background: #10b981;">
-                    ✅ Guardar Insumo en Inventario
+                <button type="button" class="btn-primary" id="btn-save-manual-inv" style="background: #10b981; font-weight: 700;">
+                    Agregar compra
                 </button>
             </div>
         </div>
@@ -2307,8 +2307,7 @@
 
             renderInventoryTable();
             closeManualInventoryModal();
-            const msgCost = cost > 0 ? ` con costo de $${cost.toLocaleString('es-CO')}` : '';
-            alert(`✅ ¡Insumo "${name}" (${stock} ${unit})${msgCost} guardado e ingresado al inventario!`);
+            showToast('🎉 ¡Agregado exitosamente!', 6000);
         }
 
         // --- INVOICE SCANNING & IA OCR FUNCTIONS ---
@@ -2591,7 +2590,7 @@
 
             renderInventoryTable();
             closeScanModal();
-            alert(`✅ ¡Se ingresaron ${addedCount} insumo(s) exitosamente al inventario del restaurante y se guardaron en la nube!`);
+            showToast('🎉 ¡Agregado exitosamente!', 6000);
         }
 
         function savePairingsMemory() {
