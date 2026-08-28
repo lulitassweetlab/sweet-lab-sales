@@ -4903,24 +4903,22 @@
 
             // 4. Meal Moments (Desayuno, Refrigerio, Almuerzo, Cena)
             if (target === 'desayuno' || target === 'desayunos') {
-                if (meal === 'desayuno' || meal === 'cualquiera' || cat === 'desayuno') return true;
-                if (cat === 'comida' || cat === 'panadería' || cat === 'panaderia' || cat === 'adicionales') return true;
+                if (meal === 'desayuno' || meal === 'cualquiera' || !meal || cat === 'desayuno' || cat === 'comida' || cat === 'adicionales' || cat === 'bebida') return true;
                 return false;
             }
 
             if (target === 'refrigerio' || target === 'refrigerios') {
-                if (meal === 'refrigerio' || meal === 'cualquiera' || cat === 'refrigerio') return true;
-                if (cat === 'comida' || cat === 'panadería' || cat === 'panaderia' || cat === 'bebida' || cat === 'adicionales') return true;
+                if (meal === 'refrigerio' || meal === 'cualquiera' || !meal || cat === 'refrigerio' || cat === 'comida' || cat === 'panadería' || cat === 'panaderia' || cat === 'bebida' || cat === 'adicionales') return true;
                 return false;
             }
 
             if (target === 'almuerzo' || target === 'almuerzos') {
-                if (meal === 'almuerzo' || meal === 'cualquiera' || cat === 'almuerzo' || cat === 'comida' || cat === 'adicionales') return true;
+                if (meal === 'almuerzo' || meal === 'cualquiera' || !meal || cat === 'almuerzo' || cat === 'comida' || cat === 'adicionales' || cat === 'bebida') return true;
                 return false;
             }
 
             if (target === 'cena' || target === 'cenas') {
-                if (meal === 'cena' || meal === 'cualquiera' || cat === 'cena' || cat === 'comida' || cat === 'adicionales') return true;
+                if (meal === 'cena' || meal === 'cualquiera' || !meal || cat === 'cena' || cat === 'comida' || cat === 'adicionales' || cat === 'bebida') return true;
                 return false;
             }
 
@@ -6395,15 +6393,20 @@
                 loadExpiryMemory();
                 loadProductMemory();
                 loadLearnedAssociations();
-                applyTimeBasedOrderCategory();
                 setupEventListeners();
+
+                // 1. Concurrent load of cloud recipes and inventory
+                await Promise.allSettled([loadRecipes(), loadInventory()]);
+
+                // 2. Set mode to ordering
                 switchMode('order');
 
-                // Load cloud recipes and inventory concurrently
-                await Promise.allSettled([loadRecipes(), loadInventory()]);
+                // 3. Update datalists & KPIs
                 updateSuppliersDatalist();
                 updateCategoriesDatalist();
                 loadDailySpendingKPI();
+
+                // 4. Apply time-based category & render menu
                 applyTimeBasedOrderCategory();
                 renderOrderingMenu();
             } catch (err) {
