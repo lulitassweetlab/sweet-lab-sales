@@ -2779,19 +2779,28 @@
                     }
 
                 const stockInput = tr.querySelector('.stock-input');
-                const handleStockPersist = () => {
+                let stockPersistTimeout = null;
+                const handleStockPersist = (immediate = false) => {
                     const val = Math.max(0, Number(stockInput.value) || 0);
                     inventory[key].stock = val;
                     try {
                         localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
                     } catch (e) {}
-                    saveInventoryItemToNeon(key, inventory[key]);
-                    saveInventory(true);
+                    if (immediate) {
+                        if (stockPersistTimeout) clearTimeout(stockPersistTimeout);
+                        saveInventoryItemToNeon(key, inventory[key]);
+                        saveInventory(true);
+                    } else {
+                        if (stockPersistTimeout) clearTimeout(stockPersistTimeout);
+                        stockPersistTimeout = setTimeout(() => {
+                            saveInventoryItemToNeon(key, inventory[key]);
+                        }, 50);
+                    }
                 };
                 stockInput.addEventListener('input', (e) => {
                     const val = Math.max(0, Number(e.target.value) || 0);
                     inventory[key].stock = val;
-                    saveInventory();
+                    handleStockPersist(false);
                     // Update portion count text inline if element exists
                     const badge = tr.querySelector('.portion-badge');
                     if (badge && item.portionGrams > 0) {
@@ -2799,8 +2808,8 @@
                         badge.textContent = `${newPortions} porciones`;
                     }
                 });
-                stockInput.addEventListener('change', handleStockPersist);
-                stockInput.addEventListener('blur', handleStockPersist);
+                stockInput.addEventListener('change', () => handleStockPersist(true));
+                stockInput.addEventListener('blur', () => handleStockPersist(true));
 
                 const btnSetPortion = tr.querySelector('.btn-set-portion');
                 if (btnSetPortion) {
