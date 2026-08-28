@@ -1799,8 +1799,28 @@
 
             <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
                 <button type="button" class="btn-secondary" id="btn-close-history-modal-footer">Cerrar</button>
-                <button type="button" class="btn-primary" id="btn-save-ficha-modal" onclick="saveFichaFromModal()" style="background:var(--navy-dark); color:white; font-weight:800; padding:9px 24px;">
+                <button type="button" class="btn-primary" id="btn-save-ficha-modal" onclick="saveFichaFromModal(true)" style="background:var(--navy-dark); color:white; font-weight:800; padding:9px 24px;">
                     💾 Guardar Cambios en Ficha
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ficha Synchronization Details Modal -->
+    <div class="modal-overlay" id="ficha-sync-details-modal">
+        <div class="editor-modal" style="max-width: 520px; width: 95vw;">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border);">
+                <h3 style="font-size: 16px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
+                    <span id="sync-detail-header-icon">✅</span> Detalle de Sincronización del Insumo
+                </h3>
+                <button type="button" onclick="closeFichaSyncDetailModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);">✕</button>
+            </div>
+            <div class="modal-body" id="ficha-sync-detail-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+                <!-- Dynamic Status Items -->
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end;">
+                <button type="button" class="btn-primary" onclick="closeFichaSyncDetailModal()" style="background:var(--navy-dark); color:white; font-weight:700; padding:8px 20px; border-radius:var(--radius-sm);">
+                    Entendido
                 </button>
             </div>
         </div>
@@ -3306,19 +3326,13 @@
                 openModal(recipeId);
             }, 150);
         };
-
-        window.recalcFichaUnitCost = function() {
+window.recalcFichaUnitCost = function() {
             const pkgQty = Number(document.getElementById('ficha-input-pkg-qty')?.value) || 1;
             const pkgCost = Number(document.getElementById('ficha-input-pkg-cost')?.value) || 0;
             const unitCostInput = document.getElementById('ficha-input-unit-cost');
             if (unitCostInput && pkgQty > 0) {
                 unitCostInput.value = Math.round((pkgCost / pkgQty) * 100) / 100;
             }
-        };
-
-        window.handleFichaUnitChange = function(unitVal) {
-            document.querySelectorAll('.ficha-unit-lbl').forEach(el => el.textContent = unitVal);
-            recalcFichaUnitCost();
         };
 
         window.recalcFichaExpiryDate = function() {
@@ -3329,12 +3343,136 @@
             }
         };
 
+        let currentFichaSyncDetails = {
+            cloudDb: true,
+            recipes: true,
+            inventoryTable: true,
+            orderingMenu: true,
+            affectedRecipes: [],
+            updatedAt: null,
+            error: null
+        };
+
+        function updateFichaSyncBadge(state = 'synced', label = 'Sincronizado') {
+            const badge = document.getElementById('ficha-sync-badge');
+            const icon = document.getElementById('ficha-sync-icon');
+            const labelEl = document.getElementById('ficha-sync-label');
+            if (!badge || !icon || !labelEl) return;
+
+            if (state === 'saving') {
+                badge.style.background = '#fef9c3';
+                badge.style.borderColor = '#fde047';
+                badge.style.color = '#854d0e';
+                icon.textContent = '⏳';
+                labelEl.textContent = 'Guardando...';
+            } else if (state === 'synced') {
+                badge.style.background = '#ecfdf5';
+                badge.style.borderColor = '#6ee7b7';
+                badge.style.color = '#047857';
+                icon.textContent = '✅';
+                labelEl.textContent = label || 'Sincronizado';
+            } else {
+                badge.style.background = '#fef2f2';
+                badge.style.borderColor = '#fecaca';
+                badge.style.color = '#dc2626';
+                icon.textContent = '❌';
+                labelEl.textContent = label || 'Error de sincronización';
+            }
+        }
+
+        window.openFichaSyncDetailModal = function() {
+            const modal = document.getElementById('ficha-sync-details-modal');
+            const bodyEl = document.getElementById('ficha-sync-detail-body');
+            const headerIcon = document.getElementById('sync-detail-header-icon');
+            if (!modal || !bodyEl) return;
+
+            const d = currentFichaSyncDetails;
+            const allOk = d.cloudDb && d.recipes && d.inventoryTable && d.orderingMenu;
+            if (headerIcon) headerIcon.textContent = allOk ? '✅' : '❌';
+
+            const timeStr = d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Reciente';
+
+            bodyEl.innerHTML = `
+                <div style="background:${allOk ? '#f0fdf4' : '#fef2f2'}; border:1px solid ${allOk ? '#bbf7d0' : '#fecaca'}; border-radius:var(--radius-sm); padding:12px 16px; display:flex; align-items:center; justify-content:space-between;">
+                    <div style="font-weight:800; font-size:13px; color:${allOk ? '#166534' : '#991b1b'};">
+                        ${allOk ? '🎉 Todos los módulos se actualizaron correctamente' : '⚠️ Ocurrió un error en uno o más módulos'}
+                    </div>
+                    <span style="font-size:11px; font-weight:700; color:var(--text-muted);">${timeStr}</span>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+                    <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">☁️</span>
+                            <div>
+                                <div style="font-weight:800; font-size:13px; color:var(--navy-dark);">Base de Datos Neon (Nube)</div>
+                                <div style="font-size:11px; color:var(--text-muted);">Stock, costos, comercio y vencimiento guardados en PostgreSQL</div>
+                            </div>
+                        </div>
+                        <span style="font-size:12px; font-weight:800; color:${d.cloudDb ? '#16a34a' : '#dc2626'};">${d.cloudDb ? '✅ Sincronizado' : '❌ Error'}</span>
+                    </div>
+
+                    <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">👩‍🍳</span>
+                            <div>
+                                <div style="font-weight:800; font-size:13px; color:var(--navy-dark);">Recetas Conectadas</div>
+                                <div style="font-size:11px; color:var(--text-muted);">
+                                    ${d.affectedRecipes.length > 0 ? `${d.affectedRecipes.length} recetas recalculadas (${d.affectedRecipes.join(', ')})` : 'No hay recetas vinculadas actualmente'}
+                                </div>
+                            </div>
+                        </div>
+                        <span style="font-size:12px; font-weight:800; color:${d.recipes ? '#16a34a' : '#dc2626'};">${d.recipes ? '✅ Actualizado' : '❌ Error'}</span>
+                    </div>
+
+                    <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">📦</span>
+                            <div>
+                                <div style="font-weight:800; font-size:13px; color:var(--navy-dark);">Tabla de Inventario</div>
+                                <div style="font-size:11px; color:var(--text-muted);">Vista de existencias, porciones y costos al día</div>
+                            </div>
+                        </div>
+                        <span style="font-size:12px; font-weight:800; color:${d.inventoryTable ? '#16a34a' : '#dc2626'};">${d.inventoryTable ? '✅ Actualizado' : '❌ Error'}</span>
+                    </div>
+
+                    <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">🛒</span>
+                            <div>
+                                <div style="font-weight:800; font-size:13px; color:var(--navy-dark);">Carta de Pedidos (Hacer Pedido)</div>
+                                <div style="font-size:11px; color:var(--text-muted);">Disponibilidad y costos de platos actualizados</div>
+                            </div>
+                        </div>
+                        <span style="font-size:12px; font-weight:800; color:${d.orderingMenu ? '#16a34a' : '#dc2626'};">${d.orderingMenu ? '✅ Actualizado' : '❌ Error'}</span>
+                    </div>
+                </div>
+            `;
+            modal.classList.add('active');
+        };
+
+        window.closeFichaSyncDetailModal = function() {
+            const modal = document.getElementById('ficha-sync-details-modal');
+            if (modal) modal.classList.remove('active');
+        };
+
+        let fichaAutoSaveTimeout = null;
+        window.triggerFichaAutoSave = function() {
+            updateFichaSyncBadge('saving');
+            if (fichaAutoSaveTimeout) clearTimeout(fichaAutoSaveTimeout);
+            fichaAutoSaveTimeout = setTimeout(() => {
+                window.saveFichaFromModal(false);
+            }, 400);
+        };
+
         function propagateInventoryItemToRecipes(itemName, updatedItem) {
-            if (!itemName || !updatedItem) return;
+            if (!itemName || !updatedItem) return [];
             const cleanName = cleanIngredientText(itemName);
             let recipesChanged = false;
+            const affected = [];
 
             (recipes || []).forEach(r => {
+                let rChanged = false;
                 (r.ingredients || []).forEach(ing => {
                     if (!ing || !ing.name || ing.isSubRecipe) return;
                     const cleanIng = cleanIngredientText(ing.name);
@@ -3343,74 +3481,100 @@
                         if (updatedItem.lastPkgQty > 0) ing.pkgQty = updatedItem.lastPkgQty;
                         if (updatedItem.unit) ing.unit = updatedItem.unit;
                         recipesChanged = true;
+                        rChanged = true;
                     }
                 });
+                if (rChanged) affected.push(r.name);
             });
 
             if (recipesChanged) {
                 saveRecipes();
                 saveRecipesToNeon(recipes);
             }
+            return affected;
         }
 
-        window.saveFichaFromModal = async function() {
+        window.saveFichaFromModal = async function(closeModal = false) {
             if (!activeFichaKey) return;
             const normKey = activeFichaKey.trim().toLowerCase();
             const oldItem = inventory[normKey] || findInventoryItem(activeFichaKey) || {};
 
-            const newName = (document.getElementById('ficha-input-name')?.value || oldItem.name || activeFichaKey).trim();
-            const newCat = (document.getElementById('ficha-input-category')?.value || '').trim();
-            const newSup = (document.getElementById('ficha-input-supplier')?.value || '').trim();
-            const newStock = Number(document.getElementById('ficha-input-stock')?.value) || 0;
-            const newUnit = normalizeUnit(document.getElementById('ficha-input-unit')?.value || oldItem.unit || 'g');
-            const newPkgQty = Number(document.getElementById('ficha-input-pkg-qty')?.value) || (newUnit === 'u' ? 1 : 1000);
-            const newPkgCost = Number(document.getElementById('ficha-input-pkg-cost')?.value) || 0;
-            const newUnitCost = (newPkgCost > 0 && newPkgQty > 0) ? (newPkgCost / newPkgQty) : (Number(document.getElementById('ficha-input-unit-cost')?.value) || 0);
-            const newPortion = Number(document.getElementById('ficha-input-portion')?.value) || 0;
-            const newExpiryDays = Number(document.getElementById('ficha-input-expiry-days')?.value) || 0;
-            const newExpiryDate = formatExpiryDate(document.getElementById('ficha-input-expiry-date')?.value);
+            updateFichaSyncBadge('saving');
 
-            const updatedItem = {
-                name: newName,
-                category: newCat,
-                supplierName: newSup,
-                stock: newStock,
-                unit: newUnit,
-                lastPkgQty: newPkgQty,
-                lastPkgCost: newPkgCost,
-                lastUnitCost: newUnitCost,
-                portionGrams: newPortion,
-                expiryDays: newExpiryDays,
-                expiryDate: newExpiryDate,
-                lastPurchasedAt: oldItem.lastPurchasedAt || new Date().toISOString()
-            };
+            try {
+                const newName = (document.getElementById('ficha-input-name')?.value || oldItem.name || activeFichaKey).trim();
+                const newCat = (document.getElementById('ficha-input-category')?.value || '').trim();
+                const newSup = (document.getElementById('ficha-input-supplier')?.value || '').trim();
+                const newStock = Number(document.getElementById('ficha-input-stock')?.value) || 0;
+                const newUnit = normalizeUnit(document.getElementById('ficha-input-unit')?.value || oldItem.unit || 'g');
+                const newPkgQty = Number(document.getElementById('ficha-input-pkg-qty')?.value) || (newUnit === 'u' ? 1 : 1000);
+                const newPkgCost = Number(document.getElementById('ficha-input-pkg-cost')?.value) || 0;
+                const newUnitCost = (newPkgCost > 0 && newPkgQty > 0) ? (newPkgCost / newPkgQty) : (Number(document.getElementById('ficha-input-unit-cost')?.value) || 0);
+                const newPortion = Number(document.getElementById('ficha-input-portion')?.value) || 0;
+                const newExpiryDays = Number(document.getElementById('ficha-input-expiry-days')?.value) || 0;
+                const newExpiryDate = formatExpiryDate(document.getElementById('ficha-input-expiry-date')?.value);
 
-            const newKey = newName.toLowerCase();
-            if (newKey !== normKey && inventory[normKey]) {
-                delete inventory[normKey];
+                const updatedItem = {
+                    name: newName,
+                    category: newCat,
+                    supplierName: newSup,
+                    stock: newStock,
+                    unit: newUnit,
+                    lastPkgQty: newPkgQty,
+                    lastPkgCost: newPkgCost,
+                    lastUnitCost: newUnitCost,
+                    portionGrams: newPortion,
+                    expiryDays: newExpiryDays,
+                    expiryDate: newExpiryDate,
+                    lastPurchasedAt: oldItem.lastPurchasedAt || new Date().toISOString()
+                };
+
+                const newKey = newName.toLowerCase();
+                if (newKey !== normKey && inventory[normKey]) {
+                    delete inventory[normKey];
+                }
+                inventory[newKey] = updatedItem;
+                activeFichaKey = newKey;
+
+                if (newCat) learnIngredientChoice(newName, newCat, newSup);
+                if (newPkgQty > 0 && newUnit !== 'u') learnProductPackage(newName, newUnit, newPkgQty);
+                if (newExpiryDays > 0) learnExpiryDays(newName, newExpiryDays);
+
+                saveInventory(true);
+                await saveInventoryItemToNeon(newKey, updatedItem);
+
+                const affected = propagateInventoryItemToRecipes(newName, updatedItem);
+                hydrateInventoryCostsFromRecipes(true);
+
+                renderInventoryTable();
+                renderRecipesList();
+                renderOrderingMenu();
+
+                currentFichaSyncDetails = {
+                    cloudDb: true,
+                    recipes: true,
+                    inventoryTable: true,
+                    orderingMenu: true,
+                    affectedRecipes: affected,
+                    updatedAt: new Date().toISOString(),
+                    error: null
+                };
+
+                updateFichaSyncBadge('synced', 'Sincronizado');
+
+                if (closeModal) {
+                    showToast(`✅ Ficha de "${newName}" guardada en todo el sistema`, 2500);
+                    closeIngredientHistoryModal();
+                }
+            } catch (err) {
+                console.error('[Restaurante] Error guardando ficha:', err);
+                currentFichaSyncDetails.cloudDb = false;
+                currentFichaSyncDetails.error = err.message;
+                updateFichaSyncBadge('error', 'Error al guardar');
+                if (closeModal) {
+                    showToast('❌ Error al guardar en la nube', 2500);
+                }
             }
-            inventory[newKey] = updatedItem;
-
-            // Learn and memorize associations
-            if (newCat) learnIngredientChoice(newName, newCat, newSup);
-            if (newPkgQty > 0 && newUnit !== 'u') learnProductPackage(newName, newUnit, newPkgQty);
-            if (newExpiryDays > 0) learnExpiryDays(newName, newExpiryDays);
-
-            // Persist locally & cloud
-            saveInventory(true);
-            await saveInventoryItemToNeon(newKey, updatedItem);
-
-            // Propagate changes to recipes
-            propagateInventoryItemToRecipes(newName, updatedItem);
-            hydrateInventoryCostsFromRecipes(true);
-
-            // Update UI views across app
-            renderInventoryTable();
-            renderRecipesList();
-            renderOrderingMenu();
-
-            showToast(`✅ Ficha de "${newName}" guardada en todo el sistema`, 2500);
-            closeIngredientHistoryModal();
         };
 
         window.toggleEditPurchaseCard = function(cardId) {
@@ -3448,7 +3612,6 @@
 
                 if (res.ok) {
                     showToast('✅ Registro de compra actualizado', 2000);
-                    // Update latest purchase price in item if this is the newest
                     loadPurchaseHistoryTimeline(itemKey, activeFichaKey);
                 } else {
                     showToast('❌ Error al actualizar registro', 2500);
@@ -3498,8 +3661,8 @@
                     container.innerHTML = `
                         <div style="text-align:center; padding:25px 20px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:var(--radius-sm); color:var(--text-muted);">
                             <span style="font-size:24px;">📜</span>
-                            <div style="font-weight:700; margin-top:4px; font-size:13px;">No hay compras ni facturas registradas aún para este insumo.</div>
-                            <div style="font-size:11px; margin-top:2px;">Las compras ingresadas mediante factura aparecerán aquí cronológicamente con sus precios y comercios.</div>
+                            <div style="font-weight:700; margin-top:4px; font-size:13px;">No hay compras ni descuentos registrados aún para este insumo.</div>
+                            <div style="font-size:11px; margin-top:2px;">Las compras por factura y los descuentos por venta aparecerán aquí en orden cronológico.</div>
                         </div>
                     `;
                     return;
@@ -3512,13 +3675,38 @@
                     const rawDate = entry.createdAt ? entry.createdAt.slice(0, 10) : '';
                     const dateStr = entry.createdAt ? new Date(entry.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Fecha desconocida';
                     const displayEntryUnit = normalizeUnit(entry.unit);
+
+                    if (entry.type === 'order_deduction') {
+                        timelineHtml += `
+                            <div style="position:relative; background:#fff7ed; border:1px solid #fed7aa; padding:12px 16px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
+                                <div style="position:absolute; left:-25px; top:14px; width:12px; height:12px; border-radius:50%; background:#f97316; border:3px solid white; box-shadow:0 0 0 1px #f97316;"></div>
+                                
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <span style="font-size:11px; font-weight:800; color:#c2410c;">🕒 ${dateStr}</span>
+                                    <span style="color:#c2410c; font-weight:800; font-size:11px; background:#ffedd5; padding:2px 8px; border-radius:10px; border:1px solid #fed7aa;">📉 Descuento Automático</span>
+                                </div>
+                                
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="font-weight:800; font-size:14px; color:var(--navy-dark); display:flex; align-items:center; gap:6px;">
+                                        <span>🍽️</span> Pedido: <span style="color:#ea580c;">${escapeHtml(entry.recipeName || 'Orden del Menú')}</span>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-weight:800; color:#dc2626; font-size:14px;">-${entry.qty} ${escapeHtml(displayEntryUnit)}</div>
+                                        <div style="font-size:11px; color:var(--text-muted);">Consumo en venta</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+
                     const unitCostStr = entry.unitCost > 0 ? `$${entry.unitCost.toLocaleString('es-CO')}/${displayEntryUnit}` : 'N/A';
                     const totalCostStr = entry.cost > 0 ? `$${entry.cost.toLocaleString('es-CO')}` : 'N/A';
 
                     let diffBadgeHtml = '';
                     if (idx < history.length - 1) {
                         const olderEntry = history[idx + 1];
-                        if (entry.unitCost > 0 && olderEntry.unitCost > 0) {
+                        if (olderEntry.type !== 'order_deduction' && entry.unitCost > 0 && olderEntry.unitCost > 0) {
                             const diff = entry.unitCost - olderEntry.unitCost;
                             if (diff > 0) {
                                 diffBadgeHtml = `<span style="color:#dc2626; font-weight:800; font-size:11px; background:#fef2f2; padding:2px 8px; border-radius:10px; border:1px solid #fecaca;">+$${diff.toLocaleString('es-CO')}</span>`;
@@ -3532,7 +3720,6 @@
                         <div style="position:relative; background:white; border:1px solid var(--border); padding:12px 16px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
                             <div style="position:absolute; left:-25px; top:14px; width:12px; height:12px; border-radius:50%; background:#0284c7; border:3px solid white; box-shadow:0 0 0 1px #0284c7;"></div>
                             
-                            <!-- Read View -->
                             <div id="purchase-view-${cardId}">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                                     <span style="font-size:11px; font-weight:800; color:var(--text-muted);">📅 ${dateStr}</span>
@@ -3549,7 +3736,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Action Buttons -->
                                 <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:6px;">
                                     <button type="button" onclick="toggleEditPurchaseCard('${cardId}')" style="background:#f8fafc; border:1px solid #cbd5e1; font-size:11px; font-weight:700; color:var(--navy-dark); padding:3px 8px; border-radius:6px; cursor:pointer;">
                                         ✏️ Editar Registro
@@ -3560,7 +3746,6 @@
                                 </div>
                             </div>
 
-                            <!-- Inline Edit View -->
                             <div id="purchase-edit-${cardId}" style="display:none; background:#f8fafc; border-radius:6px; padding:10px; margin-top:4px;">
                                 <div style="font-size:11px; font-weight:800; color:var(--navy-dark); margin-bottom:8px;">✏️ Editar Datos de esta Compra / Escaneo</div>
                                 <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
@@ -3629,7 +3814,6 @@
             if (titleEl) titleEl.textContent = name;
             modal.classList.add('active');
 
-            // Find associated recipes
             const cleanTarget = cleanIngredientText(name);
             const usedInRecipes = (recipes || []).filter(r => (r.ingredients || []).some(ing => {
                 if (!ing || !ing.name || ing.isSubRecipe) return false;
@@ -3637,10 +3821,29 @@
                 return cleanIng === cleanTarget || cleanIng.includes(cleanTarget) || cleanTarget.includes(cleanIng);
             }));
 
-            // Static form structure with timeline container
+            currentFichaSyncDetails = {
+                cloudDb: true,
+                recipes: true,
+                inventoryTable: true,
+                orderingMenu: true,
+                affectedRecipes: usedInRecipes.map(r => r.name),
+                updatedAt: new Date().toISOString(),
+                error: null
+            };
+
             bodyEl.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:16px;">
-                    <!-- 1. Identificación y Clasificación -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 16px;">
+                        <div style="font-size:12px; font-weight:800; color:var(--navy-dark); display:flex; align-items:center; gap:6px;">
+                            <span>⚡</span> Estado de Sincronización en Tiempo Real:
+                        </div>
+                        <button type="button" id="ficha-sync-badge" onclick="openFichaSyncDetailModal()" style="background:#ecfdf5; border:1px solid #6ee7b7; color:#047857; font-size:12px; font-weight:800; padding:4px 12px; border-radius:20px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s ease;" title="Clic para ver el detalle de sincronización">
+                            <span id="ficha-sync-icon">✅</span>
+                            <span id="ficha-sync-label">Sincronizado</span>
+                            <span style="font-size:10px; opacity:0.7;">ℹ️</span>
+                        </button>
+                    </div>
+
                     <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm);">
                         <div style="font-size: 12px; font-weight: 800; color: var(--navy-dark); margin-bottom: 10px; display:flex; align-items:center; gap:6px;">
                             <span>🏷️</span> Identificación & Clasificación
@@ -3648,63 +3851,55 @@
                         <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px;">
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Nombre del Insumo</label>
-                                <input type="text" id="ficha-input-name" class="form-input" value="${escapeHtml(name)}" style="font-weight: 800; font-size: 14px;">
+                                <input type="text" id="ficha-input-name" class="form-input" value="${escapeHtml(name)}" oninput="triggerFichaAutoSave()" style="font-weight: 800; font-size: 14px;">
                             </div>
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Categoría</label>
-                                <input type="text" id="ficha-input-category" list="restaurant-categories-list" class="form-input" value="${escapeHtml(category)}" style="font-weight: 700; font-size: 13px;">
+                                <input type="text" id="ficha-input-category" list="restaurant-categories-list" class="form-input" value="${escapeHtml(category)}" oninput="triggerFichaAutoSave()" onchange="triggerFichaAutoSave()" style="font-weight: 700; font-size: 13px;">
                             </div>
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Comercio / Proveedor</label>
-                                <input type="text" id="ficha-input-supplier" list="restaurant-suppliers-list" class="form-input" value="${escapeHtml(supplierName)}" style="font-weight: 700; font-size: 13px;">
+                                <input type="text" id="ficha-input-supplier" list="restaurant-suppliers-list" class="form-input" value="${escapeHtml(supplierName)}" oninput="triggerFichaAutoSave()" onchange="triggerFichaAutoSave()" style="font-weight: 700; font-size: 13px;">
                             </div>
                         </div>
                     </div>
 
-                    <!-- 2. Stock, Empaque y Costos -->
                     <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm);">
                         <div style="font-size: 12px; font-weight: 800; color: var(--navy-dark); margin-bottom: 10px; display:flex; align-items:center; gap:6px;">
                             <span>📦</span> Stock, Empaque y Costos
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
-                            <!-- Stock Disponible -->
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Stock Disponible</label>
-                                <input type="number" id="ficha-input-stock" class="form-input" value="${stock}" min="0" step="any" style="font-size: 14px; font-weight: 800; color: #0284c7;">
+                                <input type="number" id="ficha-input-stock" class="form-input" value="${stock}" min="0" step="any" oninput="triggerFichaAutoSave()" style="font-size: 14px; font-weight: 800; color: #0284c7;">
                             </div>
-                            <!-- Unidad de Medida -->
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Unidad de Medida</label>
-                                <select id="ficha-input-unit" class="form-select" style="font-size: 13px; font-weight: 800;" onchange="handleFichaUnitChange(this.value)">
+                                <select id="ficha-input-unit" class="form-select" style="font-size: 13px; font-weight: 800;" onchange="handleFichaUnitChange(this.value); triggerFichaAutoSave();">
                                     <option value="g" ${unit === 'g' ? 'selected' : ''}>g (Gramos)</option>
                                     <option value="ml" ${unit === 'ml' ? 'selected' : ''}>ml (Mililitros)</option>
                                     <option value="u" ${unit === 'u' ? 'selected' : ''}>u (Unidades)</option>
                                 </select>
                             </div>
-                            <!-- Contenido por Paquete -->
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Cant. por Paquete</label>
-                                <input type="number" id="ficha-input-pkg-qty" class="form-input" value="${pkgQty}" min="0.01" step="any" oninput="recalcFichaUnitCost()" style="font-size: 14px; font-weight: 800;">
+                                <input type="number" id="ficha-input-pkg-qty" class="form-input" value="${pkgQty}" min="0.01" step="any" oninput="recalcFichaUnitCost(); triggerFichaAutoSave();" style="font-size: 14px; font-weight: 800;">
                             </div>
-                            <!-- Costo del Paquete -->
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Costo Paquete ($)</label>
-                                <input type="number" id="ficha-input-pkg-cost" class="form-input" value="${pkgCost}" min="0" step="any" oninput="recalcFichaUnitCost()" style="font-size: 14px; font-weight: 800; color: var(--primary);">
+                                <input type="number" id="ficha-input-pkg-cost" class="form-input" value="${pkgCost}" min="0" step="any" oninput="recalcFichaUnitCost(); triggerFichaAutoSave();" style="font-size: 14px; font-weight: 800; color: var(--primary);">
                             </div>
-                            <!-- Costo Unitario Calculado -->
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Costo por <span class="ficha-unit-lbl">${unit}</span> ($)</label>
-                                <input type="number" id="ficha-input-unit-cost" class="form-input" value="${Math.round(unitCost * 100) / 100}" min="0" step="any" style="font-size: 14px; font-weight: 800; color: #059669; background: #f8fafc;">
+                                <input type="number" id="ficha-input-unit-cost" class="form-input" value="${Math.round(unitCost * 100) / 100}" min="0" step="any" oninput="triggerFichaAutoSave()" style="font-size: 14px; font-weight: 800; color: #059669; background: #f8fafc;">
                             </div>
-                            <!-- Porción -->
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Porción (<span class="ficha-unit-lbl">${unit}</span>/porc)</label>
-                                <input type="number" id="ficha-input-portion" class="form-input" value="${portionGrams || ''}" placeholder="Ej: 15" min="0" step="any" style="font-size: 14px; font-weight: 800; color: #7c3aed;">
+                                <input type="number" id="ficha-input-portion" class="form-input" value="${portionGrams || ''}" placeholder="Ej: 15" min="0" step="any" oninput="triggerFichaAutoSave()" style="font-size: 14px; font-weight: 800; color: #7c3aed;">
                             </div>
                         </div>
                     </div>
 
-                    <!-- 3. Vencimiento -->
                     <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 18px; box-shadow: var(--shadow-sm);">
                         <div style="font-size: 12px; font-weight: 800; color: var(--navy-dark); margin-bottom: 8px; display:flex; align-items:center; gap:6px;">
                             <span>⏳</span> Vencimiento & Conservación
@@ -3712,16 +3907,15 @@
                         <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;">
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Días de Durabilidad</label>
-                                <input type="number" id="ficha-input-expiry-days" class="form-input" value="${item.expiryDays || ''}" placeholder="Ej: 15" min="0" oninput="recalcFichaExpiryDate()" style="font-size: 13px; font-weight: 700;">
+                                <input type="number" id="ficha-input-expiry-days" class="form-input" value="${item.expiryDays || ''}" placeholder="Ej: 15" min="0" oninput="recalcFichaExpiryDate(); triggerFichaAutoSave();" style="font-size: 13px; font-weight: 700;">
                             </div>
                             <div>
                                 <label class="form-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Fecha de Vencimiento</label>
-                                <input type="date" id="ficha-input-expiry-date" class="form-input" value="${expiryDate || ''}" style="font-size: 13px; font-weight: 700;">
+                                <input type="date" id="ficha-input-expiry-date" class="form-input" value="${expiryDate || ''}" onchange="triggerFichaAutoSave()" style="font-size: 13px; font-weight: 700;">
                             </div>
                         </div>
                     </div>
 
-                    <!-- 4. Recetas Asociadas (Clickeables) -->
                     <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 16px;">
                         <div style="font-size: 12px; font-weight: 800; color: var(--navy-dark); display:flex; align-items:center; gap:6px; margin-bottom: 8px;">
                             <span>👩‍🍳</span> Recetas donde se utiliza este ingrediente (${usedInRecipes.length}):
@@ -3749,13 +3943,12 @@
                         `}
                     </div>
 
-                    <!-- 5. Línea de Tiempo de Compras & Escaneos IA -->
                     <div>
                         <div style="font-size: 13px; font-weight: 800; color: var(--navy-dark); display:flex; align-items:center; gap:6px; margin-bottom: 10px;">
-                            <span>📜</span> Línea de Tiempo de Compras & Facturas Escaneadas:
+                            <span>📜</span> Línea de Tiempo de Compras & Descuentos por Pedido:
                         </div>
                         <div id="ficha-timeline-container">
-                            <div style="text-align:center; padding:20px; color:var(--text-muted);">⏳ Cargando historial de compras...</div>
+                            <div style="text-align:center; padding:20px; color:var(--text-muted);">⏳ Cargando historial...</div>
                         </div>
                     </div>
                 </div>
@@ -5191,7 +5384,7 @@
             }
         }
 
-        function deductRecipeIngredientsFromInventory(recipe, multiplier = 1, visited = new Set()) {
+        function deductRecipeIngredientsFromInventory(recipe, multiplier = 1, visited = new Set(), collectedDeductions = null) {
             if (!recipe || !recipe.ingredients) return;
             if (recipe.id && visited.has(recipe.id)) return;
             if (recipe.id) visited.add(recipe.id);
@@ -5201,7 +5394,7 @@
                     const subMatch = recipes.find(r => r.id === ing.subRecipeId);
                     if (subMatch) {
                         const subQty = Number(ing.recipeQty || ing.qty) || 1;
-                        deductRecipeIngredientsFromInventory(subMatch, subQty * multiplier, new Set(visited));
+                        deductRecipeIngredientsFromInventory(subMatch, subQty * multiplier, new Set(visited), collectedDeductions);
                     }
                 } else {
                     let reqQty = (Number(ing.recipeQty || ing.qty) || 0) * multiplier;
@@ -5212,6 +5405,16 @@
                             reqQty = reqQty * Number(stockItem.portionGrams);
                         }
                         stockItem.stock = Math.max(0, (Number(stockItem.stock) || 0) - reqQty);
+                        if (collectedDeductions) {
+                            collectedDeductions.push({
+                                name: stockItem.name || ing.name,
+                                qty: reqQty,
+                                unit: stockItem.unit || ing.unit,
+                                cost: 0,
+                                type: 'order_deduction',
+                                recipeName: recipe.name
+                            });
+                        }
                     }
                 }
             });
@@ -5246,16 +5449,36 @@
             // Learn pairings from this order!
             learnPairingsFromOrder(ids);
 
+            const orderDeductions = [];
+            const recipeNames = [];
+
             ids.forEach(id => {
                 const item = recipes.find(r => r.id === id);
                 if (!item) return;
                 const qty = cart[id];
-                // Deduct ingredients automatically from stock!
-                deductRecipeIngredientsFromInventory(item, qty);
+                recipeNames.push(item.name);
+                // Deduct ingredients automatically from stock and collect deduction items!
+                deductRecipeIngredientsFromInventory(item, qty, new Set(), orderDeductions);
             });
 
             // Save updated stock to Neon DB cloud!
-            saveInventory();
+            saveInventory(true);
+
+            // Record order deduction logs asynchronously for timeline
+            if (orderDeductions.length > 0) {
+                try {
+                    fetch('/api/restaurant-inventory', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'record_order_deduction',
+                            orderId: `deduccion_${Date.now()}`,
+                            recipeNames,
+                            items: orderDeductions
+                        })
+                    }).catch(e => console.error('[Restaurante] Error grabando deducciones de pedido:', e));
+                } catch(e) {}
+            }
 
             // Show 3-second popover toast
             showToast('🎉 ¡Pedido exitoso!', 3000);

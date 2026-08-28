@@ -47,6 +47,7 @@ export async function handler(event) {
 					const purchases = await sql`
 						SELECT id, supplier_name, total_cost, items, created_at
 						FROM restaurant_purchases
+						WHERE total_cost > 0 AND (id NOT LIKE 'deduccion_%')
 						ORDER BY created_at DESC
 						LIMIT 300
 					`;
@@ -82,23 +83,26 @@ export async function handler(event) {
 						SELECT id, supplier_name, total_cost, items, created_at
 						FROM restaurant_purchases
 						ORDER BY created_at DESC
-						LIMIT 50
+						LIMIT 100
 					`;
 					const history = [];
 					purchases.forEach(p => {
 						const itemsArr = Array.isArray(p.items) ? p.items : [];
 						const match = itemsArr.find(it => it && it.name && (it.name.trim().toLowerCase() === itemKey || itemKey.includes(it.name.trim().toLowerCase()) || it.name.trim().toLowerCase().includes(itemKey)));
 						if (match) {
-							const qty = Number(match.qty) || 1;
+							const qty = Number(match.qty) || 0;
 							const totalCost = Number(match.cost) || 0;
 							const unitCost = qty > 0 ? (totalCost / qty) : 0;
+							const isDeduction = match.type === 'order_deduction' || p.id.startsWith('deduccion_') || (p.supplier_name && p.supplier_name.toLowerCase().includes('descuento por pedido'));
 							history.push({
 								id: p.id,
 								supplierName: match.supplierName || match.supplier_name || p.supplier_name || 'Sin especificar',
+								recipeName: match.recipeName || match.orderRecipeName || '',
 								qty,
 								unit: match.unit || 'u',
 								cost: totalCost,
 								unitCost,
+								type: isDeduction ? 'order_deduction' : 'purchase',
 								createdAt: p.created_at
 							});
 						}
@@ -293,6 +297,20 @@ export async function handler(event) {
 					}
 
 					return json({ ok: true, purchaseId });
+				}
+
+				if (body.action === 'record_order_deduction') {
+					const { items, orderId, recipeNames } = body;
+					if (Array.isArray(items) && items.length > 0) {
+						const recId = orderId || `deduccion_${Date.now()}`;
+						const supName = `Descuento por Pedido: ${(recipeNames || []).join(', ') || 'Orden'}`;
+						await sql`
+							INSERT INTO restaurant_purchases (id, supplier_name, total_cost, items, created_at)
+							VALUES (${recId}, ${supName}, 0, ${JSON.stringify(items)}, now())
+						`;
+						return json({ ok: true, id: recId });
+					}
+					return json({ ok: true });
 				}
 
 				// Case 1: Fast single item update
