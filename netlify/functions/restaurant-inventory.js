@@ -127,6 +127,54 @@ export async function handler(event) {
 						expiryDate: r.expiryDate ? r.expiryDate.toString().split('T')[0] : null
 					};
 				});
+
+				// Recover any purchased items from history that might not be in restaurant_inventory
+				try {
+					const purchases = await sql`
+						SELECT items, supplier_name, created_at
+						FROM restaurant_purchases
+						ORDER BY created_at ASC
+					`;
+					purchases.forEach(p => {
+						const itemsArr = Array.isArray(p.items) ? p.items : [];
+						itemsArr.forEach(it => {
+							if (!it || !it.name) return;
+							const k = it.name.trim().toLowerCase();
+							const qty = Number(it.qty) || 1;
+							const cost = Number(it.cost) || 0;
+							const uCost = qty > 0 ? (cost / qty) : 0;
+							if (!inventoryMap[k]) {
+								inventoryMap[k] = {
+									name: it.name.trim(),
+									category: it.category || '',
+									unit: it.unit || 'g',
+									stock: qty,
+									portionGrams: Number(it.portionGrams || it.portion_grams) || 0,
+									supplierName: it.supplierName || it.supplier_name || p.supplier_name || '',
+									lastPkgCost: cost,
+									lastPkgQty: qty,
+									lastUnitCost: uCost,
+									prevUnitCost: 0,
+									lastPurchasedAt: p.created_at,
+									expiryDays: Number(it.expiryDays || it.expiry_days) || 14,
+									expiryDate: it.expiryDate || it.expiry_date || null
+								};
+							} else {
+								if (!inventoryMap[k].lastPkgCost && cost > 0) {
+									inventoryMap[k].lastPkgCost = cost;
+									inventoryMap[k].lastPkgQty = qty;
+									inventoryMap[k].lastUnitCost = uCost;
+								}
+								if (!inventoryMap[k].supplierName && (it.supplierName || p.supplier_name)) {
+									inventoryMap[k].supplierName = it.supplierName || p.supplier_name;
+								}
+							}
+						});
+					});
+				} catch (pErr) {
+					console.error('[restaurant-inventory] Error recovering from purchases:', pErr);
+				}
+
 				return json(inventoryMap);
 			}
 			case 'POST': {

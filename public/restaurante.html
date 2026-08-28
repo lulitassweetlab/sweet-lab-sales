@@ -2147,41 +2147,49 @@
 
         // Isolated Restaurant Inventory Functions (Neon DB Cloud Synced)
         async function loadInventory() {
+            let localInventory = {};
+            try {
+                const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
+                if (stored) localInventory = JSON.parse(stored);
+            } catch (e) {
+                localInventory = {};
+            }
+
             try {
                 const res = await fetch('/api/restaurant-inventory');
                 if (res.ok) {
                     const remoteInventory = await res.json();
                     if (typeof remoteInventory === 'object' && remoteInventory !== null) {
-                        const keys = Object.keys(remoteInventory);
-                        if (keys.length > 0) {
-                            inventory = remoteInventory;
-                            Object.keys(inventory).forEach(k => {
-                                if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
-                            });
-                            localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
-                            seedLearnedAssociationsFromInventory();
-                            renderInventoryTable();
-                            return;
-                        }
+                        inventory = remoteInventory;
                     }
                 }
             } catch (err) {
                 console.error('[Restaurante] Error cargando inventario desde Neon DB:', err);
             }
 
-            // Fallback to localStorage
-            try {
-                const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
-                if (stored) {
-                    inventory = JSON.parse(stored);
-                    Object.keys(inventory).forEach(k => {
-                        if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
-                    });
+            // Merge local inventory with remote so no ingredient entered is ever lost
+            Object.keys(localInventory).forEach(k => {
+                if (!inventory[k]) {
+                    inventory[k] = localInventory[k];
+                } else {
+                    if (!inventory[k].lastPkgCost && localInventory[k].lastPkgCost) {
+                        inventory[k].lastPkgCost = localInventory[k].lastPkgCost;
+                        inventory[k].lastPkgQty = localInventory[k].lastPkgQty;
+                        inventory[k].lastUnitCost = localInventory[k].lastUnitCost;
+                    }
+                    if (!inventory[k].category && localInventory[k].category) {
+                        inventory[k].category = localInventory[k].category;
+                    }
                 }
-            } catch (e) {
-                inventory = {};
-            }
+            });
+
+            // Normalize units
+            Object.keys(inventory).forEach(k => {
+                if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
+            });
+
             hydrateInventoryCostsFromRecipes();
+            localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
             seedLearnedAssociationsFromInventory();
             renderInventoryTable();
         }
