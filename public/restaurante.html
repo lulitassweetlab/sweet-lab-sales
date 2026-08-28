@@ -1362,7 +1362,7 @@
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; font-weight: 800; text-transform: uppercase;">
-                                <th style="padding: 14px 20px;">Nombre Insumo / Materia Prima</th>
+                                <th style="padding: 14px 20px;">Ingrediente</th>
                                 <th style="padding: 14px 20px;">Stock Disponible</th>
                                 <th style="padding: 14px 20px;">Unidad</th>
                                 <th style="padding: 14px 20px;">Lugar de Compra</th>
@@ -2035,7 +2035,9 @@
                     }
 
                     tr.innerHTML = `
-                        <td style="padding:14px 20px; font-weight:700; color:var(--text);">${escapeHtml(item.name)}</td>
+                        <td style="padding:14px 20px;">
+                            <input type="text" class="form-input name-input" value="${escapeHtml(item.name)}" style="width:160px; font-weight:700; padding:6px 10px; border-radius:var(--radius-sm);">
+                        </td>
                         <td style="padding:14px 20px;">
                             <input type="number" class="form-input stock-input" value="${item.stock}" style="width:100px; padding:6px 10px; font-weight:700;" min="0">
                             ${(item.portionGrams && item.portionGrams > 0)
@@ -2065,6 +2067,21 @@
                             </button>
                         </td>
                     `;
+
+                    const nameInput = tr.querySelector('.name-input');
+                    nameInput.addEventListener('change', async (e) => {
+                        const val = e.target.value.trim();
+                        if (!val) {
+                            e.target.value = item.name;
+                            return;
+                        }
+                        if (val.toLowerCase() !== key) {
+                            await renameInventoryIngredient(key, val);
+                        } else if (val !== item.name) {
+                            inventory[key].name = val;
+                            saveInventory();
+                        }
+                    });
 
                     const supplierInput = tr.querySelector('.supplier-input');
                     supplierInput.addEventListener('change', (e) => {
@@ -2147,6 +2164,72 @@
                     alertBanner.style.display = 'none';
                 }
             }
+        }
+
+        async function renameInventoryIngredient(oldKey, newName) {
+            const trimmedName = newName.trim();
+            if (!trimmedName || !inventory[oldKey]) return;
+            const newKey = trimmedName.toLowerCase();
+            if (newKey === oldKey) {
+                inventory[oldKey].name = trimmedName;
+                saveInventory();
+                return;
+            }
+
+            const item = inventory[oldKey];
+            item.name = trimmedName;
+
+            // Move object to new key
+            delete inventory[oldKey];
+            inventory[newKey] = item;
+            saveInventory();
+
+            // Propagate name change to all recipes
+            let recipesUpdated = false;
+            (recipes || []).forEach(recipe => {
+                if (Array.isArray(recipe.ingredients)) {
+                    recipe.ingredients.forEach(ing => {
+                        if (ing.name && ing.name.trim().toLowerCase() === oldKey) {
+                            ing.name = trimmedName;
+                            recipesUpdated = true;
+                        }
+                    });
+                }
+            });
+
+            if (recipesUpdated) {
+                saveRecipes();
+            }
+
+            updateIngredientsDatalist();
+
+            // Cloud DB sync: delete old key and upsert new key
+            try {
+                await fetch(`/api/restaurant-inventory?key=${encodeURIComponent(oldKey)}`, { method: 'DELETE' });
+                await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'purchase',
+                        supplier_name: item.supplierName || 'Actualización Nombre',
+                        total_cost: 0,
+                        items: [{
+                            name: trimmedName,
+                            qty: item.stock,
+                            unit: item.unit,
+                            supplierName: item.supplierName,
+                            portionGrams: item.portionGrams,
+                            expiryDays: item.expiryDays,
+                            expiryDate: item.expiryDate
+                        }]
+                    })
+                });
+            } catch (err) {
+                console.error('[Restaurante] Error sincronizando renombrado en Neon DB:', err);
+            }
+
+            renderInventoryTable();
+            showToast('🎉 Ingrediente actualizado exitosamente', 3000);
         }
 
         let activePortionKey = null;
