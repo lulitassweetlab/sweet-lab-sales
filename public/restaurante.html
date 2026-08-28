@@ -1894,6 +1894,39 @@
             if (!frequencyStats.suppliers) frequencyStats.suppliers = {};
         }
 
+        function cleanupLearnedAssociations() {
+            const validCategories = new Set([
+                'Carnes', 'Carnes Frías', 'Verduras', 'Frutas',
+                'Panadería', 'Lácteos', 'Salsas', 'Bebidas', 'Abarrotes', 'Empaques'
+            ]);
+            Object.values(inventory || {}).forEach(it => {
+                if (it && it.category && it.category.trim()) {
+                    validCategories.add(it.category.trim());
+                }
+            });
+
+            // Purge ghost categories from frequencyStats
+            if (frequencyStats && frequencyStats.categories) {
+                Object.keys(frequencyStats.categories).forEach(cat => {
+                    if (!validCategories.has(cat)) {
+                        delete frequencyStats.categories[cat];
+                    }
+                });
+            }
+
+            // Purge ghost categories from learnedAssociations
+            if (learnedAssociations) {
+                Object.keys(learnedAssociations).forEach(k => {
+                    if (learnedAssociations[k] && learnedAssociations[k].category) {
+                        if (!validCategories.has(learnedAssociations[k].category)) {
+                            delete learnedAssociations[k].category;
+                        }
+                    }
+                });
+            }
+            saveLearnedAssociations();
+        }
+
         function saveLearnedAssociations() {
             try {
                 localStorage.setItem(LEARNED_ASSOCIATIONS_KEY, JSON.stringify(learnedAssociations));
@@ -1913,10 +1946,14 @@
             if (cat) {
                 learnedAssociations[key].category = cat;
                 frequencyStats.categories[cat] = (frequencyStats.categories[cat] || 0) + 1;
+            } else {
+                delete learnedAssociations[key].category;
             }
             if (sup) {
                 learnedAssociations[key].supplierName = sup;
                 frequencyStats.suppliers[sup] = (frequencyStats.suppliers[sup] || 0) + 1;
+            } else {
+                delete learnedAssociations[key].supplierName;
             }
             learnedAssociations[key].lastUsed = Date.now();
 
@@ -2206,6 +2243,7 @@
             hydrateInventoryCostsFromRecipes(false);
             localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
             seedLearnedAssociationsFromInventory();
+            cleanupLearnedAssociations();
             renderInventoryTable();
         }
 
@@ -2259,7 +2297,7 @@
             });
 
             if (changed && persistToCloud) {
-                saveInventory();
+                saveInventory(true);
                 updateIngredientsDatalist();
             }
             return changed;
@@ -2306,6 +2344,7 @@
             }
         }
 
+        let saveInventoryTimeout = null;
         async function saveInventoryToNeon(data) {
             try {
                 const payload = data || inventory;
@@ -2319,18 +2358,25 @@
             }
         }
 
-        function saveInventory() {
+        function saveInventory(immediate = false) {
             try {
                 localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
             } catch (e) {
                 console.error('[Restaurante] Error guardando inventario localmente');
             }
-            saveInventoryToNeon(inventory);
+            if (immediate) {
+                if (saveInventoryTimeout) clearTimeout(saveInventoryTimeout);
+                return saveInventoryToNeon(inventory);
+            }
+            if (saveInventoryTimeout) clearTimeout(saveInventoryTimeout);
+            saveInventoryTimeout = setTimeout(() => {
+                saveInventoryToNeon(inventory);
+            }, 300);
         }
 
         function syncInventoryFromRecipes() {
             hydrateInventoryCostsFromRecipes();
-            saveInventory();
+            saveInventory(true);
             renderInventoryTable();
             updateIngredientsDatalist();
         }
@@ -2566,15 +2612,15 @@
 
                     const categoryInput = tr.querySelector('.category-input');
                     if (categoryInput) {
-                        const onCategoryChange = (e) => {
+                        categoryInput.addEventListener('focus', () => categoryInput.select());
+                        categoryInput.addEventListener('click', () => categoryInput.select());
+                        categoryInput.addEventListener('change', (e) => {
                             const val = e.target.value.trim();
                             inventory[key].category = val;
-                            saveInventory();
                             learnIngredientChoice(item.name, val, inventory[key].supplierName);
+                            saveInventory(true);
                             updateCategoriesDatalist();
-                        };
-                        categoryInput.addEventListener('input', onCategoryChange);
-                        categoryInput.addEventListener('change', onCategoryChange);
+                        });
                     }
 
                     const costInput = tr.querySelector('.cost-input');
@@ -2585,7 +2631,7 @@
                             inventory[key].lastPkgCost = val;
                             inventory[key].lastPkgQty = pkgQ;
                             inventory[key].lastUnitCost = (pkgQ > 0) ? (val / pkgQ) : 0;
-                            saveInventory();
+                            saveInventory(true);
                             updateIngredientsDatalist();
                             renderInventoryTable();
                         });
@@ -2593,15 +2639,15 @@
 
                     const supplierInput = tr.querySelector('.supplier-input');
                     if (supplierInput) {
-                        const onSupplierChange = (e) => {
+                        supplierInput.addEventListener('focus', () => supplierInput.select());
+                        supplierInput.addEventListener('click', () => supplierInput.select());
+                        supplierInput.addEventListener('change', (e) => {
                             const val = e.target.value.trim();
                             inventory[key].supplierName = val;
-                            saveInventory();
                             learnIngredientChoice(item.name, inventory[key].category, val);
+                            saveInventory(true);
                             updateSuppliersDatalist();
-                        };
-                        supplierInput.addEventListener('input', onSupplierChange);
-                        supplierInput.addEventListener('change', onSupplierChange);
+                        });
                     }
 
                     const btnHistory = tr.querySelector('.btn-view-history');
@@ -3297,6 +3343,11 @@
                         `;
 
                         tr.querySelector('.btn-del-scan-row').addEventListener('click', () => tr.remove());
+                        const scanCatInput = tr.querySelector('.scan-row-category');
+                        if (scanCatInput) {
+                            scanCatInput.addEventListener('focus', () => scanCatInput.select());
+                            scanCatInput.addEventListener('click', () => scanCatInput.select());
+                        }
                         tbody.appendChild(tr);
                     });
 
@@ -4300,12 +4351,16 @@
             const manualSupplierInput = document.getElementById('manual-inv-supplier');
 
             if (manualCategoryInput) {
+                manualCategoryInput.addEventListener('focus', () => manualCategoryInput.select());
+                manualCategoryInput.addEventListener('click', () => manualCategoryInput.select());
                 manualCategoryInput.addEventListener('input', () => {
                     delete manualCategoryInput.dataset.autofilled;
                 });
             }
 
             if (manualSupplierInput) {
+                manualSupplierInput.addEventListener('focus', () => manualSupplierInput.select());
+                manualSupplierInput.addEventListener('click', () => manualSupplierInput.select());
                 manualSupplierInput.addEventListener('input', () => {
                     delete manualSupplierInput.dataset.autofilled;
                 });
@@ -5145,26 +5200,18 @@
                 'Panadería', 'Lácteos', 'Salsas', 'Bebidas', 'Abarrotes', 'Empaques'
             ]);
             Object.values(inventory || {}).forEach(item => {
-                if (item.category && item.category.trim()) {
+                if (item && item.category && item.category.trim()) {
                     categories.add(item.category.trim());
                 }
-            });
-            Object.values(learnedAssociations || {}).forEach(item => {
-                if (item.category && item.category.trim()) {
-                    categories.add(item.category.trim());
-                }
-            });
-            Object.keys(frequencyStats.categories || {}).forEach(cat => {
-                if (cat && cat.trim()) categories.add(cat.trim());
             });
 
             const sorted = Array.from(categories).sort((a, b) => {
                 if (preferredCategory && a.toLowerCase() === preferredCategory.toLowerCase()) return -1;
                 if (preferredCategory && b.toLowerCase() === preferredCategory.toLowerCase()) return 1;
-                const countA = frequencyStats.categories[a] || 0;
-                const countB = frequencyStats.categories[b] || 0;
+                const countA = (frequencyStats.categories && frequencyStats.categories[a]) || 0;
+                const countB = (frequencyStats.categories && frequencyStats.categories[b]) || 0;
                 if (countB !== countA) return countB - countA;
-                return a.localeCompare(b);
+                return a.localeCompare(b, 'es', { sensitivity: 'base' });
             });
 
             const newHtml = sorted
