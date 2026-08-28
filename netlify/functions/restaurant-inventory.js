@@ -182,6 +182,68 @@ export async function handler(event) {
 					}
 					return json({ ok: true });
 				}
+
+				if (body.action === 'update_purchase_entry') {
+					const { purchaseId, itemKey, supplierName, qty, cost, unit, createdAt } = body;
+					if (purchaseId) {
+						const purchases = await sql`SELECT id, supplier_name, total_cost, items, created_at FROM restaurant_purchases WHERE id = ${purchaseId}`;
+						if (purchases.length > 0) {
+							const p = purchases[0];
+							const itemsArr = Array.isArray(p.items) ? p.items : [];
+							const normKey = (itemKey || '').trim().toLowerCase();
+							let updated = false;
+							itemsArr.forEach(it => {
+								if (it && it.name && (it.name.trim().toLowerCase() === normKey || normKey.includes(it.name.trim().toLowerCase()) || it.name.trim().toLowerCase().includes(normKey))) {
+									if (supplierName !== undefined) it.supplierName = supplierName;
+									if (qty !== undefined) it.qty = Number(qty) || 0;
+									if (cost !== undefined) it.cost = Number(cost) || 0;
+									if (unit !== undefined) it.unit = unit;
+									updated = true;
+								}
+							});
+							const newTotal = itemsArr.reduce((acc, it) => acc + (Number(it.cost) || 0), 0);
+							await sql`
+								UPDATE restaurant_purchases
+								SET items = ${JSON.stringify(itemsArr)},
+								    total_cost = ${newTotal},
+								    supplier_name = COALESCE(${supplierName || null}, supplier_name),
+								    created_at = COALESCE(${createdAt ? new Date(createdAt).toISOString() : null}::timestamptz, created_at)
+								WHERE id = ${purchaseId}
+							`;
+							return json({ ok: true });
+						}
+					}
+					return json({ error: 'Purchase not found' }, { status: 404 });
+				}
+
+				if (body.action === 'delete_purchase_entry') {
+					const { purchaseId, itemKey } = body;
+					if (purchaseId) {
+						const purchases = await sql`SELECT id, items FROM restaurant_purchases WHERE id = ${purchaseId}`;
+						if (purchases.length > 0) {
+							const p = purchases[0];
+							const itemsArr = (Array.isArray(p.items) ? p.items : []).filter(it => {
+								if (!it || !it.name) return false;
+								const normKey = (itemKey || '').trim().toLowerCase();
+								const itKey = it.name.trim().toLowerCase();
+								return itKey !== normKey && !itKey.includes(normKey) && !normKey.includes(itKey);
+							});
+							if (itemsArr.length === 0) {
+								await sql`DELETE FROM restaurant_purchases WHERE id = ${purchaseId}`;
+							} else {
+								const newTotal = itemsArr.reduce((acc, it) => acc + (Number(it.cost) || 0), 0);
+								await sql`
+									UPDATE restaurant_purchases
+									SET items = ${JSON.stringify(itemsArr)}, total_cost = ${newTotal}
+									WHERE id = ${purchaseId}
+								`;
+							}
+							return json({ ok: true });
+						}
+					}
+					return json({ error: 'Purchase not found' }, { status: 404 });
+				}
+
 				if (body.action === 'purchase') {
 					const purchaseId = 'compra_restaurante_' + Date.now();
 					const supplierName = (body.supplier_name || '').toString().trim();

@@ -3343,6 +3343,62 @@
             }
         }
 
+        let activeFichaKey = null;
+
+        window.navigateToRecipe = function(recipeId) {
+            closeIngredientHistoryModal();
+            switchMode('recipes');
+            setTimeout(() => {
+                openModal(recipeId);
+            }, 150);
+        };
+
+        window.recalcFichaUnitCost = function() {
+            const pkgQty = Number(document.getElementById('ficha-input-pkg-qty')?.value) || 1;
+            const pkgCost = Number(document.getElementById('ficha-input-pkg-cost')?.value) || 0;
+            const unitCostInput = document.getElementById('ficha-input-unit-cost');
+            if (unitCostInput && pkgQty > 0) {
+                unitCostInput.value = Math.round((pkgCost / pkgQty) * 100) / 100;
+            }
+        };
+
+        window.handleFichaUnitChange = function(unitVal) {
+            document.querySelectorAll('.ficha-unit-lbl').forEach(el => el.textContent = unitVal);
+            recalcFichaUnitCost();
+        };
+
+        window.recalcFichaExpiryDate = function() {
+            const days = Number(document.getElementById('ficha-input-expiry-days')?.value) || 0;
+            const dateInput = document.getElementById('ficha-input-expiry-date');
+            if (dateInput && days > 0) {
+                dateInput.value = calculateExpiryDate(new Date(), days);
+            }
+        };
+
+        function propagateInventoryItemToRecipes(itemName, updatedItem) {
+            if (!itemName || !updatedItem) return;
+            const cleanName = cleanIngredientText(itemName);
+            let recipesChanged = false;
+
+            (recipes || []).forEach(r => {
+                (r.ingredients || []).forEach(ing => {
+                    if (!ing || !ing.name || ing.isSubRecipe) return;
+                    const cleanIng = cleanIngredientText(ing.name);
+                    if (cleanIng === cleanName || cleanIng.includes(cleanName) || cleanName.includes(cleanIng)) {
+                        if (updatedItem.lastPkgCost > 0) ing.pkgCost = updatedItem.lastPkgCost;
+                        if (updatedItem.lastPkgQty > 0) ing.pkgQty = updatedItem.lastPkgQty;
+                        if (updatedItem.unit) ing.unit = updatedItem.unit;
+                        recipesChanged = true;
+                    }
+                });
+            });
+
+            if (recipesChanged) {
+                saveRecipes();
+                saveRecipesToNeon(recipes);
+            }
+        }
+
         window.saveFichaFromModal = async function() {
             if (!activeFichaKey) return;
             const normKey = activeFichaKey.trim().toLowerCase();
@@ -3403,6 +3459,197 @@
             closeIngredientHistoryModal();
         };
 
+        window.toggleEditPurchaseCard = function(cardId) {
+            const viewEl = document.getElementById(`purchase-view-${cardId}`);
+            const editEl = document.getElementById(`purchase-edit-${cardId}`);
+            if (viewEl && editEl) {
+                const isEditing = editEl.style.display !== 'none';
+                viewEl.style.display = isEditing ? 'block' : 'none';
+                editEl.style.display = isEditing ? 'none' : 'block';
+            }
+        };
+
+        window.savePurchaseEntryEdit = async function(cardId, purchaseId, itemKey) {
+            const sup = (document.getElementById(`edit-p-sup-${cardId}`)?.value || '').trim();
+            const qty = Number(document.getElementById(`edit-p-qty-${cardId}`)?.value) || 1;
+            const cost = Number(document.getElementById(`edit-p-cost-${cardId}`)?.value) || 0;
+            const unit = (document.getElementById(`edit-p-unit-${cardId}`)?.value || 'u').trim();
+            const dateVal = document.getElementById(`edit-p-date-${cardId}`)?.value;
+
+            try {
+                const res = await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'update_purchase_entry',
+                        purchaseId,
+                        itemKey,
+                        supplierName: sup,
+                        qty,
+                        cost,
+                        unit,
+                        createdAt: dateVal ? new Date(dateVal).toISOString() : null
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('✅ Registro de compra actualizado', 2000);
+                    // Update latest purchase price in item if this is the newest
+                    loadPurchaseHistoryTimeline(itemKey, activeFichaKey);
+                } else {
+                    showToast('❌ Error al actualizar registro', 2500);
+                }
+            } catch (err) {
+                console.error('[Restaurante] Error actualizando compra:', err);
+                showToast('❌ Error de conexión', 2500);
+            }
+        };
+
+        window.deletePurchaseEntry = async function(purchaseId, itemKey) {
+            if (!confirm('¿Estás seguro de eliminar este registro de compra de la línea del tiempo?')) return;
+
+            try {
+                const res = await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'delete_purchase_entry',
+                        purchaseId,
+                        itemKey
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('🗑️ Registro de compra eliminado', 2000);
+                    loadPurchaseHistoryTimeline(itemKey, activeFichaKey);
+                } else {
+                    showToast('❌ Error al eliminar registro', 2500);
+                }
+            } catch (err) {
+                console.error('[Restaurante] Error eliminando compra:', err);
+                showToast('❌ Error de conexión', 2500);
+            }
+        };
+
+        async function loadPurchaseHistoryTimeline(normKey, name) {
+            const container = document.getElementById('ficha-timeline-container');
+            if (!container) return;
+
+            try {
+                const res = await fetch(`/api/restaurant-inventory?action=item_history&key=${encodeURIComponent(normKey)}`);
+                if (!res.ok) throw new Error('Error de servidor');
+                const history = await res.json();
+
+                if (!Array.isArray(history) || history.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:25px 20px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:var(--radius-sm); color:var(--text-muted);">
+                            <span style="font-size:24px;">📜</span>
+                            <div style="font-weight:700; margin-top:4px; font-size:13px;">No hay compras ni facturas registradas aún para este insumo.</div>
+                            <div style="font-size:11px; margin-top:2px;">Las compras ingresadas mediante factura aparecerán aquí cronológicamente con sus precios y comercios.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let timelineHtml = '<div style="display:flex; flex-direction:column; gap:12px; position:relative; border-left:2px solid #e2e8f0; padding-left:18px; margin-left:8px;">';
+
+                history.forEach((entry, idx) => {
+                    const cardId = `entry-${idx}`;
+                    const rawDate = entry.createdAt ? entry.createdAt.slice(0, 10) : '';
+                    const dateStr = entry.createdAt ? new Date(entry.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Fecha desconocida';
+                    const displayEntryUnit = normalizeUnit(entry.unit);
+                    const unitCostStr = entry.unitCost > 0 ? `$${entry.unitCost.toLocaleString('es-CO')}/${displayEntryUnit}` : 'N/A';
+                    const totalCostStr = entry.cost > 0 ? `$${entry.cost.toLocaleString('es-CO')}` : 'N/A';
+
+                    let diffBadgeHtml = '';
+                    if (idx < history.length - 1) {
+                        const olderEntry = history[idx + 1];
+                        if (entry.unitCost > 0 && olderEntry.unitCost > 0) {
+                            const diff = entry.unitCost - olderEntry.unitCost;
+                            if (diff > 0) {
+                                diffBadgeHtml = `<span style="color:#dc2626; font-weight:800; font-size:11px; background:#fef2f2; padding:2px 8px; border-radius:10px; border:1px solid #fecaca;">+$${diff.toLocaleString('es-CO')}</span>`;
+                            } else if (diff < 0) {
+                                diffBadgeHtml = `<span style="color:#16a34a; font-weight:800; font-size:11px; background:#f0fdf4; padding:2px 8px; border-radius:10px; border:1px solid #bbf7d0;">-$${Math.abs(diff).toLocaleString('es-CO')}</span>`;
+                            }
+                        }
+                    }
+
+                    timelineHtml += `
+                        <div style="position:relative; background:white; border:1px solid var(--border); padding:12px 16px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
+                            <div style="position:absolute; left:-25px; top:14px; width:12px; height:12px; border-radius:50%; background:#0284c7; border:3px solid white; box-shadow:0 0 0 1px #0284c7;"></div>
+                            
+                            <!-- Read View -->
+                            <div id="purchase-view-${cardId}">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <span style="font-size:11px; font-weight:800; color:var(--text-muted);">📅 ${dateStr}</span>
+                                    <div>${diffBadgeHtml}</div>
+                                </div>
+                                
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="font-weight:800; font-size:14px; color:var(--navy-dark); display:flex; align-items:center; gap:6px;">
+                                        <span>🛒</span> ${escapeHtml(entry.supplierName || 'Sin especificar')}
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-weight:800; color:var(--primary); font-size:14px;">${unitCostStr}</div>
+                                        <div style="font-size:11px; color:var(--text-muted);">${entry.qty} ${escapeHtml(displayEntryUnit)} (Total: ${totalCostStr})</div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:6px;">
+                                    <button type="button" onclick="toggleEditPurchaseCard('${cardId}')" style="background:#f8fafc; border:1px solid #cbd5e1; font-size:11px; font-weight:700; color:var(--navy-dark); padding:3px 8px; border-radius:6px; cursor:pointer;">
+                                        ✏️ Editar Registro
+                                    </button>
+                                    <button type="button" onclick="deletePurchaseEntry('${entry.id}', '${escapeHtml(normKey)}')" style="background:#fef2f2; border:1px solid #fecaca; font-size:11px; font-weight:700; color:#dc2626; padding:3px 8px; border-radius:6px; cursor:pointer;">
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Inline Edit View -->
+                            <div id="purchase-edit-${cardId}" style="display:none; background:#f8fafc; border-radius:6px; padding:10px; margin-top:4px;">
+                                <div style="font-size:11px; font-weight:800; color:var(--navy-dark); margin-bottom:8px;">✏️ Editar Datos de esta Compra / Escaneo</div>
+                                <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+                                    <div>
+                                        <label style="font-size:10px; font-weight:700; color:var(--text-muted);">Comercio</label>
+                                        <input type="text" id="edit-p-sup-${cardId}" class="form-input" value="${escapeHtml(entry.supplierName || '')}" style="font-size:12px; padding:4px 6px;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size:10px; font-weight:700; color:var(--text-muted);">Cantidad</label>
+                                        <input type="number" id="edit-p-qty-${cardId}" class="form-input" value="${entry.qty || 1}" step="any" style="font-size:12px; padding:4px 6px;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size:10px; font-weight:700; color:var(--text-muted);">Costo Total ($)</label>
+                                        <input type="number" id="edit-p-cost-${cardId}" class="form-input" value="${entry.cost || 0}" step="any" style="font-size:12px; padding:4px 6px;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size:10px; font-weight:700; color:var(--text-muted);">Fecha</label>
+                                        <input type="date" id="edit-p-date-${cardId}" class="form-input" value="${rawDate}" style="font-size:11px; padding:4px 6px;">
+                                        <input type="hidden" id="edit-p-unit-${cardId}" value="${escapeHtml(entry.unit || 'g')}">
+                                    </div>
+                                </div>
+                                <div style="display:flex; justify-content:flex-end; gap:6px;">
+                                    <button type="button" onclick="toggleEditPurchaseCard('${cardId}')" style="background:white; border:1px solid #cbd5e1; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer;">
+                                        Cancelar
+                                    </button>
+                                    <button type="button" onclick="savePurchaseEntryEdit('${cardId}', '${entry.id}', '${escapeHtml(normKey)}')" style="background:var(--navy-dark); color:white; border:none; font-size:11px; font-weight:700; padding:4px 12px; border-radius:6px; cursor:pointer;">
+                                        💾 Guardar Registro
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                timelineHtml += '</div>';
+                container.innerHTML = timelineHtml;
+
+            } catch (err) {
+                console.error('[Restaurante] Error cargando historial:', err);
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444; font-size:12px;">❌ Error al cargar la línea del tiempo.</div>';
+            }
+        }
+
         async function openIngredientHistoryModal(key, name) {
             const modal = document.getElementById('ingredient-history-modal');
             const titleEl = document.getElementById('history-modal-ingredient-name');
@@ -3436,8 +3683,8 @@
                 return cleanIng === cleanTarget || cleanIng.includes(cleanTarget) || cleanTarget.includes(cleanIng);
             }));
 
-            // Top Header & Stats Cards Template
-            const renderDossierForm = (timelineContent) => `
+            // Static form structure with timeline container
+            bodyEl.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:16px;">
                     <!-- 1. Identificación y Clasificación -->
                     <div style="background: white; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm);">
@@ -3548,85 +3795,19 @@
                         `}
                     </div>
 
-                    <!-- 5. Línea de Tiempo de Compras -->
+                    <!-- 5. Línea de Tiempo de Compras & Escaneos IA -->
                     <div>
                         <div style="font-size: 13px; font-weight: 800; color: var(--navy-dark); display:flex; align-items:center; gap:6px; margin-bottom: 10px;">
-                            <span>📜</span> Línea de Tiempo de Compras & Precios:
+                            <span>📜</span> Línea de Tiempo de Compras & Facturas Escaneadas:
                         </div>
-                        ${timelineContent}
+                        <div id="ficha-timeline-container">
+                            <div style="text-align:center; padding:20px; color:var(--text-muted);">⏳ Cargando historial de compras...</div>
+                        </div>
                     </div>
                 </div>
             `;
 
-            bodyEl.innerHTML = renderDossierForm('<div style="text-align:center; padding:20px; color:var(--text-muted);">⏳ Cargando historial de compras...</div>');
-
-            try {
-                const res = await fetch(`/api/restaurant-inventory?action=item_history&key=${encodeURIComponent(normKey)}`);
-                if (!res.ok) throw new Error('Error de servidor');
-                const history = await res.json();
-
-                if (!Array.isArray(history) || history.length === 0) {
-                    const emptyHistoryHtml = `
-                        <div style="text-align:center; padding:25px 20px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:var(--radius-sm); color:var(--text-muted);">
-                            <span style="font-size:24px;">📜</span>
-                            <div style="font-weight:700; margin-top:4px; font-size:13px;">No hay facturas escaneadas registradas aún para "${escapeHtml(name)}".</div>
-                            <div style="font-size:11px; margin-top:2px;">Las compras ingresadas mediante factura aparecerán aquí cronológicamente con sus precios y comercios.</div>
-                        </div>
-                    `;
-                    bodyEl.innerHTML = renderDossierForm(emptyHistoryHtml);
-                    return;
-                }
-
-                let timelineHtml = '<div style="display:flex; flex-direction:column; gap:12px; position:relative; border-left:2px solid #e2e8f0; padding-left:18px; margin-left:8px;">';
-
-                history.forEach((entry, idx) => {
-                    const dateStr = entry.createdAt ? new Date(entry.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Fecha desconocida';
-                    const displayEntryUnit = normalizeUnit(entry.unit);
-                    const unitCostStr = entry.unitCost > 0 ? `$${entry.unitCost.toLocaleString('es-CO')}/${displayEntryUnit}` : 'N/A';
-                    const totalCostStr = entry.cost > 0 ? `$${entry.cost.toLocaleString('es-CO')}` : 'N/A';
-
-                    let diffBadgeHtml = '';
-                    if (idx < history.length - 1) {
-                        const olderEntry = history[idx + 1];
-                        if (entry.unitCost > 0 && olderEntry.unitCost > 0) {
-                            const diff = entry.unitCost - olderEntry.unitCost;
-                            if (diff > 0) {
-                                diffBadgeHtml = `<span style="color:#dc2626; font-weight:800; font-size:11px; background:#fef2f2; padding:2px 8px; border-radius:10px; border:1px solid #fecaca;">+$${diff.toLocaleString('es-CO')}</span>`;
-                            } else if (diff < 0) {
-                                diffBadgeHtml = `<span style="color:#16a34a; font-weight:800; font-size:11px; background:#f0fdf4; padding:2px 8px; border-radius:10px; border:1px solid #bbf7d0;">-$${Math.abs(diff).toLocaleString('es-CO')}</span>`;
-                            }
-                        }
-                    }
-
-                    timelineHtml += `
-                        <div style="position:relative; background:white; border:1px solid var(--border); padding:12px 16px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
-                            <div style="position:absolute; left:-25px; top:14px; width:12px; height:12px; border-radius:50%; background:#0284c7; border:3px solid white; box-shadow:0 0 0 1px #0284c7;"></div>
-                            
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                                <span style="font-size:11px; font-weight:800; color:var(--text-muted);">📅 ${dateStr}</span>
-                                <div>${diffBadgeHtml}</div>
-                            </div>
-                            
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-weight:800; font-size:14px; color:var(--navy-dark); display:flex; align-items:center; gap:6px;">
-                                    <span>🛒</span> ${escapeHtml(entry.supplierName || 'Sin especificar')}
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-weight:800; color:var(--primary); font-size:14px;">${unitCostStr}</div>
-                                    <div style="font-size:11px; color:var(--text-muted);">${entry.qty} ${escapeHtml(displayEntryUnit)} (Total: ${totalCostStr})</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                timelineHtml += '</div>';
-                bodyEl.innerHTML = renderDossierForm(timelineHtml);
-
-            } catch (err) {
-                console.error('[Restaurante] Error cargando historial de compras:', err);
-                bodyEl.innerHTML = renderDossierForm('<div style="text-align:center; padding:20px; color:#ef4444;">❌ Error al cargar la línea del tiempo.</div>');
-            }
+            loadPurchaseHistoryTimeline(normKey, name);
         }
 
         function closeIngredientHistoryModal() {
@@ -4728,37 +4909,54 @@
             if (!activeCat || activeCat === 'Todas') return true;
 
             const target = activeCat.trim().toLowerCase();
-            const targetStem = target.replace(/s$/, ''); // 'desayuno', 'refrigerio', 'almuerzo', 'cena', 'bebida', 'postre', 'adicionale'
-
             const cat = (r.category || '').trim().toLowerCase();
-            const catStem = cat.replace(/s$/, '');
             const meal = (r.mealType || '').trim().toLowerCase();
-            const mealStem = meal.replace(/s$/, '');
+            const name = (r.name || '').trim().toLowerCase();
 
-            // Specific category buttons: Bebida, Postre, Adicionales
-            if (targetStem === 'bebida') {
-                return catStem === 'bebida' || cat.includes('bebida') || mealStem === 'bebida';
-            }
-            if (targetStem === 'postre') {
-                return catStem === 'postre' || cat.includes('postre') || mealStem === 'postre';
-            }
-            if (targetStem === 'adicionale' || targetStem === 'adicional') {
-                return catStem.includes('adicional') || catStem === 'adicional' || catStem === 'otro' || catStem === 'otros';
+            // 1. Bebidas
+            if (target === 'bebida' || target === 'bebidas') {
+                if (cat.includes('bebida') || meal.includes('bebida')) return true;
+                if (/café|cafe|tinto|capuchino|latte|chocolate|milo|leche|avena|jugo|zumo|limonada|gaseosa|coca|cola|sprite|agua|cerveza|soda|michelada|frappé|frappe|granizado/i.test(name)) return true;
+                return false;
             }
 
-            // Meal moment buttons: Desayuno, Refrigerio, Almuerzo, Cena
-            const isMealMoment = ['desayuno', 'refrigerio', 'almuerzo', 'cena'].includes(targetStem);
-            if (isMealMoment) {
-                // Exact meal match
-                if (mealStem === targetStem || catStem === targetStem) return true;
-                // Universal meal (Cualquiera or empty or comida)
-                if (meal === 'cualquiera' || meal === 'todo' || meal === '' || !r.mealType) {
-                    return true;
-                }
+            // 2. Postres
+            if (target === 'postre' || target === 'postres') {
+                if (cat.includes('postre') || meal.includes('postre')) return true;
+                if (/postre|torta|pastel|brownie|helado|flan|pudín|pudin|mousse|galleta|dulce/i.test(name)) return true;
+                return false;
             }
 
-            // General fallback
-            return catStem === targetStem || mealStem === targetStem;
+            // 3. Adicionales
+            if (target === 'adicionales' || target === 'adicional') {
+                if (cat.includes('adicional') || cat === 'otros' || cat === 'otro') return true;
+                return false;
+            }
+
+            // 4. Meal Moments (Desayuno, Refrigerio, Almuerzo, Cena)
+            if (target === 'desayuno' || target === 'desayunos') {
+                if (meal === 'desayuno' || meal === 'cualquiera' || cat === 'desayuno') return true;
+                if (cat === 'comida' || cat === 'panadería' || cat === 'panaderia' || cat === 'adicionales') return true;
+                return false;
+            }
+
+            if (target === 'refrigerio' || target === 'refrigerios') {
+                if (meal === 'refrigerio' || meal === 'cualquiera' || cat === 'refrigerio') return true;
+                if (cat === 'comida' || cat === 'panadería' || cat === 'panaderia' || cat === 'bebida' || cat === 'adicionales') return true;
+                return false;
+            }
+
+            if (target === 'almuerzo' || target === 'almuerzos') {
+                if (meal === 'almuerzo' || meal === 'cualquiera' || cat === 'almuerzo' || cat === 'comida' || cat === 'adicionales') return true;
+                return false;
+            }
+
+            if (target === 'cena' || target === 'cenas') {
+                if (meal === 'cena' || meal === 'cualquiera' || cat === 'cena' || cat === 'comida' || cat === 'adicionales') return true;
+                return false;
+            }
+
+            return cat === target || meal === target;
         }
 
         // --- MODE 1: ORDERING MENU & CART RENDER ---
@@ -5428,11 +5626,16 @@
 
             // Ordering Category Pills
             document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
+                if (pill.id === 'btn-filter-disponibles') return;
                 pill.addEventListener('click', () => {
-                    document.querySelectorAll('#order-cat-pills .cat-pill').forEach(p => p.classList.remove('active'));
+                    const cat = pill.getAttribute('data-cat');
+                    if (!cat) return;
+                    document.querySelectorAll('#order-cat-pills .cat-pill').forEach(p => {
+                        if (p.id !== 'btn-filter-disponibles') p.classList.remove('active');
+                    });
                     pill.classList.add('active');
                     activeGuidedBanner = null;
-                    activeOrderCategory = pill.getAttribute('data-cat');
+                    activeOrderCategory = cat;
                     renderOrderingMenu();
                 });
             });
