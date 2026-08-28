@@ -1225,9 +1225,21 @@
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+
+        @keyframes splashBounce {
+            from { transform: translateY(0) scale(1); }
+            to { transform: translateY(-8px) scale(1.05); }
+        }
     </style>
 </head>
 <body>
+
+    <!-- Smooth Non-Blocking Splash Animation (1s) -->
+    <div id="app-loading-screen" style="position: fixed; inset: 0; background: #0f172a; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease;">
+        <div style="font-size: 48px; margin-bottom: 14px; animation: splashBounce 0.8s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);">🍽️</div>
+        <div style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Menú de Recetas</div>
+        <div style="font-size: 13px; color: #94a3b8; margin-top: 6px; font-weight: 600;">Preparando tu carta...</div>
+    </div>
 
     <!-- Header Navigation Bar (Dark Navy Theme) -->
     <header>
@@ -3273,62 +3285,6 @@
             renderInventoryTable();
             closePortionSettingModal();
             showToast('⚖️ Porción guardada correctamente', 2500);
-        }
-
-        let activeFichaKey = null;
-
-        window.navigateToRecipe = function(recipeId) {
-            closeIngredientHistoryModal();
-            switchMode('recipes');
-            setTimeout(() => {
-                openModal(recipeId);
-            }, 150);
-        };
-
-        window.recalcFichaUnitCost = function() {
-            const pkgQty = Number(document.getElementById('ficha-input-pkg-qty')?.value) || 1;
-            const pkgCost = Number(document.getElementById('ficha-input-pkg-cost')?.value) || 0;
-            const unitCostInput = document.getElementById('ficha-input-unit-cost');
-            if (unitCostInput && pkgQty > 0) {
-                unitCostInput.value = Math.round((pkgCost / pkgQty) * 100) / 100;
-            }
-        };
-
-        window.handleFichaUnitChange = function(unitVal) {
-            document.querySelectorAll('.ficha-unit-lbl').forEach(el => el.textContent = unitVal);
-            recalcFichaUnitCost();
-        };
-
-        window.recalcFichaExpiryDate = function() {
-            const days = Number(document.getElementById('ficha-input-expiry-days')?.value) || 0;
-            const dateInput = document.getElementById('ficha-input-expiry-date');
-            if (dateInput && days > 0) {
-                dateInput.value = calculateExpiryDate(new Date(), days);
-            }
-        };
-
-        function propagateInventoryItemToRecipes(itemName, updatedItem) {
-            if (!itemName || !updatedItem) return;
-            const cleanName = cleanIngredientText(itemName);
-            let recipesChanged = false;
-
-            (recipes || []).forEach(r => {
-                (r.ingredients || []).forEach(ing => {
-                    if (!ing || !ing.name || ing.isSubRecipe) return;
-                    const cleanIng = cleanIngredientText(ing.name);
-                    if (cleanIng === cleanName || cleanIng.includes(cleanName) || cleanName.includes(cleanIng)) {
-                        if (updatedItem.lastPkgCost > 0) ing.pkgCost = updatedItem.lastPkgCost;
-                        if (updatedItem.lastPkgQty > 0) ing.pkgQty = updatedItem.lastPkgQty;
-                        if (updatedItem.unit) ing.unit = updatedItem.unit;
-                        recipesChanged = true;
-                    }
-                });
-            });
-
-            if (recipesChanged) {
-                saveRecipes();
-                saveRecipesToNeon(recipes);
-            }
         }
 
         let activeFichaKey = null;
@@ -6421,8 +6377,19 @@
             }
         }
 
+        function dismissSplashScreen() {
+            const loader = document.getElementById('app-loading-screen');
+            if (loader) {
+                loader.style.opacity = '0';
+                loader.style.transform = 'scale(1.02)';
+                setTimeout(() => loader.remove(), 400);
+            }
+        }
+
         // Initialize App
         async function initRestauranteApp() {
+            setTimeout(dismissSplashScreen, 700);
+
             try {
                 loadPairingsMemory();
                 loadExpiryMemory();
