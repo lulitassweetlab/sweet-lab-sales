@@ -1368,12 +1368,6 @@
                     <span id="inventory-total-count" style="font-size: 12px; font-weight: 700; color: var(--primary-hover); background: var(--primary-light); padding: 4px 10px; border-radius: 10px;">0 insumos</span>
                 </div>
 
-                <!-- Expiration Warning Banner (if any item is close to expiry or expired) -->
-                <div id="inventory-expiry-alert-banner" style="display: none; background: #fffbebfb; border: 1px solid #fef3c7; border-left: 5px solid #f59e0b; padding: 14px 20px; border-radius: var(--radius-sm); color: #92400e; font-weight: 700; font-size: 14px;">
-                    <span style="font-size: 18px; margin-right: 8px;">⚠️</span>
-                    <span id="inventory-expiry-alert-text">Atención: hay insumos próximos a vencer.</span>
-                </div>
-
                 <!-- Inventory Table -->
                 <div style="background: white; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden;">
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
@@ -1385,7 +1379,7 @@
                                 <th style="padding: 14px 20px;">Unidad</th>
                                 <th style="padding: 14px 20px;">Comercio</th>
                                 <th style="padding: 14px 20px;">Fecha Vencimiento</th>
-                                <th style="padding: 14px 20px;">Estado Vencimiento</th>
+                                <th style="padding: 14px 20px;">Estado <span id="header-expiry-alert-icon" style="display: none; margin-left: 4px; font-size: 14px; vertical-align: middle; cursor: pointer;" title="Atención: hay insumos próximos a vencer o vencidos">⚠️</span></th>
                                 <th style="padding: 14px 20px; text-align: right;">Acciones</th>
                             </tr>
                         </thead>
@@ -2152,8 +2146,6 @@
         function renderInventoryTable() {
             const tbody = document.getElementById('inventory-table-body');
             const countEl = document.getElementById('inventory-total-count');
-            const alertBanner = document.getElementById('inventory-expiry-alert-banner');
-            const alertText = document.getElementById('inventory-expiry-alert-text');
             if (!tbody) return;
             tbody.innerHTML = '';
 
@@ -2166,7 +2158,6 @@
 
                 if (keys.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados en el inventario del restaurante. Haz clic en "Sincronizar Insumos desde Recetas" o "+ Compra".</td></tr>';
-                    if (alertBanner) alertBanner.style.display = 'none';
                     return;
                 }
 
@@ -2335,12 +2326,13 @@
                 tbody.appendChild(tr);
             });
 
-            if (alertBanner && alertText) {
+            const headerAlertIcon = document.getElementById('header-expiry-alert-icon');
+            if (headerAlertIcon) {
                 if (expiringCount > 0) {
-                    alertBanner.style.display = 'flex';
-                    alertText.textContent = `Atención: hay ${expiringCount} insumo(s) próximos a vencer o vencidos en el inventario. Úsalos prioritariamente en cocina.`;
+                    headerAlertIcon.style.display = 'inline';
+                    headerAlertIcon.title = `Atención: hay ${expiringCount} insumo(s) próximos a vencer o vencidos`;
                 } else {
-                    alertBanner.style.display = 'none';
+                    headerAlertIcon.style.display = 'none';
                 }
             }
         }
