@@ -3494,10 +3494,32 @@ window.recalcFichaUnitCost = function() {
             return affected;
         }
 
+        async function saveInventoryItemToNeon(key, item, oldKey = null) {
+            try {
+                if (!key || !item) return false;
+                const payload = { key, oldKey, ...item };
+                const res = await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'update_item', item: payload, oldKey, inventory: inventory })
+                });
+                return res.ok;
+            } catch (err) {
+                console.error('[Restaurante] Error guardando item en Neon DB:', err);
+                return false;
+            }
+        }
+
         window.saveFichaFromModal = async function(closeModal = false) {
             if (!activeFichaKey) return;
             const normKey = activeFichaKey.trim().toLowerCase();
             const oldItem = inventory[normKey] || findInventoryItem(activeFichaKey) || {};
+
+            const saveBtn = document.getElementById('btn-save-ficha-modal');
+            if (saveBtn && closeModal) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '⏳ Guardando en Neon DB...';
+            }
 
             updateFichaSyncBadge('saving');
 
@@ -3540,8 +3562,12 @@ window.recalcFichaUnitCost = function() {
                 if (newPkgQty > 0 && newUnit !== 'u') learnProductPackage(newName, newUnit, newPkgQty);
                 if (newExpiryDays > 0) learnExpiryDays(newName, newExpiryDays);
 
-                saveInventory(true);
-                await saveInventoryItemToNeon(newKey, updatedItem);
+                // Save locally first
+                saveInventoryLocally();
+
+                // Save to Neon DB with oldKey for renaming cleanup
+                const isSavedNeon = await saveInventoryItemToNeon(newKey, updatedItem, normKey);
+                await saveInventoryToNeon(inventory);
 
                 const affected = propagateInventoryItemToRecipes(newName, updatedItem);
                 hydrateInventoryCostsFromRecipes(true);
@@ -3551,7 +3577,7 @@ window.recalcFichaUnitCost = function() {
                 renderOrderingMenu();
 
                 currentFichaSyncDetails = {
-                    cloudDb: true,
+                    cloudDb: isSavedNeon !== false,
                     recipes: true,
                     inventoryTable: true,
                     orderingMenu: true,
@@ -3562,16 +3588,26 @@ window.recalcFichaUnitCost = function() {
 
                 updateFichaSyncBadge('synced', 'Sincronizado');
 
-                if (closeModal) {
-                    showToast(`✅ Ficha de "${newName}" guardada en todo el sistema`, 2500);
-                    closeIngredientHistoryModal();
+                if (saveBtn && closeModal) {
+                    saveBtn.innerHTML = '✅ ¡Guardado con éxito!';
+                    saveBtn.style.background = '#059669';
+                    showToast(`🎉 ¡Ficha de "${newName}" guardada en todo el sistema!`, 2500);
+                    setTimeout(() => {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '💾 Guardar Cambios en Ficha';
+                        saveBtn.style.background = 'var(--navy-dark)';
+                        closeIngredientHistoryModal();
+                    }, 500);
                 }
             } catch (err) {
                 console.error('[Restaurante] Error guardando ficha:', err);
                 currentFichaSyncDetails.cloudDb = false;
                 currentFichaSyncDetails.error = err.message;
                 updateFichaSyncBadge('error', 'Error al guardar');
-                if (closeModal) {
+                if (saveBtn && closeModal) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '❌ Reintentar Guardar';
+                    saveBtn.style.background = '#dc2626';
                     showToast('❌ Error al guardar en la nube', 2500);
                 }
             }

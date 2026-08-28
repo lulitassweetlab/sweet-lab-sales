@@ -318,6 +318,7 @@ export async function handler(event) {
 					const item = body.item;
 					if (item && item.name) {
 						const key = (item.key || item.name).trim().toLowerCase();
+						const oldKey = (body.oldKey || item.oldKey || '').trim().toLowerCase();
 						const name = item.name.trim();
 						const category = (item.category || '').trim();
 						const unit = (item.unit || 'g').trim();
@@ -331,6 +332,10 @@ export async function handler(event) {
 						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
 						const expiryDate = formatExpiryDate(item.expiryDate || item.expiry_date);
 						const lastPurchasedAt = item.lastPurchasedAt || item.last_purchased_at || null;
+
+						if (oldKey && oldKey !== key) {
+							await sql`DELETE FROM restaurant_inventory WHERE key = ${oldKey}`;
+						}
 
 						await sql`
 							INSERT INTO restaurant_inventory (key, name, category, unit, stock, portion_grams, supplier_name, last_unit_cost, prev_unit_cost, last_pkg_cost, last_pkg_qty, last_purchased_at, expiry_days, expiry_date, updated_at)
