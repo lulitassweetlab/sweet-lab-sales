@@ -2074,7 +2074,20 @@
         }
 
         function applyTimeBasedOrderCategory() {
-            const targetCat = getTimeBasedDefaultCategory();
+            let targetCat = getTimeBasedDefaultCategory();
+
+            // If targetCat is a specific meal slot, check if any recipes exist for it
+            if (targetCat !== 'Todas' && Array.isArray(recipes) && recipes.length > 0) {
+                const hasMatchingRecipes = recipes.some(r => {
+                    const cat = r.category || 'Comida';
+                    const meal = r.mealType || 'Cualquiera';
+                    return cat === targetCat || meal === targetCat || meal === 'Cualquiera';
+                });
+                if (!hasMatchingRecipes) {
+                    targetCat = 'Todas';
+                }
+            }
+
             activeOrderCategory = targetCat;
             document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
                 const pillCat = pill.getAttribute('data-cat');
@@ -4660,8 +4673,12 @@
 
             let filtered = recipes.filter(r => {
                 const cat = r.category || 'Comida';
-                const meal = r.mealType || 'Almuerzo';
-                const matchCategory = activeOrderCategory === 'Todas' || cat === activeOrderCategory || meal === activeOrderCategory;
+                const meal = r.mealType || 'Cualquiera';
+                const isMealSlot = activeOrderCategory === 'Desayuno' || activeOrderCategory === 'Almuerzo' || activeOrderCategory === 'Cena' || activeOrderCategory === 'Refrigerio';
+                const matchCategory = activeOrderCategory === 'Todas' || 
+                                     cat === activeOrderCategory || 
+                                     meal === activeOrderCategory ||
+                                     (isMealSlot && (meal === 'Cualquiera' || cat === 'Comida'));
                 
                 if (!matchCategory) return false;
 
@@ -4682,12 +4699,16 @@
             }
 
             if (filtered.length === 0) {
-                const emptyMsg = onlyAvailableFilter 
-                    ? 'No hay platos con 100% de ingredientes disponibles en stock para esta categoría.'
-                    : 'No hay ítems registrados en esta categoría.';
                 const emptyDiv = document.createElement('div');
-                emptyDiv.style.cssText = 'grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;';
-                emptyDiv.textContent = emptyMsg;
+                emptyDiv.style.cssText = 'grid-column:1/-1; text-align:center; padding:50px 20px; color:var(--text-muted);';
+                emptyDiv.innerHTML = `
+                    <div style="font-size:36px; margin-bottom:10px;">🍽️</div>
+                    <div style="font-size:16px; font-weight:800; color:var(--navy-dark); margin-bottom:4px;">No hay platos en la categoría "${escapeHtml(activeOrderCategory)}"</div>
+                    <div style="font-size:13px; margin-bottom:16px;">Puedes ver todos los platos y bebidas disponibles en la pestaña "Todas".</div>
+                    <button type="button" onclick="returnToFoodCategory('Todas')" style="background:var(--navy-dark); color:white; border:none; padding:10px 22px; border-radius:24px; font-weight:700; cursor:pointer; font-size:13px; box-shadow:var(--shadow-md);">
+                        👀 Ver Todas las Recetas
+                    </button>
+                `;
                 grid.appendChild(emptyDiv);
                 return;
             }
