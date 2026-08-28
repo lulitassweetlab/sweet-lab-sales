@@ -1383,7 +1383,7 @@
                                 <th style="padding: 14px 20px;">Grupo</th>
                                 <th style="padding: 14px 20px;">Disponible</th>
                                 <th style="padding: 14px 20px;">Unidad</th>
-                                <th style="padding: 14px 20px;">Lugar de Compra</th>
+                                <th style="padding: 14px 20px;">Comercio</th>
                                 <th style="padding: 14px 20px;">Fecha Vencimiento</th>
                                 <th style="padding: 14px 20px;">Estado Vencimiento</th>
                                 <th style="padding: 14px 20px; text-align: right;">Acciones</th>
@@ -1539,8 +1539,8 @@
                             📋 Productos Detectados en la Factura
                         </h4>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <label style="font-size: 13px; font-weight: 700; color: var(--navy-dark); white-space: nowrap;">Lugar de Compra:</label>
-                            <input type="text" class="form-input" id="scan-invoice-supplier" list="restaurant-suppliers-list" placeholder="Ej: Ricatas, Mercalider..." style="width: 180px; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: var(--radius-sm);">
+                            <label style="font-size: 13px; font-weight: 700; color: var(--navy-dark); white-space: nowrap;">Comercio:</label>
+                            <input type="text" class="form-input" id="scan-invoice-supplier" list="restaurant-suppliers-list" placeholder="Ej: Ricatas, Mercalider..." autocomplete="off" style="width: 180px; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: var(--radius-sm);">
                         </div>
                     </div>
                     <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;">
@@ -1587,11 +1587,11 @@
                 <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
                         <label class="form-label" style="font-weight: 700;">Nombre del Insumo / Materia Prima</label>
-                        <input type="text" class="form-input" id="manual-inv-name" list="restaurant-ingredients-list" placeholder="Ej: Pechuga, Arroz..." style="font-size: 14px; font-weight: 600;">
+                        <input type="text" class="form-input" id="manual-inv-name" list="restaurant-ingredients-list" placeholder="Ej: Pechuga, Arroz..." autocomplete="off" style="font-size: 14px; font-weight: 600;">
                     </div>
                     <div class="form-group">
                         <label class="form-label" style="font-weight: 700;">Grupo / Categoría</label>
-                        <input type="text" class="form-input" id="manual-inv-category" list="restaurant-categories-list" placeholder="Ej: Carnes, Panadería..." style="font-size: 14px; font-weight: 600;">
+                        <input type="text" class="form-input" id="manual-inv-category" list="restaurant-categories-list" placeholder="Ej: Carnes, Panadería..." autocomplete="off" style="font-size: 14px; font-weight: 600;">
                     </div>
                 </div>
 
@@ -1614,8 +1614,8 @@
 
                 <div class="form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Lugar de Compra</label>
-                        <input type="text" class="form-input" id="manual-inv-supplier" list="restaurant-suppliers-list" placeholder="Ej: Ricatas, Mercalider...">
+                        <label class="form-label" style="font-weight: 700;">Comercio</label>
+                        <input type="text" class="form-input" id="manual-inv-supplier" list="restaurant-suppliers-list" placeholder="Ej: Ricatas, Mercalider..." autocomplete="off">
                     </div>
 
                     <div class="form-group">
@@ -2199,10 +2199,10 @@
 
                     tr.innerHTML = `
                         <td style="padding:14px 20px;">
-                            <input type="text" class="form-input name-input" value="${escapeHtml(item.name)}" style="width:160px; font-weight:700; padding:6px 10px; border-radius:var(--radius-sm);">
+                            <input type="text" class="form-input name-input" value="${escapeHtml(item.name)}" autocomplete="off" style="width:160px; font-weight:700; padding:6px 10px; border-radius:var(--radius-sm);">
                         </td>
                         <td style="padding:14px 20px;">
-                            <input type="text" class="form-input category-input" list="restaurant-categories-list" value="${escapeHtml(item.category || '')}" placeholder="Ej: Carnes..." style="width:120px; font-weight:700; padding:6px 8px; border-radius:var(--radius-sm); font-size:12px;">
+                            <input type="text" class="form-input category-input" list="restaurant-categories-list" value="${escapeHtml(item.category || '')}" placeholder="Ej: Carnes..." autocomplete="off" style="width:120px; font-weight:700; padding:6px 8px; border-radius:var(--radius-sm); font-size:12px;">
                         </td>
                         <td style="padding:14px 20px;">
                             <input type="number" class="form-input stock-input" value="${item.stock}" style="width:100px; padding:6px 10px; font-weight:700;" min="0">
@@ -2213,7 +2213,7 @@
                         </td>
                         <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
                         <td style="padding:14px 20px;">
-                            <input type="text" class="form-input supplier-input" list="restaurant-suppliers-list" value="${escapeHtml(item.supplierName || '')}" placeholder="Ej: Ricatas..." style="width:130px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
+                            <input type="text" class="form-input supplier-input" list="restaurant-suppliers-list" value="${escapeHtml(item.supplierName || '')}" placeholder="Ej: Ricatas..." autocomplete="off" style="width:130px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
                             ${lastCost > 0 ? `<div style="font-size:10px; color:var(--text-muted); margin-top:3px; font-weight:600;">$${lastCost.toLocaleString('es-CO')}/${item.unit || 'u'} ${diffBadgeHtml}</div>` : ''}
                         </td>
                         <td style="padding:14px 20px;">
@@ -2247,6 +2247,7 @@
                             inventory[key].name = val;
                             saveInventory();
                         }
+                        e.target.blur();
                     });
 
                     const categoryInput = tr.querySelector('.category-input');
@@ -2256,6 +2257,7 @@
                             inventory[key].category = val;
                             saveInventory();
                             learnIngredientChoice(item.name, val, inventory[key].supplierName);
+                            e.target.blur();
                         });
                     }
 
@@ -2265,6 +2267,7 @@
                         inventory[key].supplierName = val;
                         saveInventory();
                         learnIngredientChoice(item.name, inventory[key].category, val);
+                        e.target.blur();
                     });
 
                     const btnHistory = tr.querySelector('.btn-view-history');
@@ -4500,9 +4503,12 @@
                 return a.localeCompare(b);
             });
 
-            datalist.innerHTML = sorted
+            const newHtml = sorted
                 .map(sup => `<option value="${escapeHtml(sup)}"></option>`)
                 .join('');
+            if (datalist.innerHTML !== newHtml) {
+                datalist.innerHTML = newHtml;
+            }
         }
 
         function updateCategoriesDatalist(preferredCategory = '') {
@@ -4535,9 +4541,12 @@
                 return a.localeCompare(b);
             });
 
-            datalist.innerHTML = sorted
+            const newHtml = sorted
                 .map(cat => `<option value="${escapeHtml(cat)}"></option>`)
                 .join('');
+            if (datalist.innerHTML !== newHtml) {
+                datalist.innerHTML = newHtml;
+            }
         }
 
         // Initialize App
