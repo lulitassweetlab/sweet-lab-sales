@@ -1225,41 +1225,9 @@
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-
-        @keyframes splashBounce {
-            from { transform: translateY(0) scale(1); }
-            to { transform: translateY(-10px) scale(1.08); }
-        }
-
-        @keyframes splashAutoFade {
-            0% { opacity: 1; pointer-events: all; }
-            70% { opacity: 1; pointer-events: all; }
-            99% { opacity: 0; pointer-events: none; }
-            100% { opacity: 0; pointer-events: none; display: none; visibility: hidden; }
-        }
-
-        #app-loading-screen {
-            position: fixed;
-            inset: 0;
-            background: #0f172a;
-            z-index: 999999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            animation: splashAutoFade 1s ease 0.1s forwards;
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
-
-    <!-- Smooth Initial Splash / Loading Screen -->
-    <div id="app-loading-screen">
-        <div style="font-size: 48px; margin-bottom: 14px; animation: splashBounce 0.9s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);">🍽️</div>
-        <div style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Menú de Recetas</div>
-        <div style="font-size: 13px; color: #94a3b8; margin-top: 6px; font-weight: 600;">Preparando tu carta...</div>
-    </div>
 
     <!-- Header Navigation Bar (Dark Navy Theme) -->
     <header>
@@ -6453,18 +6421,6 @@
             }
         }
 
-        function dismissSplashScreen() {
-            const loader = document.getElementById('app-loading-screen');
-            if (loader) {
-                loader.style.opacity = '0';
-                loader.style.pointerEvents = 'none';
-                setTimeout(() => {
-                    loader.style.display = 'none';
-                    loader.style.visibility = 'hidden';
-                }, 300);
-            }
-        }
-
         // Initialize App
         async function initRestauranteApp() {
             try {
@@ -6485,8 +6441,6 @@
                 renderOrderingMenu();
             } catch (err) {
                 console.error('[Restaurante] Init error:', err);
-            } finally {
-                setTimeout(dismissSplashScreen, 400);
             }
         }
 
