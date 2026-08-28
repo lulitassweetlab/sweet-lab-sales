@@ -26,6 +26,70 @@ export async function handler(event) {
 				const params = new URLSearchParams(raw);
 				const action = (params.get('action') || '').trim();
 
+				if (action === 'db_diagnostics') {
+					const [dbSizeRow] = await sql`
+						SELECT pg_size_pretty(pg_database_size(current_database())) AS total_db_size,
+						       pg_database_size(current_database()) AS total_db_bytes
+					`;
+
+					const tableStats = await sql`
+						SELECT
+							relname AS table_name,
+							pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+							pg_total_relation_size(relid) AS total_bytes,
+							pg_size_pretty(pg_relation_size(relid)) AS table_size,
+							pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size,
+							n_live_tup AS estimated_rows
+						FROM pg_stat_user_tables
+						ORDER BY pg_total_relation_size(relid) DESC
+					`;
+
+					const timeRanges = {};
+					const candidateDateTables = [
+						'sales', 'audit_logs', 'restaurant_purchases', 'restaurant_receipts', 
+						'scanner_logs', 'orders', 'restaurant_inventory', 'daily_spending', 
+						'raw_material_purchases', 'activity_logs'
+					];
+
+					for (const t of tableStats) {
+						const tName = t.table_name;
+						try {
+							const colCheck = await sql`
+								SELECT column_name 
+								FROM information_schema.columns 
+								WHERE table_name = ${tName} AND column_name IN ('created_at', 'timestamp', 'date', 'created', 'updated_at')
+								LIMIT 1
+							`;
+							if (colCheck.length > 0) {
+								const col = colCheck[0].column_name;
+								const rangeQuery = await sql.query(`
+									SELECT 
+										COUNT(*) AS exact_rows,
+										MIN("${col}") AS oldest_record,
+										MAX("${col}") AS newest_record
+									FROM "${tName}"
+								`);
+								if (rangeQuery && rangeQuery[0]) {
+									timeRanges[tName] = {
+										dateColumn: col,
+										exactRows: Number(rangeQuery[0].exact_rows) || 0,
+										oldest: rangeQuery[0].oldest_record,
+										newest: rangeQuery[0].newest_record
+									};
+								}
+							}
+						} catch(err) {
+							timeRanges[tName] = { error: err.message };
+						}
+					}
+
+					return json({
+						dbSize: dbSizeRow,
+						tables: tableStats,
+						timeRanges
+					});
+				}
+
 				if (action === 'memory') {
 					const memRows = await sql`
 						SELECT key, name, unit, qty
