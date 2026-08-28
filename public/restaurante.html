@@ -1004,21 +1004,27 @@
         #editor-modal,
         #editor-modal * {
             font-weight: 400 !important;
-            font-size: 11px !important;
+            font-size: 12px !important;
+            color: rgba(71, 85, 105, 0.75) !important;
         }
 
         #editor-modal #modal-title {
             font-size: 13px !important;
             font-weight: 400 !important;
-            color: var(--navy-dark) !important;
+            color: rgba(71, 85, 105, 0.75) !important;
         }
 
         #editor-modal input::placeholder,
         #editor-modal textarea::placeholder,
         #editor-modal select::placeholder {
-            font-size: 11px !important;
+            font-size: 12px !important;
             font-weight: 400 !important;
-            color: rgba(71, 85, 105, 0.65) !important;
+            color: rgba(71, 85, 105, 0.75) !important;
+        }
+
+        #editor-modal .btn-primary {
+            color: #ffffff !important;
+            background: #0284c7;
         }
 
         .custom-dropdown {
@@ -1588,9 +1594,8 @@
                 </div>
             </div>
 
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" id="btn-cancel-modal">Cancelar</button>
-                <button type="button" class="btn-primary" id="btn-save-recipe">Guardar Ítem</button>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button type="button" class="btn-primary" id="btn-save-recipe" style="padding: 9px 24px;">Guardar</button>
             </div>
         </div>
     </div>
@@ -4590,8 +4595,11 @@
                 baseSelectOptions += `<option value="${b.id}" ${b.id === subRecipeId ? 'selected' : ''}>${escapeHtml(b.name)} ($${uCost.toLocaleString('es-CO')}/porción)</option>`;
             });
 
+            const initialUnit = isSubRecipe ? 'porción' : (unit ? normalizeUnit(unit) : '');
+            const initialUnitLabel = isSubRecipe ? 'porción' : (unit ? normalizeUnit(unit) : 'Medida');
+
             row.innerHTML = `
-                <select class="form-select ing-type-select" style="border-radius:var(--radius-sm);">
+                <select class="form-select ing-type-select" style="border-radius:var(--radius-sm); width: 85px;">
                     <option value="raw" ${!isSubRecipe ? 'selected' : ''}>Insumo</option>
                     <option value="sub" ${isSubRecipe ? 'selected' : ''}>Receta</option>
                 </select>
@@ -4602,7 +4610,20 @@
                     </select>
                 </div>
                 <input type="number" class="form-input ing-r-qty" placeholder="Cant. receta" value="${recipeQty || ''}">
-                <input type="text" class="form-input ing-unit" placeholder="Medida (g, ml, u)" value="${escapeHtml(isSubRecipe ? 'porción' : normalizeUnit(unit))}">
+                
+                <div class="custom-dropdown ing-unit-dropdown" style="width: 100px;">
+                    <input type="hidden" class="ing-unit" value="${escapeHtml(initialUnit || 'g')}">
+                    <button type="button" class="custom-dropdown-trigger ing-unit-trigger" style="padding: 7px 10px;">
+                        <span class="ing-unit-label">${escapeHtml(initialUnitLabel)}</span>
+                        <span style="font-size: 8px; opacity: 0.6; margin-left: 4px;">▼</span>
+                    </button>
+                    <div class="custom-dropdown-menu ing-unit-menu">
+                        <div class="custom-dropdown-option" data-value="g">g</div>
+                        <div class="custom-dropdown-option" data-value="ml">ml</div>
+                        <div class="custom-dropdown-option" data-value="u">u</div>
+                    </div>
+                </div>
+
                 <input type="number" class="form-input ing-p-qty" placeholder="Cant. paquete" value="${isSubRecipe ? 1 : (pkgQty || '')}">
                 <input type="number" class="form-input ing-p-cost" placeholder="Costo paquete ($)" value="${pkgCost || ''}">
                 <button type="button" class="btn-remove-row">✕</button>
@@ -4612,8 +4633,29 @@
             const nameInput = row.querySelector('.ing-name');
             const subSelect = row.querySelector('.ing-sub-select');
             const unitInput = row.querySelector('.ing-unit');
+            const unitLabel = row.querySelector('.ing-unit-label');
+            const unitTrigger = row.querySelector('.ing-unit-trigger');
+            const unitMenu = row.querySelector('.ing-unit-menu');
             const pQtyInput = row.querySelector('.ing-p-qty');
             const pCostInput = row.querySelector('.ing-p-cost');
+
+            unitTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-dropdown-menu.open').forEach(m => {
+                    if (m !== unitMenu) m.classList.remove('open');
+                });
+                unitMenu.classList.toggle('open');
+            });
+
+            unitMenu.querySelectorAll('.custom-dropdown-option').forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const val = opt.getAttribute('data-value');
+                    unitInput.value = val;
+                    unitLabel.textContent = val;
+                    unitMenu.classList.remove('open');
+                });
+            });
 
             typeSelect.addEventListener('change', () => {
                 const isSub = typeSelect.value === 'sub';
@@ -4622,6 +4664,7 @@
                     nameInput.style.display = 'none';
                     subSelect.style.display = 'block';
                     unitInput.value = 'porción';
+                    unitLabel.textContent = 'porción';
                     pQtyInput.value = 1;
                     if (subSelect.value) {
                         const subMatch = recipes.find(r => r.id === subSelect.value);
@@ -4635,7 +4678,10 @@
                     nameInput.style.display = 'block';
                     subSelect.style.display = 'none';
                     row.setAttribute('data-subrecipe-id', '');
-                    if (unitInput.value === 'porción') unitInput.value = 'g';
+                    if (unitInput.value === 'porción') {
+                        unitInput.value = 'g';
+                        unitLabel.textContent = 'Medida';
+                    }
                 }
             });
 
@@ -4648,6 +4694,7 @@
                         row.setAttribute('data-is-subrecipe', 'true');
                         nameInput.value = subMatch.name;
                         unitInput.value = 'porción';
+                        unitLabel.textContent = 'porción';
                         pQtyInput.value = 1;
                         pCostInput.value = getSubRecipeUnitCost(subMatch.id);
                     }
@@ -4671,6 +4718,7 @@
                     subSelect.style.display = 'block';
                     subSelect.value = matchedRecipe.id;
                     unitInput.value = 'porción';
+                    unitLabel.textContent = 'porción';
                     pQtyInput.value = 1;
                     pCostInput.value = getSubRecipeUnitCost(matchedRecipe.id);
                     return;
@@ -4681,7 +4729,9 @@
                 const matchKey = Object.keys(catalog).find(k => k === val || k === val.replace(/s$/, '') || val === k.replace(/s$/, ''));
                 if (matchKey && catalog[matchKey]) {
                     const match = catalog[matchKey];
-                    if (unitInput) unitInput.value = normalizeUnit(match.unit) || 'g';
+                    const normU = normalizeUnit(match.unit) || 'g';
+                    if (unitInput) unitInput.value = normU;
+                    if (unitLabel) unitLabel.textContent = normU;
                     if (pQtyInput && match.pkgQty) pQtyInput.value = match.pkgQty;
                     if (pCostInput && match.pkgCost > 0) pCostInput.value = match.pkgCost;
                 }
