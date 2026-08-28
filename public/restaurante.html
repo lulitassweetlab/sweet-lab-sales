@@ -1363,6 +1363,7 @@
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; font-weight: 800; text-transform: uppercase;">
                                 <th style="padding: 14px 20px;">Ingrediente</th>
+                                <th style="padding: 14px 20px;">Grupo</th>
                                 <th style="padding: 14px 20px;">Stock Disponible</th>
                                 <th style="padding: 14px 20px;">Unidad</th>
                                 <th style="padding: 14px 20px;">Lugar de Compra</th>
@@ -1530,10 +1531,11 @@
                             <thead>
                                 <tr style="background: #f1f5f9; color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase;">
                                     <th style="padding: 10px 14px;">Insumo (Restaurante)</th>
-                                    <th style="padding: 10px 14px; width: 110px;">Cant. Comprada</th>
-                                    <th style="padding: 10px 14px; width: 80px;">Unidad</th>
-                                    <th style="padding: 10px 14px; width: 90px;">Porción</th>
-                                    <th style="padding: 10px 14px; width: 120px;">Costo Total ($)</th>
+                                    <th style="padding: 10px 14px; width: 110px;">Grupo</th>
+                                    <th style="padding: 10px 14px; width: 100px;">Cant. Comprada</th>
+                                    <th style="padding: 10px 14px; width: 70px;">Unidad</th>
+                                    <th style="padding: 10px 14px; width: 80px;">Porción</th>
+                                    <th style="padding: 10px 14px; width: 110px;">Costo Total ($)</th>
                                     <th style="padding: 10px 14px; width: 40px;"></th>
                                 </tr>
                             </thead>
@@ -1556,7 +1558,7 @@
 
     <!-- Modal Manual Add/Edit Inventory Item -->
     <div class="modal-overlay" id="manual-inventory-modal">
-        <div class="editor-modal" style="max-width: 500px;">
+        <div class="editor-modal" style="max-width: 520px;">
             <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border);">
                 <h3 id="manual-inv-title" style="font-size: 18px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
                     <span>📦</span> Agregar Insumo / Materia Prima
@@ -1565,10 +1567,15 @@
             </div>
 
             <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
-                <div class="form-group">
-                    <label class="form-label" style="font-weight: 700;">Nombre del Insumo / Materia Prima</label>
-                    <input type="text" class="form-input" id="manual-inv-name" list="restaurant-ingredients-list" placeholder="Ej: Pechuga de Pollo, Arroz, Aceite..." style="font-size: 15px; font-weight: 600;">
-                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">💡 Sugerencias automáticas según los ingredientes registrados en tus recetas.</span>
+                <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Nombre del Insumo / Materia Prima</label>
+                        <input type="text" class="form-input" id="manual-inv-name" list="restaurant-ingredients-list" placeholder="Ej: Pechuga, Arroz..." style="font-size: 14px; font-weight: 600;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Grupo / Categoría</label>
+                        <input type="text" class="form-input" id="manual-inv-category" list="restaurant-categories-list" placeholder="Ej: Carnes, Panadería..." style="font-size: 14px; font-weight: 600;">
+                    </div>
                 </div>
 
                 <div class="form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px;">
@@ -2348,7 +2355,10 @@
         function openManualInventoryModal() {
             updateIngredientsDatalist();
             updateSuppliersDatalist();
+            updateCategoriesDatalist();
             document.getElementById('manual-inv-name').value = '';
+            const catEl = document.getElementById('manual-inv-category');
+            if (catEl) catEl.value = '';
             document.getElementById('manual-inv-unit').value = 'g';
             document.getElementById('manual-inv-stock').value = '1000';
             const costEl = document.getElementById('manual-inv-cost');
@@ -2380,6 +2390,7 @@
                 return;
             }
 
+            const category = document.getElementById('manual-inv-category')?.value.trim() || '';
             const unit = document.getElementById('manual-inv-unit').value.trim() || 'g';
             const stock = Number(document.getElementById('manual-inv-stock').value) || 0;
             const cost = Number(document.getElementById('manual-inv-cost')?.value) || 0;
@@ -2401,6 +2412,7 @@
                 inventory[key].lastPurchasedAt = nowIso;
                 inventory[key].expiryDays = expiryDays;
                 inventory[key].expiryDate = expiryDate;
+                if (category) inventory[key].category = category;
                 if (supplierName) inventory[key].supplierName = supplierName;
                 if (portionGrams > 0) inventory[key].portionGrams = portionGrams;
                 if (newUnitCost > 0) {
@@ -2410,6 +2422,7 @@
             } else {
                 inventory[key] = {
                     name: name,
+                    category: category,
                     unit: unit,
                     stock: stock,
                     portionGrams: portionGrams,
@@ -2424,6 +2437,7 @@
 
             saveInventory();
             updateSuppliersDatalist();
+            updateCategoriesDatalist();
 
             // Record purchase entry in cloud if cost > 0
             if (cost > 0) {
@@ -2435,7 +2449,7 @@
                             action: 'purchase',
                             supplier_name: supplierName || 'Compra Manual',
                             total_cost: cost,
-                            items: [{ name, qty: stock, unit, cost, supplierName, portionGrams, expiryDays, expiryDate }]
+                            items: [{ name, category, qty: stock, unit, cost, supplierName, portionGrams, expiryDays, expiryDate }]
                         })
                     });
                 } catch (err) {
@@ -2609,10 +2623,12 @@
 
                         const invMatchKey = Object.keys(inventory).find(k => k === originalName.toLowerCase() || k.includes(originalName.toLowerCase()) || originalName.toLowerCase().includes(k));
                         let suggestedPortion = 0;
+                        let suggestedCategory = '';
                         if (invMatchKey) {
                             suggestedName = inventory[invMatchKey].name;
                             unit = inventory[invMatchKey].unit || 'g';
                             suggestedPortion = inventory[invMatchKey].portionGrams || 0;
+                            suggestedCategory = inventory[invMatchKey].category || '';
                         }
 
                         // Check learned product package memory
@@ -2631,6 +2647,9 @@
                                     <input type="text" class="form-input scan-row-name" list="restaurant-ingredients-list" value="${escapeHtml(suggestedName)}" style="flex:1; min-width:0; font-weight:700;">
                                     ${learned ? `<span style="font-size:10px; font-weight:800; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; padding:2px 6px; border-radius:8px; white-space:nowrap;" title="Aprendido previamente de tus compras: ${learned.qty} ${learned.unit}">learned</span>` : ''}
                                 </div>
+                            </td>
+                            <td style="padding:10px 14px;">
+                                <input type="text" class="form-input scan-row-category" list="restaurant-categories-list" value="${escapeHtml(suggestedCategory)}" placeholder="Ej: Carnes..." style="width:100%; font-size:12px; font-weight:700;">
                             </td>
                             <td style="padding:10px 14px;">
                                 <input type="number" class="form-input scan-row-qty" value="${finalQty}" style="width:100%; font-weight:700;" min="0.01" step="any">
@@ -2688,6 +2707,7 @@
 
             rows.forEach(tr => {
                 const name = tr.querySelector('.scan-row-name').value.trim();
+                const category = tr.querySelector('.scan-row-category')?.value.trim() || '';
                 const qty = Number(tr.querySelector('.scan-row-qty').value) || 0;
                 const unit = tr.querySelector('.scan-row-unit').value.trim() || 'g';
                 const portionGrams = Number(tr.querySelector('.scan-row-portion')?.value) || 0;
@@ -2705,6 +2725,7 @@
                         inventory[key].lastPurchasedAt = nowIso;
                         inventory[key].expiryDays = inventory[key].expiryDays || remDays;
                         inventory[key].expiryDate = inventory[key].expiryDate || calcExpDate;
+                        if (category) inventory[key].category = category;
                         if (supplierName) inventory[key].supplierName = supplierName;
                         if (portionGrams > 0) inventory[key].portionGrams = portionGrams;
                         if (newUnitCost > 0) {
@@ -2714,6 +2735,7 @@
                     } else {
                         inventory[key] = {
                             name: name,
+                            category: category,
                             unit: unit,
                             stock: qty,
                             portionGrams: portionGrams,
@@ -2725,7 +2747,7 @@
                             expiryDate: calcExpDate
                         };
                     }
-                    purchaseItems.push({ name, qty, unit, cost, supplierName, portionGrams, expiryDays: remDays, expiryDate: calcExpDate });
+                    purchaseItems.push({ name, category, qty, unit, cost, supplierName, portionGrams, expiryDays: remDays, expiryDate: calcExpDate });
                     totalCostSum += cost;
                     addedCount++;
                 }
@@ -4136,6 +4158,24 @@
                 .join('');
         }
 
+        function updateCategoriesDatalist() {
+            const datalist = document.getElementById('restaurant-categories-list');
+            if (!datalist) return;
+            const categories = new Set([
+                'Carnes', 'Carnes Frías', 'Verduras', 'Frutas',
+                'Panadería', 'Lácteos', 'Salsas', 'Bebidas', 'Abarrotes', 'Empaques'
+            ]);
+            Object.values(inventory || {}).forEach(item => {
+                if (item.category && item.category.trim()) {
+                    categories.add(item.category.trim());
+                }
+            });
+
+            datalist.innerHTML = Array.from(categories)
+                .map(cat => `<option value="${escapeHtml(cat)}"></option>`)
+                .join('');
+        }
+
         // Initialize App
         document.addEventListener('DOMContentLoaded', () => {
             loadRecipes();
@@ -4144,6 +4184,7 @@
             loadProductMemory();
             loadInventory();
             updateSuppliersDatalist();
+            updateCategoriesDatalist();
             setupEventListeners();
             switchMode('order');
         });
@@ -4157,6 +4198,7 @@
     <!-- Datalist for Isolated Restaurant Ingredients Autocomplete -->
     <datalist id="restaurant-ingredients-list"></datalist>
     <datalist id="restaurant-suppliers-list"></datalist>
+    <datalist id="restaurant-categories-list"></datalist>
 
 </body>
 </html>
