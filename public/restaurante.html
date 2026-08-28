@@ -987,12 +987,105 @@
             animation: slideUp 0.3s ease-out;
         }
 
+        @keyframes aladdinUnfold {
+            0% {
+                opacity: 0;
+                transform: scaleY(0.6) scaleX(0.92) translateY(-10px);
+            }
+            60% {
+                transform: scaleY(1.03) scaleX(1.01) translateY(2px);
+            }
+            100% {
+                opacity: 1;
+                transform: scaleY(1) scaleX(1) translateY(0);
+            }
+        }
+
+        #editor-modal,
+        #editor-modal * {
+            font-weight: 400 !important;
+            font-size: 11px !important;
+        }
+
+        #editor-modal #modal-title {
+            font-size: 13px !important;
+            font-weight: 400 !important;
+            color: var(--navy-dark) !important;
+        }
+
         #editor-modal input::placeholder,
         #editor-modal textarea::placeholder,
         #editor-modal select::placeholder {
             font-size: 11px !important;
-            font-weight: 500 !important;
+            font-weight: 400 !important;
             color: rgba(71, 85, 105, 0.65) !important;
+        }
+
+        .custom-dropdown {
+            position: relative;
+            user-select: none;
+            width: 100%;
+        }
+
+        .custom-dropdown-trigger {
+            width: 100%;
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 11px !important;
+            font-weight: 400 !important;
+            color: var(--text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .custom-dropdown-trigger:hover {
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+
+        .custom-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.15), 0 8px 12px -6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            overflow: hidden;
+            display: none;
+            transform-origin: top center;
+        }
+
+        .custom-dropdown-menu.open {
+            display: block;
+            animation: aladdinUnfold 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .custom-dropdown-option {
+            padding: 8px 12px;
+            font-size: 11px !important;
+            font-weight: 400 !important;
+            color: #334155;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .custom-dropdown-option:hover {
+            background: #f1f5f9;
+            color: #0284c7;
+        }
+
+        .custom-dropdown-option.selected {
+            background: #e0f2fe;
+            color: #0284c7;
         }
 
         .modal-header {
@@ -1423,32 +1516,43 @@
             </div>
             <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
                 <div class="form-group">
-                    <input type="text" class="form-input" id="form-name" placeholder="Nombre de receta" style="font-size: 14px; font-weight: 700; padding: 10px 14px;">
+                    <input type="text" class="form-input" id="form-name" placeholder="Nombre de receta" style="padding: 10px 14px;">
                 </div>
 
                 <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <select class="form-select" id="form-category" style="font-weight: 700;">
-                            <option value="Comida">Comida</option>
-                            <option value="Bebida">Bebida</option>
-                            <option value="Postre">Postre</option>
-                            <option value="Adicionales">Adicionales</option>
-                        </select>
+                    <div class="custom-dropdown" id="dropdown-category">
+                        <input type="hidden" id="form-category" value="Comida">
+                        <button type="button" class="custom-dropdown-trigger" id="btn-dropdown-category">
+                            <span id="label-dropdown-category">Categoría</span>
+                            <span style="font-size: 9px; opacity: 0.6; margin-left: 6px;">▼</span>
+                        </button>
+                        <div class="custom-dropdown-menu" id="menu-dropdown-category">
+                            <div class="custom-dropdown-option" data-value="Comida">Comida</div>
+                            <div class="custom-dropdown-option" data-value="Bebida">Bebida</div>
+                            <div class="custom-dropdown-option" data-value="Postre">Postre</div>
+                            <div class="custom-dropdown-option" data-value="Adicionales">Adicionales</div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <select class="form-select" id="form-meal" style="font-weight: 700;">
-                            <option value="Cualquiera">Momento: Cualquiera</option>
-                            <option value="Almuerzo">Almuerzo</option>
-                            <option value="Desayuno">Desayuno</option>
-                            <option value="Refrigerio">Refrigerio</option>
-                            <option value="Cena">Cena</option>
-                        </select>
+
+                    <div class="custom-dropdown" id="dropdown-meal">
+                        <input type="hidden" id="form-meal" value="Cualquiera">
+                        <button type="button" class="custom-dropdown-trigger" id="btn-dropdown-meal">
+                            <span id="label-dropdown-meal">Momento</span>
+                            <span style="font-size: 9px; opacity: 0.6; margin-left: 6px;">▼</span>
+                        </button>
+                        <div class="custom-dropdown-menu" id="menu-dropdown-meal">
+                            <div class="custom-dropdown-option" data-value="Cualquiera">Cualquiera</div>
+                            <div class="custom-dropdown-option" data-value="Almuerzo">Almuerzo</div>
+                            <div class="custom-dropdown-option" data-value="Desayuno">Desayuno</div>
+                            <div class="custom-dropdown-option" data-value="Refrigerio">Refrigerio</div>
+                            <div class="custom-dropdown-option" data-value="Cena">Cena</div>
+                        </div>
                     </div>
                     <input type="hidden" id="form-servings" value="1">
                 </div>
 
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    <button type="button" class="btn-secondary" id="btn-select-image" style="display: flex; align-items: center; gap: 6px; padding: 9px 14px; font-weight: 700; white-space: nowrap;">
+                    <button type="button" class="btn-secondary" id="btn-select-image" style="display: flex; align-items: center; gap: 6px; padding: 9px 14px; white-space: nowrap;">
                         📁 Seleccionar foto
                     </button>
                     <input type="file" id="form-file-input" accept="image/*" style="display: none;">
@@ -1463,8 +1567,8 @@
                 <!-- Dynamic Ingredients Form List -->
                 <div class="form-group" style="margin-top: 6px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-weight: 800; font-size: 14px; color: var(--navy-dark);">Ingredientes</span>
-                        <button type="button" class="btn-secondary" id="btn-add-ing-row" style="padding:4px 12px; font-size:12px; font-weight:700;">+ Agregar Ingrediente</button>
+                        <span style="color: var(--navy-dark);">Ingredientes</span>
+                        <button type="button" class="btn-secondary" id="btn-add-ing-row" style="padding:4px 12px; font-size:11px;">+ Agregar Ingrediente</button>
                     </div>
 
                     <div id="form-ing-list">
@@ -1475,8 +1579,8 @@
                 <!-- Dynamic Steps Form List -->
                 <div class="form-group">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-weight: 800; font-size: 14px; color: var(--navy-dark);">Pasos de Preparación (Opcional)</span>
-                        <button type="button" class="btn-secondary" id="btn-add-step-row" style="padding:4px 12px; font-size:12px; font-weight:700;">+ Agregar Paso</button>
+                        <span style="color: var(--navy-dark);">Pasos de Preparación (Opcional)</span>
+                        <button type="button" class="btn-secondary" id="btn-add-step-row" style="padding:4px 12px; font-size:11px;">+ Agregar Paso</button>
                     </div>
                     <div id="form-steps-list">
                         <!-- Dynamic Step Input Rows -->
@@ -4248,6 +4352,14 @@
                     hideImagePreview();
                 });
             }
+
+            // Initialize Aladdin Dropdowns
+            setupCustomDropdown('dropdown-category', 'form-category', 'label-dropdown-category', 'Categoría');
+            setupCustomDropdown('dropdown-meal', 'form-meal', 'label-dropdown-meal', 'Momento');
+
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.custom-dropdown-menu.open').forEach(m => m.classList.remove('open'));
+            });
         }
 
         function handleImageFile(file) {
@@ -4378,6 +4490,36 @@
             }
         }
 
+        // Setup Event Listeners
+        function setupCustomDropdown(containerId, inputId, labelId, defaultPlaceholder = '') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const trigger = container.querySelector('.custom-dropdown-trigger');
+            const menu = container.querySelector('.custom-dropdown-menu');
+            const input = document.getElementById(inputId);
+            const label = document.getElementById(labelId);
+            const options = container.querySelectorAll('.custom-dropdown-option');
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-dropdown-menu.open').forEach(m => {
+                    if (m !== menu) m.classList.remove('open');
+                });
+                menu.classList.toggle('open');
+            });
+
+            options.forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const val = opt.getAttribute('data-value');
+                    input.value = val;
+                    label.textContent = val || defaultPlaceholder;
+                    options.forEach(o => o.classList.toggle('selected', o === opt));
+                    menu.classList.remove('open');
+                });
+            });
+        }
+
         // Open Modal Form
         function openModal(id = null) {
             editingRecipeId = id;
@@ -4392,8 +4534,14 @@
                 const r = recipes.find(rec => rec.id === id);
                 titleEl.textContent = 'Editar Receta';
                 document.getElementById('form-name').value = r.name || '';
-                document.getElementById('form-category').value = r.category || 'Comida';
-                document.getElementById('form-meal').value = r.mealType || 'Cualquiera';
+                const cat = r.category || 'Comida';
+                document.getElementById('form-category').value = cat;
+                const catLbl = document.getElementById('label-dropdown-category');
+                if (catLbl) catLbl.textContent = cat;
+                const meal = r.mealType || 'Cualquiera';
+                document.getElementById('form-meal').value = meal;
+                const mealLbl = document.getElementById('label-dropdown-meal');
+                if (mealLbl) mealLbl.textContent = (meal === 'Cualquiera') ? 'Momento' : meal;
                 document.getElementById('form-image').value = r.image || '';
                 document.getElementById('form-servings').value = r.servings || 1;
 
@@ -4406,7 +4554,11 @@
                 titleEl.textContent = 'Nueva Receta';
                 document.getElementById('form-name').value = '';
                 document.getElementById('form-category').value = 'Comida';
+                const catLbl = document.getElementById('label-dropdown-category');
+                if (catLbl) catLbl.textContent = 'Categoría';
                 document.getElementById('form-meal').value = 'Cualquiera';
+                const mealLbl = document.getElementById('label-dropdown-meal');
+                if (mealLbl) mealLbl.textContent = 'Momento';
                 document.getElementById('form-image').value = '';
                 document.getElementById('form-servings').value = 1;
 
@@ -4435,17 +4587,17 @@
             let baseSelectOptions = '<option value="">-- Elegir Receta Integrada --</option>';
             availableSubRecipes.forEach(b => {
                 const uCost = getSubRecipeUnitCost(b.id);
-                baseSelectOptions += `<option value="${b.id}" ${b.id === subRecipeId ? 'selected' : ''}>🧪 ${escapeHtml(b.name)} ($${uCost.toLocaleString('es-CO')}/porción)</option>`;
+                baseSelectOptions += `<option value="${b.id}" ${b.id === subRecipeId ? 'selected' : ''}>${escapeHtml(b.name)} ($${uCost.toLocaleString('es-CO')}/porción)</option>`;
             });
 
             row.innerHTML = `
-                <select class="form-select ing-type-select" style="font-weight:700; border-radius:var(--radius-sm);">
-                    <option value="raw" ${!isSubRecipe ? 'selected' : ''}>📦 Insumo</option>
-                    <option value="sub" ${isSubRecipe ? 'selected' : ''}>🧪 Receta</option>
+                <select class="form-select ing-type-select" style="border-radius:var(--radius-sm);">
+                    <option value="raw" ${!isSubRecipe ? 'selected' : ''}>Insumo</option>
+                    <option value="sub" ${isSubRecipe ? 'selected' : ''}>Receta</option>
                 </select>
                 <div class="ing-name-wrap" style="display:flex; flex:1; min-width:0;">
                     <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Ingrediente..." value="${escapeHtml(name)}" autocomplete="off" style="${isSubRecipe ? 'display:none;' : ''}">
-                    <select class="form-select ing-sub-select" style="${isSubRecipe ? '' : 'display:none;'} font-weight:600;">
+                    <select class="form-select ing-sub-select" style="${isSubRecipe ? '' : 'display:none;'}">
                         ${baseSelectOptions}
                     </select>
                 </div>
