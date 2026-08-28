@@ -2007,6 +2007,8 @@
         let productMemory = {}; // { [lowercaseName]: { name: string, unit: string, qty: number } }
         let learnedAssociations = {}; // { [lowercaseName]: { category: string, supplierName: string, lastUsed: number } }
         let frequencyStats = { categories: {}, suppliers: {} }; // { categories: { [cat]: count }, suppliers: { [sup]: count } }
+        let currentMode = 'order';
+        let onlyAvailableFilter = false;
         let selectedRecipeId = null;
         let editingRecipeId = null;
         let activeMealFilter = 'Todas';
@@ -3895,7 +3897,8 @@
                 if (!Array.isArray(history)) return;
 
                 const todayIso = new Date().toISOString().split('T')[0];
-                const todayRecord = history.find(h => h.date === todayIso);
+                const localDateStr = new Date().toLocaleDateString('en-CA');
+                const todayRecord = history.find(h => h.date === todayIso || h.date === localDateStr) || (history.length > 0 ? history[0] : null);
                 const todayTotal = todayRecord ? Number(todayRecord.totalCost) || 0 : 0;
                 kpiSumEl.textContent = `$${todayTotal.toLocaleString('es-CO')}`;
             } catch (err) {
