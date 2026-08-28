@@ -4303,37 +4303,66 @@
                         const key = ing.name.trim().toLowerCase();
                         catalog[key] = {
                             name: ing.name.trim(),
-                            unit: ing.unit || 'g',
+                            unit: normalizeUnit(ing.unit || 'g'),
                             pkgQty: ing.pkgQty || 1,
                             pkgCost: ing.pkgCost || 0
                         };
                     }
                 });
             });
+
+            // Include all inventory ingredients
+            Object.values(inventory || {}).forEach(item => {
+                if (item && item.name) {
+                    const key = item.name.trim().toLowerCase();
+                    if (!catalog[key]) {
+                        catalog[key] = {
+                            name: item.name.trim(),
+                            unit: normalizeUnit(item.unit || 'g'),
+                            pkgQty: item.stock || 1000,
+                            pkgCost: (item.lastUnitCost && item.stock) ? Math.round(item.lastUnitCost * item.stock) : 0
+                        };
+                    }
+                }
+            });
+
             return catalog;
         }
 
         function updateIngredientsDatalist() {
             const datalist = document.getElementById('restaurant-ingredients-list');
             if (!datalist) return;
-            datalist.innerHTML = '';
+            
+            const names = new Set();
 
-            // Add all existing recipes to datalist suggestions
-            (recipes || []).forEach(r => {
-                const opt = document.createElement('option');
-                opt.value = r.name;
-                datalist.appendChild(opt);
-            });
-
-            // Add raw ingredients from catalog
-            const catalog = getRestaurantIngredientsCatalog();
-            Object.values(catalog).forEach(item => {
-                if (!recipes.some(r => r.name.toLowerCase().trim() === item.name.toLowerCase())) {
-                    const opt = document.createElement('option');
-                    opt.value = item.name;
-                    datalist.appendChild(opt);
+            // 1. Add all inventory ingredients (priority 1)
+            Object.values(inventory || {}).forEach(item => {
+                if (item && item.name && item.name.trim()) {
+                    names.add(item.name.trim());
                 }
             });
+
+            // 2. Add raw ingredients from catalog/recipes
+            const catalog = getRestaurantIngredientsCatalog();
+            Object.values(catalog).forEach(item => {
+                if (item && item.name && item.name.trim()) {
+                    names.add(item.name.trim());
+                }
+            });
+
+            // 3. Add all existing recipes to suggestions
+            (recipes || []).forEach(r => {
+                if (r && r.name && r.name.trim()) {
+                    names.add(r.name.trim());
+                }
+            });
+
+            const sorted = Array.from(names).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+            const newHtml = sorted.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+            if (datalist.innerHTML !== newHtml) {
+                datalist.innerHTML = newHtml;
+            }
         }
 
         // Open Modal Form
