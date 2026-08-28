@@ -3469,6 +3469,12 @@
                 return;
             }
 
+            const btnConfirm = document.getElementById('btn-confirm-scan');
+            if (btnConfirm) {
+                btnConfirm.disabled = true;
+                btnConfirm.innerHTML = '⏳ Guardando en base de datos...';
+            }
+
             const supplierName = document.getElementById('scan-invoice-supplier')?.value.trim() || '';
             let addedCount = 0;
             const purchaseItems = [];
@@ -3537,7 +3543,7 @@
 
             // Record purchase entry & inventory sync in cloud Neon DB
             try {
-                await fetch('/api/restaurant-inventory', {
+                const res = await fetch('/api/restaurant-inventory', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -3547,8 +3553,17 @@
                         items: purchaseItems
                     })
                 });
+                if (!res.ok) {
+                    throw new Error('Error del servidor');
+                }
             } catch (err) {
                 console.error('[Restaurante] Error registrando compra en Neon DB:', err);
+                alert('⚠️ Ocurrió un inconveniente al guardar la compra en la nube. Se guardó localmente.');
+            } finally {
+                if (btnConfirm) {
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = '✅ Confirmar y Agregar al Inventario';
+                }
             }
 
             renderInventoryTable();
