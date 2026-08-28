@@ -1630,6 +1630,34 @@
         </div>
     </div>
 
+    <!-- Centered Portion Setting Modal -->
+    <div class="modal-overlay" id="portion-setting-modal">
+        <div class="editor-modal" style="max-width: 420px;">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border);">
+                <h3 style="font-size: 17px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
+                    <span>⚖️</span> Definir Porción
+                </h3>
+                <button id="btn-close-portion-modal" style="background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
+            </div>
+
+            <div class="modal-body" style="padding: 20px 24px;">
+                <p id="portion-modal-ingredient-name" style="font-weight: 800; color: var(--navy-dark); margin-bottom: 14px; font-size: 16px;"></p>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 700;">Cantidad por Porción (<span id="portion-modal-unit-label">g</span>)</label>
+                    <input type="number" class="form-input" id="portion-modal-input" placeholder="Ej: 250" style="font-size: 16px; font-weight: 700;" min="0" step="any">
+                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 6px; display: block;">Ingresa cuántos gramos, ml o unidades equivalen a 1 porción completa.</span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btn-cancel-portion-modal">Cancelar</button>
+                <button type="button" class="btn-primary" id="btn-save-portion-modal" style="background: #0284c7; font-weight: 700;">
+                    Guardar Porción
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Application Script -->
     <script>
         const STORAGE_KEY = 'sweetlab_restaurante_recetas';
@@ -2004,8 +2032,8 @@
                         <td style="padding:14px 20px;">
                             <input type="number" class="form-input stock-input" value="${item.stock}" style="width:100px; padding:6px 10px; font-weight:700;" min="0">
                             ${(item.portionGrams && item.portionGrams > 0)
-                                ? `<div class="portion-badge" style="font-size:11px; color:#0284c7; font-weight:800; margin-top:4px; cursor:pointer;" title="Haz clic para modificar el peso por porción">≈ ${portionCount} porcion(es) (${item.portionGrams}g c/u) ✏️</div>`
-                                : `<div style="font-size:10px; margin-top:2px;"><button type="button" class="btn-set-portion" style="background:none; border:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">+ Definir g/porción</button></div>`
+                                ? `<div class="portion-badge" style="font-size:11px; color:#0284c7; font-weight:700; margin-top:3px; cursor:pointer;" title="Haz clic para modificar la porción">${portionCount} porciones</div>`
+                                : `<div class="btn-set-portion" style="font-size:11px; color:var(--text-muted); margin-top:3px; cursor:pointer; font-weight:600; text-decoration:underline;" title="Definir equivalencia en porciones">porciones</div>`
                             }
                         </td>
                         <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
@@ -2055,33 +2083,21 @@
                     const badge = tr.querySelector('.portion-badge');
                     if (badge && item.portionGrams > 0) {
                         const newPortions = Math.floor(val / item.portionGrams);
-                        badge.textContent = `≈ ${newPortions} porcion(es) (${item.portionGrams}g c/u) ✏️`;
+                        badge.textContent = `${newPortions} porciones`;
                     }
                 });
 
                 const btnSetPortion = tr.querySelector('.btn-set-portion');
                 if (btnSetPortion) {
                     btnSetPortion.addEventListener('click', () => {
-                        const val = prompt(`Ingresa el peso en gramos (g) de 1 porción de "${item.name}":`, '250');
-                        if (val !== null && !isNaN(Number(val))) {
-                            const pGrams = Math.max(0, Number(val));
-                            inventory[key].portionGrams = pGrams;
-                            saveInventory();
-                            renderInventoryTable();
-                        }
+                        openPortionSettingModal(key, item.name, item.unit, item.portionGrams);
                     });
                 }
 
                 const portionBadge = tr.querySelector('.portion-badge');
                 if (portionBadge) {
                     portionBadge.addEventListener('click', () => {
-                        const val = prompt(`Modificar el peso en gramos (g) de 1 porción de "${item.name}":`, item.portionGrams || 250);
-                        if (val !== null && !isNaN(Number(val))) {
-                            const pGrams = Math.max(0, Number(val));
-                            inventory[key].portionGrams = pGrams;
-                            saveInventory();
-                            renderInventoryTable();
-                        }
+                        openPortionSettingModal(key, item.name, item.unit, item.portionGrams);
                     });
                 }
 
@@ -2124,6 +2140,38 @@
                     alertBanner.style.display = 'none';
                 }
             }
+        }
+
+        let activePortionKey = null;
+
+        function openPortionSettingModal(key, name, unit, currentGrams) {
+            activePortionKey = key;
+            const modal = document.getElementById('portion-setting-modal');
+            const nameEl = document.getElementById('portion-modal-ingredient-name');
+            const unitLabelEl = document.getElementById('portion-modal-unit-label');
+            const inputEl = document.getElementById('portion-modal-input');
+            if (!modal || !nameEl || !inputEl) return;
+
+            nameEl.textContent = name;
+            if (unitLabelEl) unitLabelEl.textContent = unit || 'g';
+            inputEl.value = currentGrams && currentGrams > 0 ? currentGrams : '';
+            modal.classList.add('active');
+            setTimeout(() => inputEl.focus(), 100);
+        }
+
+        function closePortionSettingModal() {
+            document.getElementById('portion-setting-modal')?.classList.remove('active');
+            activePortionKey = null;
+        }
+
+        function savePortionSetting() {
+            if (!activePortionKey || !inventory[activePortionKey]) return;
+            const inputEl = document.getElementById('portion-modal-input');
+            const val = Number(inputEl?.value) || 0;
+            inventory[activePortionKey].portionGrams = Math.max(0, val);
+            saveInventory();
+            renderInventoryTable();
+            closePortionSettingModal();
         }
 
         async function openIngredientHistoryModal(key, name) {
@@ -3463,6 +3511,9 @@
             bindClick('btn-apply-scan-to-inventory', applyScanToInventory);
             bindClick('btn-close-history-modal', closeIngredientHistoryModal);
             bindClick('btn-close-history-modal-footer', closeIngredientHistoryModal);
+            bindClick('btn-close-portion-modal', closePortionSettingModal);
+            bindClick('btn-cancel-portion-modal', closePortionSettingModal);
+            bindClick('btn-save-portion-modal', savePortionSetting);
 
             const manualNameInput = document.getElementById('manual-inv-name');
             if (manualNameInput) {
