@@ -1533,52 +1533,57 @@
                 <button id="btn-close-modal" style="background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
             </div>
             <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
-                <div class="form-group">
-                    <input type="text" class="form-input" id="form-name" placeholder="Nombre de receta" style="padding: 10px 14px;">
-                </div>
+                <div style="display: flex; gap: 16px; align-items: stretch;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                        <div class="form-group">
+                            <input type="text" class="form-input" id="form-name" placeholder="Nombre de receta" style="padding: 10px 14px;">
+                        </div>
 
-                <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="custom-dropdown" id="dropdown-category">
-                        <input type="hidden" id="form-category" value="Comida">
-                        <button type="button" class="custom-dropdown-trigger" id="btn-dropdown-category">
-                            <span id="label-dropdown-category">Categoría</span>
-                            <span style="font-size: 9px; opacity: 0.6; margin-left: 6px;">▼</span>
-                        </button>
-                        <div class="custom-dropdown-menu" id="menu-dropdown-category">
-                            <div class="custom-dropdown-option" data-value="Comida">Comida</div>
-                            <div class="custom-dropdown-option" data-value="Bebida">Bebida</div>
-                            <div class="custom-dropdown-option" data-value="Postre">Postre</div>
-                            <div class="custom-dropdown-option" data-value="Adicionales">Adicionales</div>
+                        <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="custom-dropdown" id="dropdown-category">
+                                <input type="hidden" id="form-category" value="Comida">
+                                <button type="button" class="custom-dropdown-trigger" id="btn-dropdown-category">
+                                    <span id="label-dropdown-category">Categoría</span>
+                                    <span style="font-size: 9px; opacity: 0.6; margin-left: 6px;">▼</span>
+                                </button>
+                                <div class="custom-dropdown-menu" id="menu-dropdown-category">
+                                    <div class="custom-dropdown-option" data-value="Comida">Comida</div>
+                                    <div class="custom-dropdown-option" data-value="Bebida">Bebida</div>
+                                    <div class="custom-dropdown-option" data-value="Postre">Postre</div>
+                                    <div class="custom-dropdown-option" data-value="Adicionales">Adicionales</div>
+                                </div>
+                            </div>
+
+                            <div class="custom-dropdown" id="dropdown-meal">
+                                <input type="hidden" id="form-meal" value="Cualquiera">
+                                <button type="button" class="custom-dropdown-trigger" id="btn-dropdown-meal">
+                                    <span id="label-dropdown-meal">Momento</span>
+                                    <span style="font-size: 9px; opacity: 0.6; margin-left: 6px;">▼</span>
+                                </button>
+                                <div class="custom-dropdown-menu" id="menu-dropdown-meal">
+                                    <div class="custom-dropdown-option" data-value="Cualquiera">Cualquiera</div>
+                                    <div class="custom-dropdown-option" data-value="Almuerzo">Almuerzo</div>
+                                    <div class="custom-dropdown-option" data-value="Desayuno">Desayuno</div>
+                                    <div class="custom-dropdown-option" data-value="Refrigerio">Refrigerio</div>
+                                    <div class="custom-dropdown-option" data-value="Cena">Cena</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="form-servings" value="1">
                         </div>
                     </div>
 
-                    <div class="custom-dropdown" id="dropdown-meal">
-                        <input type="hidden" id="form-meal" value="Cualquiera">
-                        <button type="button" class="custom-dropdown-trigger" id="btn-dropdown-meal">
-                            <span id="label-dropdown-meal">Momento</span>
-                            <span style="font-size: 9px; opacity: 0.6; margin-left: 6px;">▼</span>
-                        </button>
-                        <div class="custom-dropdown-menu" id="menu-dropdown-meal">
-                            <div class="custom-dropdown-option" data-value="Cualquiera">Cualquiera</div>
-                            <div class="custom-dropdown-option" data-value="Almuerzo">Almuerzo</div>
-                            <div class="custom-dropdown-option" data-value="Desayuno">Desayuno</div>
-                            <div class="custom-dropdown-option" data-value="Refrigerio">Refrigerio</div>
-                            <div class="custom-dropdown-option" data-value="Cena">Cena</div>
+                    <!-- Large Photo Box in Top Right -->
+                    <div class="photo-upload-box" id="photo-upload-tile" style="width: 120px; min-height: 88px; border-radius: 8px; border: 1.5px dashed #cbd5e1; background: #f8fafc; cursor: pointer; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; transition: all 0.2s ease; flex-shrink: 0;" title="Haz clic para seleccionar o cambiar foto">
+                        <input type="file" id="form-file-input" accept="image/*" style="display: none;">
+                        <input type="hidden" id="form-image">
+
+                        <div id="photo-upload-placeholder" style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgba(71, 85, 105, 0.75);">
+                            <span style="font-size: 24px;">📷</span>
+                            <span style="font-size: 11px;">Foto</span>
                         </div>
-                    </div>
-                    <input type="hidden" id="form-servings" value="1">
-                </div>
 
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <button type="button" class="btn-secondary" id="btn-select-image" style="display: flex; align-items: center; gap: 6px; padding: 9px 14px; white-space: nowrap;">
-                        📁 Seleccionar foto
-                    </button>
-                    <input type="file" id="form-file-input" accept="image/*" style="display: none;">
-                    <input type="hidden" id="form-image">
-
-                    <div id="image-preview-wrap" style="display: none; position: relative; width: 80px; height: 50px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
-                        <img id="image-preview" src="" style="width: 100%; height: 100%; object-fit: cover;">
-                        <button type="button" id="btn-remove-image" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                        <img id="image-preview" src="" style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;">
+                        <button type="button" id="btn-remove-image" style="display: none; position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; cursor: pointer; align-items: center; justify-content: center; z-index: 10;">✕</button>
                     </div>
                 </div>
 
@@ -4341,13 +4346,18 @@
             bindClick('btn-add-step-row', () => addStepRow());
 
             // Image Handlers
-            const btnSelectImg = document.getElementById('btn-select-image');
+            const photoTile = document.getElementById('photo-upload-tile');
             const fileInput = document.getElementById('form-file-input');
             const imgInput = document.getElementById('form-image');
             const btnRemoveImg = document.getElementById('btn-remove-image');
 
-            if (btnSelectImg && fileInput) {
-                btnSelectImg.addEventListener('click', () => fileInput.click());
+            if (photoTile && fileInput) {
+                photoTile.addEventListener('click', (e) => {
+                    if (btnRemoveImg && (e.target === btnRemoveImg || btnRemoveImg.contains(e.target))) {
+                        return;
+                    }
+                    fileInput.click();
+                });
                 fileInput.addEventListener('change', (e) => {
                     const file = e.target.files[0];
                     if (file) handleImageFile(file);
@@ -4363,7 +4373,8 @@
             }
 
             if (btnRemoveImg) {
-                btnRemoveImg.addEventListener('click', () => {
+                btnRemoveImg.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     document.getElementById('form-image').value = '';
                     if (fileInput) fileInput.value = '';
                     hideImagePreview();
@@ -4407,21 +4418,31 @@
         }
 
         function showImagePreview(src) {
-            const wrap = document.getElementById('image-preview-wrap');
+            const placeholder = document.getElementById('photo-upload-placeholder');
             const img = document.getElementById('image-preview');
-            if (wrap && img) {
+            const btnRemove = document.getElementById('btn-remove-image');
+            const tile = document.getElementById('photo-upload-tile');
+            if (img) {
                 img.src = src;
-                wrap.style.display = 'block';
+                img.style.display = 'block';
             }
+            if (placeholder) placeholder.style.display = 'none';
+            if (btnRemove) btnRemove.style.display = 'flex';
+            if (tile) tile.style.borderStyle = 'solid';
         }
 
         function hideImagePreview() {
-            const wrap = document.getElementById('image-preview-wrap');
+            const placeholder = document.getElementById('photo-upload-placeholder');
             const img = document.getElementById('image-preview');
-            if (wrap && img) {
+            const btnRemove = document.getElementById('btn-remove-image');
+            const tile = document.getElementById('photo-upload-tile');
+            if (img) {
                 img.src = '';
-                wrap.style.display = 'none';
+                img.style.display = 'none';
             }
+            if (placeholder) placeholder.style.display = 'flex';
+            if (btnRemove) btnRemove.style.display = 'none';
+            if (tile) tile.style.borderStyle = 'dashed';
         }
 
         // Isolated Restaurant Ingredients Catalog & Autocomplete Helpers
