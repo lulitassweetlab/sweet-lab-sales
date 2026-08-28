@@ -1351,6 +1351,12 @@
                     <span id="inventory-total-count" style="font-size: 12px; font-weight: 700; color: var(--primary-hover); background: var(--primary-light); padding: 4px 10px; border-radius: 10px;">0 insumos</span>
                 </div>
 
+                <!-- Expiration Warning Banner (if any item is close to expiry or expired) -->
+                <div id="inventory-expiry-alert-banner" style="display: none; background: #fffbebfb; border: 1px solid #fef3c7; border-left: 5px solid #f59e0b; padding: 14px 20px; border-radius: var(--radius-sm); color: #92400e; font-weight: 700; font-size: 14px;">
+                    <span style="font-size: 18px; margin-right: 8px;">⚠️</span>
+                    <span id="inventory-expiry-alert-text">Atención: hay insumos próximos a vencer.</span>
+                </div>
+
                 <!-- Inventory Table -->
                 <div style="background: white; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden;">
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
@@ -1359,7 +1365,8 @@
                                 <th style="padding: 14px 20px;">Nombre Insumo / Materia Prima</th>
                                 <th style="padding: 14px 20px;">Stock Disponible</th>
                                 <th style="padding: 14px 20px;">Unidad</th>
-                                <th style="padding: 14px 20px;">Estado</th>
+                                <th style="padding: 14px 20px;">Fecha Vencimiento</th>
+                                <th style="padding: 14px 20px;">Estado Vencimiento</th>
                                 <th style="padding: 14px 20px; text-align: right;">Acciones</th>
                             </tr>
                         </thead>
@@ -1572,6 +1579,18 @@
                         <input type="number" class="form-input" id="manual-inv-cost" placeholder="Ej: 15000" value="0" min="0">
                     </div>
                 </div>
+
+                <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Días de Vida Útil</label>
+                        <input type="number" class="form-input" id="manual-inv-expiry-days" placeholder="Ej: 7" value="14" min="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Fecha de Vencimiento</label>
+                        <input type="date" class="form-input" id="manual-inv-expiry-date">
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer">
@@ -1588,10 +1607,12 @@
         const STORAGE_KEY = 'sweetlab_restaurante_recetas';
         const PAIRINGS_STORAGE_KEY = 'sweetlab_restaurante_pairings';
         const INVENTORY_STORAGE_KEY = 'sweetlab_restaurante_inventario';
+        const EXPIRY_MEMORY_KEY = 'sweetlab_restaurante_expiry_memory';
         let recipes = [];
         let cart = {}; // { recipeId: count }
         let pairingsMemory = {}; // { recipeId: { pairedRecipeId: count } }
         let inventory = {}; // { [lowercaseName]: { name: string, unit: string, stock: number } }
+        let expiryMemory = {}; // { [lowercaseName]: days: number }
         let selectedRecipeId = null;
         let editingRecipeId = null;
         let activeMealFilter = 'Todas';
@@ -1599,6 +1620,68 @@
         let activeOrderCategory = 'Todas';
         let onlyAvailableFilter = false;
         let currentMode = 'order'; // 'order', 'recipes', or 'inventory'
+
+        function loadExpiryMemory() {
+            try {
+                const stored = localStorage.getItem(EXPIRY_MEMORY_KEY);
+                if (stored) expiryMemory = JSON.parse(stored);
+            } catch (e) {
+                expiryMemory = {};
+            }
+        }
+
+        function saveExpiryMemory() {
+            try {
+                localStorage.setItem(EXPIRY_MEMORY_KEY, JSON.stringify(expiryMemory));
+            } catch (e) {}
+        }
+
+        function rememberIngredientExpiry(name, days) {
+            if (!name || !days || Number(days) <= 0) return;
+            const key = name.trim().toLowerCase();
+            expiryMemory[key] = Number(days);
+            saveExpiryMemory();
+        }
+
+        function getRememberedExpiryDays(name) {
+            if (!name) return 14;
+            const key = name.trim().toLowerCase();
+            if (expiryMemory[key]) return Number(expiryMemory[key]);
+
+            if (/pollo|carne|pescado|res|cerdo|marisco/i.test(key)) return 7;
+            if (/leche|queso|crema|yogurt|mantequilla/i.test(key)) return 10;
+            if (/tomate|papa|yuca|plátano|platano|cebolla|lechuga|fruta|verdura/i.test(key)) return 7;
+            if (/huevo/i.test(key)) return 21;
+            if (/arroz|harina|aceite|sal|azúcar|azucar|pasta|enlatado/i.test(key)) return 180;
+            return 14;
+        }
+
+        function calculateExpiryDate(purchaseDateStr, days) {
+            const baseDate = purchaseDateStr ? new Date(purchaseDateStr) : new Date();
+            const result = new Date(baseDate);
+            result.setDate(result.getDate() + (Number(days) || 14));
+            return result.toISOString().split('T')[0];
+        }
+
+        function getExpiryStatus(expiryDateStr) {
+            if (!expiryDateStr) return { status: 'ok', text: '🟢 Fresco', daysLeft: 99 };
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const exp = new Date(expiryDateStr + 'T00:00:00');
+            const diffTime = exp.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                const absDays = Math.abs(diffDays);
+                return { status: 'expired', text: `🔴 Vencido (${absDays}d)`, daysLeft: diffDays };
+            } else if (diffDays <= 3) {
+                return { status: 'warning', text: `🟡 Próximo (${diffDays === 0 ? 'Hoy' : diffDays + 'd'})`, daysLeft: diffDays };
+            } else {
+                return { status: 'ok', text: `🟢 Fresco (${diffDays}d)`, daysLeft: diffDays };
+            }
+        }
 
         // Bulk Selection State
         let isSelectModeActive = false;
@@ -1784,6 +1867,8 @@
         function renderInventoryTable() {
             const tbody = document.getElementById('inventory-table-body');
             const countEl = document.getElementById('inventory-total-count');
+            const alertBanner = document.getElementById('inventory-expiry-alert-banner');
+            const alertText = document.getElementById('inventory-expiry-alert-text');
             if (!tbody) return;
             tbody.innerHTML = '';
 
@@ -1792,8 +1877,11 @@
 
             if (countEl) countEl.textContent = `${keys.length} insumo(s)`;
 
+            let expiringCount = 0;
+
             if (keys.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados en el inventario del restaurante. Haz clic en "Sincronizar Insumos desde Recetas" o "+ Agregar Insumo".</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados en el inventario del restaurante. Haz clic en "Sincronizar Insumos desde Recetas" o "+ Agregar Insumo".</td></tr>';
+                if (alertBanner) alertBanner.style.display = 'none';
                 return;
             }
 
@@ -1802,17 +1890,26 @@
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid var(--border)';
                 
-                const isAvailable = Number(item.stock) > 0;
+                if (!item.expiryDays) item.expiryDays = getRememberedExpiryDays(item.name);
+                if (!item.expiryDate) item.expiryDate = calculateExpiryDate(item.lastPurchasedAt, item.expiryDays);
+
+                const expInfo = getExpiryStatus(item.expiryDate);
+                if (expInfo.status === 'warning' || expInfo.status === 'expired') {
+                    expiringCount++;
+                }
 
                 tr.innerHTML = `
                     <td style="padding:14px 20px; font-weight:700; color:var(--text);">${escapeHtml(item.name)}</td>
                     <td style="padding:14px 20px;">
-                        <input type="number" class="form-input stock-input" value="${item.stock}" style="width:110px; padding:6px 10px; font-weight:700;" min="0">
+                        <input type="number" class="form-input stock-input" value="${item.stock}" style="width:100px; padding:6px 10px; font-weight:700;" min="0">
                     </td>
                     <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
                     <td style="padding:14px 20px;">
-                        <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; ${isAvailable ? 'background:#ecfdf5; color:#047857;' : 'background:#fef2f2; color:#b91c1c;'}">
-                            ${isAvailable ? '🟢 Disponible' : '🔴 Agotado'}
+                        <input type="date" class="form-input expiry-date-input" value="${item.expiryDate || ''}" style="width:140px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
+                    </td>
+                    <td style="padding:14px 20px;">
+                        <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; ${expInfo.status === 'ok' ? 'background:#ecfdf5; color:#047857;' : (expInfo.status === 'warning' ? 'background:#fef3c7; color:#92400e;' : 'background:#fef2f2; color:#b91c1c;')}">
+                            ${expInfo.text}
                         </span>
                     </td>
                     <td style="padding:14px 20px; text-align:right;">
@@ -1827,6 +1924,21 @@
                     const val = Math.max(0, Number(e.target.value) || 0);
                     inventory[key].stock = val;
                     saveInventory();
+                });
+
+                const expiryInput = tr.querySelector('.expiry-date-input');
+                expiryInput.addEventListener('change', (e) => {
+                    const newDate = e.target.value;
+                    if (newDate) {
+                        inventory[key].expiryDate = newDate;
+                        const pDate = new Date(inventory[key].lastPurchasedAt || Date.now());
+                        const eDate = new Date(newDate + 'T00:00:00');
+                        const diffDays = Math.max(1, Math.round((eDate - pDate) / (1000 * 60 * 60 * 24)));
+                        inventory[key].expiryDays = diffDays;
+                        rememberIngredientExpiry(item.name, diffDays);
+                        saveInventory();
+                        renderInventoryTable();
+                    }
                 });
 
                 tr.querySelector('.btn-remove-inv').addEventListener('click', async () => {
@@ -1844,6 +1956,15 @@
 
                 tbody.appendChild(tr);
             });
+
+            if (alertBanner && alertText) {
+                if (expiringCount > 0) {
+                    alertBanner.style.display = 'flex';
+                    alertText.textContent = `Atención: hay ${expiringCount} insumo(s) próximos a vencer o vencidos en el inventario. Úsalos prioritariamente en cocina.`;
+                } else {
+                    alertBanner.style.display = 'none';
+                }
+            }
         }
 
         function openManualInventoryModal() {
@@ -1853,6 +1974,13 @@
             document.getElementById('manual-inv-stock').value = '1000';
             const costEl = document.getElementById('manual-inv-cost');
             if (costEl) costEl.value = '0';
+
+            const daysEl = document.getElementById('manual-inv-expiry-days');
+            if (daysEl) daysEl.value = '14';
+
+            const dateEl = document.getElementById('manual-inv-expiry-date');
+            if (dateEl) dateEl.value = calculateExpiryDate(new Date(), 14);
+
             document.getElementById('manual-inventory-modal').classList.add('active');
         }
 
@@ -1871,11 +1999,29 @@
             const stock = Number(document.getElementById('manual-inv-stock').value) || 0;
             const cost = Number(document.getElementById('manual-inv-cost')?.value) || 0;
 
+            const expiryDays = Number(document.getElementById('manual-inv-expiry-days')?.value) || getRememberedExpiryDays(name);
+            let expiryDate = document.getElementById('manual-inv-expiry-date')?.value;
+            if (!expiryDate) expiryDate = calculateExpiryDate(new Date(), expiryDays);
+
+            rememberIngredientExpiry(name, expiryDays);
+
             const key = name.toLowerCase();
+            const nowIso = new Date().toISOString();
+
             if (inventory[key]) {
                 inventory[key].stock = (Number(inventory[key].stock) || 0) + stock;
+                inventory[key].lastPurchasedAt = nowIso;
+                inventory[key].expiryDays = expiryDays;
+                inventory[key].expiryDate = expiryDate;
             } else {
-                inventory[key] = { name: name, unit: unit, stock: stock };
+                inventory[key] = {
+                    name: name,
+                    unit: unit,
+                    stock: stock,
+                    lastPurchasedAt: nowIso,
+                    expiryDays: expiryDays,
+                    expiryDate: expiryDate
+                };
             }
 
             saveInventory();
@@ -1890,7 +2036,7 @@
                             action: 'purchase',
                             supplier_name: 'Compra Manual',
                             total_cost: cost,
-                            items: [{ name, qty: stock, unit, cost }]
+                            items: [{ name, qty: stock, unit, cost, expiryDays, expiryDate }]
                         })
                     });
                 } catch (err) {
@@ -2129,12 +2275,26 @@
 
                 if (name && qty > 0) {
                     const key = name.toLowerCase();
+                    const nowIso = new Date().toISOString();
+                    const remDays = getRememberedExpiryDays(name);
+                    const calcExpDate = calculateExpiryDate(nowIso, remDays);
+
                     if (inventory[key]) {
                         inventory[key].stock = (Number(inventory[key].stock) || 0) + qty;
+                        inventory[key].lastPurchasedAt = nowIso;
+                        inventory[key].expiryDays = inventory[key].expiryDays || remDays;
+                        inventory[key].expiryDate = inventory[key].expiryDate || calcExpDate;
                     } else {
-                        inventory[key] = { name: name, unit: unit, stock: qty };
+                        inventory[key] = {
+                            name: name,
+                            unit: unit,
+                            stock: qty,
+                            lastPurchasedAt: nowIso,
+                            expiryDays: remDays,
+                            expiryDate: calcExpDate
+                        };
                     }
-                    purchaseItems.push({ name, qty, unit, cost });
+                    purchaseItems.push({ name, qty, unit, cost, expiryDays: remDays, expiryDate: calcExpDate });
                     totalCostSum += cost;
                     addedCount++;
                 }
@@ -3513,6 +3673,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadRecipes();
             loadPairingsMemory();
+            loadExpiryMemory();
             loadInventory();
             setupEventListeners();
             switchMode('order');

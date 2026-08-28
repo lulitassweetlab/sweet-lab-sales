@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 70; // 70: add restaurant_inventory and restaurant_purchases tables for isolated restaurant module
+const SCHEMA_VERSION = 71; // 71: add expiry and purchase tracking columns to restaurant_inventory
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -837,6 +837,14 @@ export async function ensureSchema() {
 						)
 					`;
 					await sql`UPDATE schema_meta SET version = 70`;
+				}
+
+				if (Number(meta[0].version) < 71) {
+					console.log('Migrating to v71: Adding purchase date and expiry columns to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_purchased_at TIMESTAMPTZ DEFAULT now()`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS expiry_days INTEGER DEFAULT 14`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS expiry_date DATE`;
+					await sql`UPDATE schema_meta SET version = 71`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

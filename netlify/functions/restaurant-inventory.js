@@ -17,6 +17,9 @@ export async function handler(event) {
 						name,
 						unit,
 						stock,
+						last_purchased_at AS "lastPurchasedAt",
+						expiry_days AS "expiryDays",
+						expiry_date AS "expiryDate",
 						updated_at AS "updatedAt"
 					FROM restaurant_inventory
 					ORDER BY name ASC
@@ -26,7 +29,10 @@ export async function handler(event) {
 					inventoryMap[r.key] = {
 						name: r.name,
 						unit: r.unit || 'g',
-						stock: Number(r.stock) || 0
+						stock: Number(r.stock) || 0,
+						lastPurchasedAt: r.lastPurchasedAt || r.updatedAt,
+						expiryDays: Number(r.expiryDays) || 14,
+						expiryDate: r.expiryDate ? r.expiryDate.toString().split('T')[0] : null
 					};
 				});
 				return json(inventoryMap);
@@ -54,14 +60,19 @@ export async function handler(event) {
 						const name = item.name.trim();
 						const unit = (item.unit || 'g').trim();
 						const qty = Number(item.qty) || 0;
+						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
+						const expiryDate = item.expiryDate || item.expiry_date || null;
 
 						await sql`
-							INSERT INTO restaurant_inventory (key, name, unit, stock, updated_at)
-							VALUES (${key}, ${name}, ${unit}, ${qty}, now())
+							INSERT INTO restaurant_inventory (key, name, unit, stock, last_purchased_at, expiry_days, expiry_date, updated_at)
+							VALUES (${key}, ${name}, ${unit}, ${qty}, now(), ${expiryDays}, ${expiryDate}, now())
 							ON CONFLICT (key) DO UPDATE SET
 								name = EXCLUDED.name,
 								unit = EXCLUDED.unit,
 								stock = restaurant_inventory.stock + EXCLUDED.stock,
+								last_purchased_at = now(),
+								expiry_days = COALESCE(EXCLUDED.expiry_days, restaurant_inventory.expiry_days),
+								expiry_date = COALESCE(EXCLUDED.expiry_date, restaurant_inventory.expiry_date),
 								updated_at = now()
 						`;
 					}
@@ -82,17 +93,25 @@ export async function handler(event) {
 						const name = item.name.trim();
 						const unit = (item.unit || 'g').trim();
 						const stock = Number(item.stock) || 0;
+						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
+						const expiryDate = item.expiryDate || item.expiry_date || null;
+						const lastPurchasedAt = item.lastPurchasedAt || item.last_purchased_at || null;
 
 						await sql`
-							INSERT INTO restaurant_inventory (key, name, unit, stock, updated_at)
-							VALUES (${key}, ${name}, ${unit}, ${stock}, now())
+							INSERT INTO restaurant_inventory (key, name, unit, stock, last_purchased_at, expiry_days, expiry_date, updated_at)
+							VALUES (${key}, ${name}, ${unit}, ${stock}, COALESCE(${lastPurchasedAt}::timestamptz, now()), ${expiryDays}, ${expiryDate}, now())
 							ON CONFLICT (key) DO UPDATE SET
 								name = EXCLUDED.name,
 								unit = EXCLUDED.unit,
 								stock = EXCLUDED.stock,
+								expiry_days = EXCLUDED.expiry_days,
+								expiry_date = EXCLUDED.expiry_date,
+								last_purchased_at = COALESCE(EXCLUDED.last_purchased_at, restaurant_inventory.last_purchased_at),
 								updated_at = now()
 						`;
 					}
+					return json({ ok: true });
+				}
 					return json({ ok: true });
 				}
 
