@@ -2224,15 +2224,17 @@
                                 item.unit = unit;
                             }
                         } else {
+                            const learnedCat = getLearnedCategory(ing.name) || '';
+                            const learnedSup = getLearnedSupplier(ing.name) || '';
                             inventory[rawKey] = {
                                 name: ing.name.trim(),
-                                category: 'Otros',
+                                category: learnedCat,
                                 unit: unit,
                                 stock: pQty,
                                 lastPkgCost: pCost,
                                 lastPkgQty: pQty,
                                 lastUnitCost: uCost,
-                                supplierName: '',
+                                supplierName: learnedSup,
                                 lastPurchasedAt: new Date().toISOString()
                             };
                             changed = true;
@@ -2672,7 +2674,18 @@
             // Move object to new key
             delete inventory[oldKey];
             inventory[newKey] = item;
-            saveInventory();
+
+            // Update learned associations and product memory
+            if (learnedAssociations[oldKey]) {
+                learnedAssociations[newKey] = { ...learnedAssociations[oldKey] };
+                delete learnedAssociations[oldKey];
+                saveLearnedAssociations();
+            }
+            if (productMemory[oldKey]) {
+                productMemory[newKey] = { ...productMemory[oldKey], name: trimmedName };
+                delete productMemory[oldKey];
+                saveProductMemory();
+            }
 
             // Propagate name change to all recipes
             let recipesUpdated = false;
@@ -2692,28 +2705,12 @@
             }
 
             updateIngredientsDatalist();
+            saveInventory();
 
-            // Cloud DB sync: delete old key and upsert new key
+            // Cloud DB sync: delete old key from Neon DB
             try {
                 await fetch(`/api/restaurant-inventory?key=${encodeURIComponent(oldKey)}`, { method: 'DELETE' });
-                await fetch('/api/restaurant-inventory', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'purchase',
-                        supplier_name: item.supplierName || 'Actualización Nombre',
-                        total_cost: 0,
-                        items: [{
-                            name: trimmedName,
-                            qty: item.stock,
-                            unit: item.unit,
-                            supplierName: item.supplierName,
-                            portionGrams: item.portionGrams,
-                            expiryDays: item.expiryDays,
-                            expiryDate: item.expiryDate
-                        }]
-                    })
-                });
+                await saveInventoryToNeon(inventory);
             } catch (err) {
                 console.error('[Restaurante] Error sincronizando renombrado en Neon DB:', err);
             }

@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 75; // 75: add category column to restaurant_inventory
+const SCHEMA_VERSION = 76; // 76: add last_pkg_cost and last_pkg_qty to restaurant_inventory
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -879,6 +879,13 @@ export async function ensureSchema() {
 					console.log('Migrating to v75: Adding category column to restaurant_inventory...');
 					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT ''`;
 					await sql`UPDATE schema_meta SET version = 75`;
+				}
+
+				if (Number(meta[0].version) < 76) {
+					console.log('Migrating to v76: Adding last_pkg_cost and last_pkg_qty to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_pkg_cost NUMERIC DEFAULT 0`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_pkg_qty NUMERIC DEFAULT 1`;
+					await sql`UPDATE schema_meta SET version = 76`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
