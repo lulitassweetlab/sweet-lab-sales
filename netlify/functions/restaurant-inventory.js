@@ -259,15 +259,10 @@ export async function handler(event) {
 					return json({ ok: true, purchaseId });
 				}
 
-				// Case 2: Bulk sync or single/dictionary inventory upsert
-				const inventoryObj = body.inventory || body;
-				if (typeof inventoryObj === 'object' && inventoryObj !== null) {
-					const entries = Array.isArray(inventoryObj)
-						? inventoryObj
-						: Object.entries(inventoryObj).map(([k, v]) => ({ key: k, ...v }));
-
-					for (const item of entries) {
-						if (!item || !item.name) continue;
+				// Case 1: Fast single item update
+				if (body.action === 'update_item' || body.item) {
+					const item = body.item;
+					if (item && item.name) {
 						const key = (item.key || item.name).trim().toLowerCase();
 						const name = item.name.trim();
 						const category = (item.category || '').trim();
@@ -302,7 +297,56 @@ export async function handler(event) {
 								last_purchased_at = COALESCE(EXCLUDED.last_purchased_at, restaurant_inventory.last_purchased_at),
 								updated_at = now()
 						`;
+						return json({ ok: true, key });
 					}
+				}
+
+				// Case 2: Bulk sync or single/dictionary inventory upsert
+				const inventoryObj = body.inventory || body;
+				if (typeof inventoryObj === 'object' && inventoryObj !== null) {
+					const entries = Array.isArray(inventoryObj)
+						? inventoryObj
+						: Object.entries(inventoryObj).map(([k, v]) => ({ key: k, ...v }));
+
+					const upsertPromises = entries.map(async (item) => {
+						if (!item || !item.name) return;
+						const key = (item.key || item.name).trim().toLowerCase();
+						const name = item.name.trim();
+						const category = (item.category || '').trim();
+						const unit = (item.unit || 'g').trim();
+						const stock = Number(item.stock) || 0;
+						const portionGrams = Number(item.portionGrams || item.portion_grams) || 0;
+						const supplierName = (item.supplierName || item.supplier_name || '').trim();
+						const lastUnitCost = Number(item.lastUnitCost || item.last_unit_cost) || 0;
+						const prevUnitCost = Number(item.prevUnitCost || item.prev_unit_cost) || 0;
+						const lastPkgCost = Number(item.lastPkgCost || item.last_pkg_cost) || 0;
+						const lastPkgQty = Number(item.lastPkgQty || item.last_pkg_qty) || 1;
+						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
+						const expiryDate = item.expiryDate || item.expiry_date || null;
+						const lastPurchasedAt = item.lastPurchasedAt || item.last_purchased_at || null;
+
+						await sql`
+							INSERT INTO restaurant_inventory (key, name, category, unit, stock, portion_grams, supplier_name, last_unit_cost, prev_unit_cost, last_pkg_cost, last_pkg_qty, last_purchased_at, expiry_days, expiry_date, updated_at)
+							VALUES (${key}, ${name}, ${category}, ${unit}, ${stock}, ${portionGrams}, ${supplierName}, ${lastUnitCost}, ${prevUnitCost}, ${lastPkgCost}, ${lastPkgQty}, COALESCE(${lastPurchasedAt}::timestamptz, now()), ${expiryDays}, ${expiryDate}, now())
+							ON CONFLICT (key) DO UPDATE SET
+								name = EXCLUDED.name,
+								category = EXCLUDED.category,
+								unit = EXCLUDED.unit,
+								stock = EXCLUDED.stock,
+								portion_grams = EXCLUDED.portion_grams,
+								supplier_name = EXCLUDED.supplier_name,
+								last_unit_cost = EXCLUDED.last_unit_cost,
+								prev_unit_cost = EXCLUDED.prev_unit_cost,
+								last_pkg_cost = EXCLUDED.last_pkg_cost,
+								last_pkg_qty = EXCLUDED.last_pkg_qty,
+								expiry_days = EXCLUDED.expiry_days,
+								expiry_date = EXCLUDED.expiry_date,
+								last_purchased_at = COALESCE(EXCLUDED.last_purchased_at, restaurant_inventory.last_purchased_at),
+								updated_at = now()
+						`;
+					});
+
+					await Promise.all(upsertPromises);
 					return json({ ok: true });
 				}
 

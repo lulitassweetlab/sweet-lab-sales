@@ -2228,10 +2228,17 @@
                 inventory = localInventory;
             }
 
-            // Only add local items that do not exist at all in remote inventory
+            // Merge local categories and supplier names if local has more specific information
             Object.keys(localInventory).forEach(k => {
                 if (!inventory[k]) {
                     inventory[k] = localInventory[k];
+                } else {
+                    if (localInventory[k].category && !inventory[k].category) {
+                        inventory[k].category = localInventory[k].category;
+                    }
+                    if (localInventory[k].supplierName && !inventory[k].supplierName) {
+                        inventory[k].supplierName = localInventory[k].supplierName;
+                    }
                 }
             });
 
@@ -2245,6 +2252,20 @@
             seedLearnedAssociationsFromInventory();
             cleanupLearnedAssociations();
             renderInventoryTable();
+        }
+
+        async function saveInventoryItemToNeon(key, item) {
+            try {
+                if (!key || !item) return;
+                const payload = { key, ...item };
+                await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'update_item', item: payload })
+                });
+            } catch (err) {
+                console.error('[Restaurante] Error guardando item en Neon DB:', err);
+            }
         }
 
         function hydrateInventoryCostsFromRecipes(persistToCloud = false) {
@@ -2614,13 +2635,20 @@
                     if (categoryInput) {
                         categoryInput.addEventListener('focus', () => categoryInput.select());
                         categoryInput.addEventListener('click', () => categoryInput.select());
-                        categoryInput.addEventListener('change', (e) => {
-                            const val = e.target.value.trim();
+                        const handleCatUpdate = (val) => {
+                            val = (val || '').trim();
+                            if (inventory[key].category === val) return;
                             inventory[key].category = val;
+                            try {
+                                localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+                            } catch (e) {}
                             learnIngredientChoice(item.name, val, inventory[key].supplierName);
-                            saveInventory(true);
+                            saveInventoryItemToNeon(key, inventory[key]);
                             updateCategoriesDatalist();
-                        });
+                        };
+                        categoryInput.addEventListener('input', (e) => handleCatUpdate(e.target.value));
+                        categoryInput.addEventListener('change', (e) => handleCatUpdate(e.target.value));
+                        categoryInput.addEventListener('blur', (e) => handleCatUpdate(e.target.value));
                     }
 
                     const costInput = tr.querySelector('.cost-input');
@@ -2631,7 +2659,10 @@
                             inventory[key].lastPkgCost = val;
                             inventory[key].lastPkgQty = pkgQ;
                             inventory[key].lastUnitCost = (pkgQ > 0) ? (val / pkgQ) : 0;
-                            saveInventory(true);
+                            try {
+                                localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+                            } catch (e) {}
+                            saveInventoryItemToNeon(key, inventory[key]);
                             updateIngredientsDatalist();
                             renderInventoryTable();
                         });
@@ -2641,13 +2672,20 @@
                     if (supplierInput) {
                         supplierInput.addEventListener('focus', () => supplierInput.select());
                         supplierInput.addEventListener('click', () => supplierInput.select());
-                        supplierInput.addEventListener('change', (e) => {
-                            const val = e.target.value.trim();
+                        const handleSupUpdate = (val) => {
+                            val = (val || '').trim();
+                            if (inventory[key].supplierName === val) return;
                             inventory[key].supplierName = val;
+                            try {
+                                localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+                            } catch (e) {}
                             learnIngredientChoice(item.name, inventory[key].category, val);
-                            saveInventory(true);
+                            saveInventoryItemToNeon(key, inventory[key]);
                             updateSuppliersDatalist();
-                        });
+                        };
+                        supplierInput.addEventListener('input', (e) => handleSupUpdate(e.target.value));
+                        supplierInput.addEventListener('change', (e) => handleSupUpdate(e.target.value));
+                        supplierInput.addEventListener('blur', (e) => handleSupUpdate(e.target.value));
                     }
 
                     const btnHistory = tr.querySelector('.btn-view-history');
