@@ -4016,11 +4016,6 @@
                     suppliers.add(item.supplierName.trim());
                 }
             });
-            suppliers.add('Ricatas');
-            suppliers.add('Mercalider');
-            suppliers.add('Makro');
-            suppliers.add('Éxito');
-            suppliers.add('Carulla');
 
             datalist.innerHTML = Array.from(suppliers)
                 .map(sup => `<option value="${escapeHtml(sup)}"></option>`)
