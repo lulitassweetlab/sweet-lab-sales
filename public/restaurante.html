@@ -2544,14 +2544,15 @@
 
                     const categoryInput = tr.querySelector('.category-input');
                     if (categoryInput) {
-                        categoryInput.addEventListener('change', (e) => {
+                        const onCategoryChange = (e) => {
                             const val = e.target.value.trim();
                             inventory[key].category = val;
                             saveInventory();
                             learnIngredientChoice(item.name, val, inventory[key].supplierName);
                             updateCategoriesDatalist();
-                            e.target.blur();
-                        });
+                        };
+                        categoryInput.addEventListener('input', onCategoryChange);
+                        categoryInput.addEventListener('change', onCategoryChange);
                     }
 
                     const costInput = tr.querySelector('.cost-input');
@@ -2569,13 +2570,17 @@
                     }
 
                     const supplierInput = tr.querySelector('.supplier-input');
-                    supplierInput.addEventListener('change', (e) => {
-                        const val = e.target.value.trim();
-                        inventory[key].supplierName = val;
-                        saveInventory();
-                        learnIngredientChoice(item.name, inventory[key].category, val);
-                        e.target.blur();
-                    });
+                    if (supplierInput) {
+                        const onSupplierChange = (e) => {
+                            const val = e.target.value.trim();
+                            inventory[key].supplierName = val;
+                            saveInventory();
+                            learnIngredientChoice(item.name, inventory[key].category, val);
+                            updateSuppliersDatalist();
+                        };
+                        supplierInput.addEventListener('input', onSupplierChange);
+                        supplierInput.addEventListener('change', onSupplierChange);
+                    }
 
                     const btnHistory = tr.querySelector('.btn-view-history');
                     if (btnHistory) {
@@ -4994,18 +4999,23 @@
                         invChanged = true;
                     } else {
                         // Create in inventory
+                        const learnedChoice = getLearnedChoice(ing.name.trim());
+                        const finalCat = learnedChoice.category || '';
+                        const finalSup = learnedChoice.supplierName || '';
                         inventory[key] = {
                             name: ing.name.trim(),
-                            category: 'Otros',
+                            category: finalCat,
                             unit: ing.unit || 'g',
                             stock: ing.pkgQty || 1000,
                             lastPkgQty: ing.pkgQty || 1000,
                             lastPkgCost: ing.pkgCost || 0,
                             lastUnitCost: uCost,
-                            supplierName: '',
+                            supplierName: finalSup,
                             lastPurchasedAt: new Date().toISOString()
                         };
-                        learnIngredientChoice(ing.name.trim(), 'Otros', '');
+                        if (finalCat) {
+                            learnIngredientChoice(ing.name.trim(), finalCat, finalSup);
+                        }
                         invChanged = true;
                     }
                     if (ing.pkgQty > 0) {
