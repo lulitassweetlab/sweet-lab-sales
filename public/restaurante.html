@@ -2159,27 +2159,21 @@
                 const res = await fetch('/api/restaurant-inventory');
                 if (res.ok) {
                     const remoteInventory = await res.json();
-                    if (typeof remoteInventory === 'object' && remoteInventory !== null) {
+                    if (typeof remoteInventory === 'object' && remoteInventory !== null && Object.keys(remoteInventory).length > 0) {
                         inventory = remoteInventory;
+                    } else {
+                        inventory = localInventory;
                     }
                 }
             } catch (err) {
                 console.error('[Restaurante] Error cargando inventario desde Neon DB:', err);
+                inventory = localInventory;
             }
 
-            // Merge local inventory with remote so no ingredient entered is ever lost
+            // Only add local items that do not exist at all in remote inventory
             Object.keys(localInventory).forEach(k => {
                 if (!inventory[k]) {
                     inventory[k] = localInventory[k];
-                } else {
-                    if (!inventory[k].lastPkgCost && localInventory[k].lastPkgCost) {
-                        inventory[k].lastPkgCost = localInventory[k].lastPkgCost;
-                        inventory[k].lastPkgQty = localInventory[k].lastPkgQty;
-                        inventory[k].lastUnitCost = localInventory[k].lastUnitCost;
-                    }
-                    if (!inventory[k].category && localInventory[k].category) {
-                        inventory[k].category = localInventory[k].category;
-                    }
                 }
             });
 
@@ -2188,13 +2182,13 @@
                 if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
             });
 
-            hydrateInventoryCostsFromRecipes();
+            hydrateInventoryCostsFromRecipes(false);
             localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
             seedLearnedAssociationsFromInventory();
             renderInventoryTable();
         }
 
-        function hydrateInventoryCostsFromRecipes() {
+        function hydrateInventoryCostsFromRecipes(persistToCloud = false) {
             let changed = false;
             const clean = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
@@ -2243,7 +2237,7 @@
                 });
             });
 
-            if (changed) {
+            if (changed && persistToCloud) {
                 saveInventory();
                 updateIngredientsDatalist();
             }
@@ -2555,6 +2549,7 @@
                             inventory[key].category = val;
                             saveInventory();
                             learnIngredientChoice(item.name, val, inventory[key].supplierName);
+                            updateCategoriesDatalist();
                             e.target.blur();
                         });
                     }
@@ -3763,7 +3758,6 @@
                             recipes = [];
                         }
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
-                        hydrateInventoryCostsFromRecipes();
                         refreshCurrentModeView();
                         return;
                     }
@@ -3787,7 +3781,6 @@
             } catch (e) {
                 recipes = SEED_DATA;
             }
-            hydrateInventoryCostsFromRecipes();
             refreshCurrentModeView();
         }
 
@@ -5151,13 +5144,13 @@
         }
 
         // Initialize App
-        document.addEventListener('DOMContentLoaded', () => {
-            loadRecipes();
+        document.addEventListener('DOMContentLoaded', async () => {
             loadPairingsMemory();
             loadExpiryMemory();
             loadProductMemory();
             loadLearnedAssociations();
-            loadInventory();
+            await loadRecipes();
+            await loadInventory();
             updateSuppliersDatalist();
             updateCategoriesDatalist();
             loadDailySpendingKPI();
