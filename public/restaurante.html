@@ -4886,43 +4886,37 @@
 
             // 1. Bebidas
             if (target === 'bebida' || target === 'bebidas') {
-                if (cat.includes('bebida') || meal.includes('bebida')) return true;
-                if (/café|cafe|tinto|capuchino|latte|chocolate|milo|leche|avena|jugo|zumo|limonada|gaseosa|coca|cola|sprite|agua|cerveza|soda|michelada|frappé|frappe|granizado/i.test(name)) return true;
-                return false;
+                return cat.includes('bebida') || meal.includes('bebida') || /café|cafe|tinto|capuchino|latte|chocolate|milo|leche|avena|jugo|zumo|limonada|gaseosa|coca|cola|sprite|agua|cerveza|soda|michelada|frappé|frappe|granizado/i.test(name);
             }
 
             // 2. Postres
             if (target === 'postre' || target === 'postres') {
-                if (cat.includes('postre') || meal.includes('postre')) return true;
-                if (/postre|torta|pastel|brownie|helado|flan|pudín|pudin|mousse|galleta|dulce/i.test(name)) return true;
-                return false;
+                return cat.includes('postre') || meal.includes('postre') || /postre|torta|pastel|brownie|helado|flan|pudín|pudin|mousse|galleta|dulce/i.test(name);
             }
 
             // 3. Adicionales
             if (target === 'adicionales' || target === 'adicional') {
-                if (cat.includes('adicional') || cat === 'otros' || cat === 'otro') return true;
-                return false;
+                return cat.includes('adicional') || cat === 'otros' || cat === 'otro';
             }
 
-            // 4. Meal Moments (Desayuno, Refrigerio, Almuerzo, Cena)
+            // 4. Desayuno
             if (target === 'desayuno' || target === 'desayunos') {
-                if (meal === 'desayuno' || meal === 'cualquiera' || !meal || cat === 'desayuno' || cat === 'comida' || cat === 'adicionales' || cat === 'bebida') return true;
-                return false;
+                return meal === 'desayuno' || cat === 'desayuno';
             }
 
+            // 5. Refrigerio
             if (target === 'refrigerio' || target === 'refrigerios') {
-                if (meal === 'refrigerio' || meal === 'cualquiera' || !meal || cat === 'refrigerio' || cat === 'comida' || cat === 'panadería' || cat === 'panaderia' || cat === 'bebida' || cat === 'adicionales') return true;
-                return false;
+                return meal === 'refrigerio' || cat === 'refrigerio';
             }
 
+            // 6. Almuerzo
             if (target === 'almuerzo' || target === 'almuerzos') {
-                if (meal === 'almuerzo' || meal === 'cualquiera' || !meal || cat === 'almuerzo' || cat === 'comida' || cat === 'adicionales' || cat === 'bebida') return true;
-                return false;
+                return meal === 'almuerzo' || cat === 'almuerzo';
             }
 
+            // 7. Cena
             if (target === 'cena' || target === 'cenas') {
-                if (meal === 'cena' || meal === 'cualquiera' || !meal || cat === 'cena' || cat === 'comida' || cat === 'adicionales' || cat === 'bebida') return true;
-                return false;
+                return meal === 'cena' || cat === 'cena';
             }
 
             return cat === target || meal === target;
