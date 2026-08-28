@@ -58,6 +58,7 @@ export async function handler(event) {
 					`;
 
 					try {
+						await sql`REINDEX TABLE sale_receipts`;
 						await sql`VACUUM sale_receipts`;
 					} catch(e) {}
 
