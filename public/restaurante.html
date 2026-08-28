@@ -1249,7 +1249,10 @@
             </button>
         </div>
 
-        <div class="header-actions">
+        <div class="header-actions" style="display:flex; align-items:center; gap:8px;">
+            <button class="btn-back" id="btn-open-schedule-modal" style="background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.18);" title="Configurar horarios de atención del menú">
+                ⚙️ Horarios
+            </button>
             <button class="btn-back" id="btn-back-home">
                 🏠 Volver a la App
             </button>
@@ -1860,6 +1863,118 @@
         </div>
     </div>
 
+    <!-- Menu Schedule Settings Modal -->
+    <div class="modal-overlay" id="schedule-settings-modal">
+        <div class="editor-modal" style="max-width: 520px; width: 95vw;">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border);">
+                <h3 style="font-size: 17px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
+                    <span>⚙️</span> Horarios del Menú de Pedidos
+                </h3>
+                <button id="btn-close-schedule-modal" style="background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
+            </div>
+
+            <div class="modal-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; max-height: 480px; overflow-y: auto;">
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;">
+                    Personaliza las horas en las que el punto de venta filtrará automáticamente cada categoría al ingresar:
+                </p>
+
+                <!-- Desayunos -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:var(--navy-dark);">
+                        <span style="font-size: 18px;">🍳</span>
+                        <span>Desayunos</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="time" id="sched-desayuno-start" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                        <span style="color:var(--text-muted); font-size:12px; font-weight:700;">a</span>
+                        <input type="time" id="sched-desayuno-end" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                    </div>
+                </div>
+
+                <!-- Refrigerios AM -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:var(--navy-dark);">
+                        <span style="font-size: 18px;">☕</span>
+                        <span>Refrigerios (Mañana)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="time" id="sched-ref-am-start" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                        <span style="color:var(--text-muted); font-size:12px; font-weight:700;">a</span>
+                        <input type="time" id="sched-ref-am-end" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                    </div>
+                </div>
+
+                <!-- Almuerzos -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:var(--navy-dark);">
+                        <span style="font-size: 18px;">🍲</span>
+                        <span>Almuerzos</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="time" id="sched-almuerzo-start" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                        <span style="color:var(--text-muted); font-size:12px; font-weight:700;">a</span>
+                        <input type="time" id="sched-almuerzo-end" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                    </div>
+                </div>
+
+                <!-- Refrigerios PM -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:var(--navy-dark);">
+                        <span style="font-size: 18px;">☕</span>
+                        <span>Refrigerios (Tarde)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="time" id="sched-ref-pm-start" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                        <span style="color:var(--text-muted); font-size:12px; font-weight:700;">a</span>
+                        <input type="time" id="sched-ref-pm-end" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                    </div>
+                </div>
+
+                <!-- Cenas -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:var(--navy-dark);">
+                        <span style="font-size: 18px;">🌙</span>
+                        <span>Cenas</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="time" id="sched-cena-start" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                        <span style="color:var(--text-muted); font-size:12px; font-weight:700;">a</span>
+                        <input type="time" id="sched-cena-end" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                    </div>
+                </div>
+
+                <!-- Refrigerios Noche -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:var(--navy-dark);">
+                        <span style="font-size: 18px;">☕</span>
+                        <span>Refrigerios (Noche)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="time" id="sched-ref-night-start" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                        <span style="color:var(--text-muted); font-size:12px; font-weight:700;">a</span>
+                        <input type="time" id="sched-ref-night-end" class="form-input" style="width:105px; padding:6px 8px; font-weight:700; font-size:13px;">
+                    </div>
+                </div>
+
+                <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px;">
+                    💡 En las horas no cubiertas (ej: madrugada/noche), se seleccionará <strong>Todas</strong> las categorías.
+                </div>
+            </div>
+
+            <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+                <button type="button" class="btn-secondary" id="btn-reset-schedule-modal" style="font-size:12px; padding:6px 12px;">
+                    🔄 Valores por Defecto
+                </button>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="btn-secondary" id="btn-cancel-schedule-modal">Cancelar</button>
+                    <button type="button" class="btn-primary" id="btn-save-schedule-modal" style="background:var(--navy-dark); color:#ffffff; font-weight:700;">
+                        💾 Guardar Horarios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Application Script -->
     <script>
         const STORAGE_KEY = 'sweetlab_restaurante_recetas';
@@ -1882,40 +1997,67 @@
         let activeMealFilter = 'Todas';
         let activeDayFilter = 'Todos';
         let activeOrderCategory = 'Todas';
-        let onlyAvailableFilter = false;
-        let currentMode = 'order'; // 'order', 'recipes', or 'inventory'
+        const MENU_SCHEDULE_KEY = 'sweetlab_restaurant_menu_schedule';
+        const DEFAULT_MENU_SCHEDULE = {
+            desayuno: { start: '06:00', end: '09:30', cat: 'Desayuno' },
+            refrigerio_am: { start: '09:30', end: '10:00', cat: 'Refrigerio' },
+            almuerzo: { start: '10:00', end: '13:00', cat: 'Almuerzo' },
+            refrigerio_pm: { start: '13:00', end: '15:00', cat: 'Refrigerio' },
+            cena: { start: '15:00', end: '19:00', cat: 'Cena' },
+            refrigerio_night: { start: '19:00', end: '22:00', cat: 'Refrigerio' }
+        };
+
+        function loadMenuSchedule() {
+            try {
+                const stored = localStorage.getItem(MENU_SCHEDULE_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    return { ...DEFAULT_MENU_SCHEDULE, ...parsed };
+                }
+            } catch (e) {}
+            return { ...DEFAULT_MENU_SCHEDULE };
+        }
+
+        function saveMenuSchedule(sched) {
+            try {
+                localStorage.setItem(MENU_SCHEDULE_KEY, JSON.stringify(sched));
+            } catch (e) {}
+        }
+
+        function timeStrToMinutes(str) {
+            if (!str || typeof str !== 'string' || !str.includes(':')) return 0;
+            const parts = str.split(':').map(Number);
+            return (parts[0] || 0) * 60 + (parts[1] || 0);
+        }
 
         function getTimeBasedDefaultCategory() {
+            const sched = loadMenuSchedule();
             const now = new Date();
-            const hours = now.getHours();
-            const minutes = now.getMinutes();
-            const totalMinutes = hours * 60 + minutes;
+            const curMin = now.getHours() * 60 + now.getMinutes();
 
-            // 06:00 (360m) a 09:30 (570m): Desayuno
-            if (totalMinutes >= 6 * 60 && totalMinutes < 9 * 60 + 30) {
-                return 'Desayuno';
+            const slots = [
+                sched.desayuno,
+                sched.refrigerio_am,
+                sched.almuerzo,
+                sched.refrigerio_pm,
+                sched.cena,
+                sched.refrigerio_night
+            ];
+
+            for (const slot of slots) {
+                if (!slot || !slot.start || !slot.end) continue;
+                const sMin = timeStrToMinutes(slot.start);
+                const eMin = timeStrToMinutes(slot.end);
+                if (sMin <= eMin) {
+                    if (curMin >= sMin && curMin < eMin) {
+                        return slot.cat || 'Todas';
+                    }
+                } else {
+                    if (curMin >= sMin || curMin < eMin) {
+                        return slot.cat || 'Todas';
+                    }
+                }
             }
-            // 09:30 (570m) a 10:00 (600m): Refrigerio
-            if (totalMinutes >= 9 * 60 + 30 && totalMinutes < 10 * 60) {
-                return 'Refrigerio';
-            }
-            // 10:00 (600m) a 13:00 (780m): Almuerzo
-            if (totalMinutes >= 10 * 60 && totalMinutes < 13 * 60) {
-                return 'Almuerzo';
-            }
-            // 13:00 (780m) a 15:00 (900m): Refrigerio
-            if (totalMinutes >= 13 * 60 && totalMinutes < 15 * 60) {
-                return 'Refrigerio';
-            }
-            // 15:00 (900m) a 19:00 (1140m): Cena
-            if (totalMinutes >= 15 * 60 && totalMinutes < 19 * 60) {
-                return 'Cena';
-            }
-            // 19:00 (1140m) a 22:00 (1320m): Refrigerio
-            if (totalMinutes >= 19 * 60 && totalMinutes < 22 * 60) {
-                return 'Refrigerio';
-            }
-            // 22:00 a 06:00: Todas (mostrar todo)
             return 'Todas';
         }
 
@@ -1930,6 +2072,56 @@
                     pill.classList.remove('active');
                 }
             });
+        }
+
+        function openScheduleModal() {
+            const sched = loadMenuSchedule();
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val;
+            };
+            setVal('sched-desayuno-start', sched.desayuno?.start || '06:00');
+            setVal('sched-desayuno-end', sched.desayuno?.end || '09:30');
+            setVal('sched-ref-am-start', sched.refrigerio_am?.start || '09:30');
+            setVal('sched-ref-am-end', sched.refrigerio_am?.end || '10:00');
+            setVal('sched-almuerzo-start', sched.almuerzo?.start || '10:00');
+            setVal('sched-almuerzo-end', sched.almuerzo?.end || '13:00');
+            setVal('sched-ref-pm-start', sched.refrigerio_pm?.start || '13:00');
+            setVal('sched-ref-pm-end', sched.refrigerio_pm?.end || '15:00');
+            setVal('sched-cena-start', sched.cena?.start || '15:00');
+            setVal('sched-cena-end', sched.cena?.end || '19:00');
+            setVal('sched-ref-night-start', sched.refrigerio_night?.start || '19:00');
+            setVal('sched-ref-night-end', sched.refrigerio_night?.end || '22:00');
+            const modal = document.getElementById('schedule-settings-modal');
+            if (modal) modal.classList.add('active');
+        }
+
+        function closeScheduleModal() {
+            const modal = document.getElementById('schedule-settings-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function saveScheduleFromModal() {
+            const getVal = (id, fallback) => document.getElementById(id)?.value || fallback;
+            const newSched = {
+                desayuno: { start: getVal('sched-desayuno-start', '06:00'), end: getVal('sched-desayuno-end', '09:30'), cat: 'Desayuno' },
+                refrigerio_am: { start: getVal('sched-ref-am-start', '09:30'), end: getVal('sched-ref-am-end', '10:00'), cat: 'Refrigerio' },
+                almuerzo: { start: getVal('sched-almuerzo-start', '10:00'), end: getVal('sched-almuerzo-end', '13:00'), cat: 'Almuerzo' },
+                refrigerio_pm: { start: getVal('sched-ref-pm-start', '13:00'), end: getVal('sched-ref-pm-end', '15:00'), cat: 'Refrigerio' },
+                cena: { start: getVal('sched-cena-start', '15:00'), end: getVal('sched-cena-end', '19:00'), cat: 'Cena' },
+                refrigerio_night: { start: getVal('sched-ref-night-start', '19:00'), end: getVal('sched-ref-night-end', '22:00'), cat: 'Refrigerio' }
+            };
+            saveMenuSchedule(newSched);
+            applyTimeBasedOrderCategory();
+            renderOrderingMenu();
+            closeScheduleModal();
+            showToast('⚙️ Horarios del menú guardados', 2200);
+        }
+
+        function resetScheduleToDefault() {
+            saveMenuSchedule(DEFAULT_MENU_SCHEDULE);
+            openScheduleModal();
+            showToast('🔄 Horarios restablecidos por defecto', 2000);
         }
 
         function loadLearnedAssociations() {
@@ -4632,6 +4824,11 @@
             bindClick('btn-open-daily-history-modal', openDailyHistoryModal);
             bindClick('btn-close-daily-history-modal', closeDailyHistoryModal);
             bindClick('btn-close-daily-history-modal-footer', closeDailyHistoryModal);
+            bindClick('btn-open-schedule-modal', openScheduleModal);
+            bindClick('btn-close-schedule-modal', closeScheduleModal);
+            bindClick('btn-cancel-schedule-modal', closeScheduleModal);
+            bindClick('btn-save-schedule-modal', saveScheduleFromModal);
+            bindClick('btn-reset-schedule-modal', resetScheduleToDefault);
 
             const manualNameInput = document.getElementById('manual-inv-name');
             const manualCategoryInput = document.getElementById('manual-inv-category');
