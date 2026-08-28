@@ -1344,6 +1344,23 @@
                     </div>
                 </div>
 
+                <!-- Daily Spending KPI Summary Banner -->
+                <div style="display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 16px 24px; border-radius: var(--radius-md); box-shadow: var(--shadow-md);">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; border: 1px solid rgba(16, 185, 129, 0.4);">
+                            💰
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Gastos en Compras Hoy</div>
+                            <div id="kpi-today-purchases-sum" style="font-size: 22px; font-weight: 800; color: #34d399;">$0</div>
+                        </div>
+                    </div>
+
+                    <button type="button" id="btn-open-daily-history-modal" class="btn-secondary" style="background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); font-weight: 700; padding: 10px 18px; border-radius: 20px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                        <span>📜</span> Histórico Diario de Compras
+                    </button>
+                </div>
+
                 <!-- Search & Counter Bar for Inventory -->
                 <div style="display: flex; gap: 16px; align-items: center; background: white; padding: 14px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
                     <span style="font-size: 18px;">🔍</span>
@@ -1668,6 +1685,28 @@
                 <button type="button" class="btn-primary" id="btn-save-portion-modal" style="background: #0284c7; font-weight: 700;">
                     Guardar Porción
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Spending History Modal -->
+    <div class="modal-overlay" id="daily-spending-history-modal">
+        <div class="editor-modal" style="max-width: 680px;">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border);">
+                <h3 style="font-size: 18px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
+                    <span>📜</span> Histórico de Compras por Día
+                </h3>
+                <button id="btn-close-daily-history-modal" style="background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
+            </div>
+
+            <div class="modal-body" style="padding: 24px; max-height: 500px; overflow-y: auto;">
+                <div id="daily-history-modal-body">
+                    <!-- Dynamic Daily Spending Cards -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btn-close-daily-history-modal-footer">Cerrar</button>
             </div>
         </div>
     </div>
@@ -2459,7 +2498,111 @@
 
             renderInventoryTable();
             closeManualInventoryModal();
+            loadDailySpendingKPI();
             showToast('🎉 ¡Agregado exitosamente!', 3000);
+        }
+
+        async function loadDailySpendingKPI() {
+            const kpiSumEl = document.getElementById('kpi-today-purchases-sum');
+            if (!kpiSumEl) return;
+            try {
+                const res = await fetch('/api/restaurant-inventory?action=daily_spending_history');
+                if (!res.ok) return;
+                const history = await res.json();
+                if (!Array.isArray(history)) return;
+
+                const todayIso = new Date().toISOString().split('T')[0];
+                const todayRecord = history.find(h => h.date === todayIso);
+                const todayTotal = todayRecord ? Number(todayRecord.totalCost) || 0 : 0;
+                kpiSumEl.textContent = `$${todayTotal.toLocaleString('es-CO')}`;
+            } catch (err) {
+                console.error('[Restaurante] Error cargando KPI de compras diarias:', err);
+            }
+        }
+
+        async function openDailyHistoryModal() {
+            const modal = document.getElementById('daily-spending-history-modal');
+            const bodyEl = document.getElementById('daily-history-modal-body');
+            if (!modal || !bodyEl) return;
+
+            bodyEl.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">⏳ Cargando histórico diario de compras...</div>';
+            modal.classList.add('active');
+
+            try {
+                const res = await fetch('/api/restaurant-inventory?action=daily_spending_history');
+                if (!res.ok) throw new Error('Error de servidor');
+                const history = await res.json();
+
+                if (!Array.isArray(history) || history.length === 0) {
+                    bodyEl.innerHTML = `
+                        <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
+                            <span style="font-size:32px;">📜</span>
+                            <div style="font-weight:700; margin-top:8px;">No hay compras registradas aún en el histórico.</div>
+                            <div style="font-size:12px; margin-top:4px;">Tus compras futuras manuales o por escáner de facturas aparecerán aquí acumuladas por fecha.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const todayIso = new Date().toISOString().split('T')[0];
+                let cardsHtml = '';
+
+                history.forEach(day => {
+                    const isToday = day.date === todayIso;
+                    const dateObj = new Date(day.date + 'T00:00:00');
+                    const formattedDateStr = isNaN(dateObj.getTime())
+                        ? day.date
+                        : dateObj.toLocaleDateString('es-CO', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                    
+                    const labelBadge = isToday ? '<span style="background:#ecfdf5; color:#047857; font-weight:800; font-size:11px; padding:2px 8px; border-radius:10px; margin-left:6px;">HOY</span>' : '';
+
+                    let purchasesDetailHtml = '';
+                    const purchasesArr = Array.isArray(day.purchases) ? day.purchases : [];
+                    purchasesArr.forEach(p => {
+                        const itemsArr = Array.isArray(p.items) ? p.items : [];
+                        const itemsSummary = itemsArr.map(it => `${escapeHtml(it.name)} (${it.qty} ${escapeHtml(it.unit || 'g')})`).join(', ');
+                        const pCost = Number(p.totalCost) || 0;
+                        const timeStr = p.createdAt ? new Date(p.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '';
+
+                        purchasesDetailHtml += `
+                            <div style="background:#f8fafc; border:1px solid var(--border); padding:10px 14px; border-radius:var(--radius-sm); font-size:12px;">
+                                <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--navy-dark);">
+                                    <span>🛒 ${escapeHtml(p.supplierName || 'Sin especificar')} ${timeStr ? `<span style="font-size:10px; font-weight:600; color:var(--text-muted); margin-left:6px;">(${timeStr})</span>` : ''}</span>
+                                    <span style="color:var(--primary);">$${pCost.toLocaleString('es-CO')}</span>
+                                </div>
+                                ${itemsSummary ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">📦 Insumos: ${itemsSummary}</div>` : ''}
+                            </div>
+                        `;
+                    });
+
+                    cardsHtml += `
+                        <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px; margin-bottom:14px; box-shadow:var(--shadow-sm);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:12px;">
+                                <div style="font-weight:800; font-size:15px; color:var(--navy-dark); display:flex; align-items:center;">
+                                    <span>📅</span> <span style="margin-left:6px; text-transform:capitalize;">${escapeHtml(formattedDateStr)}</span> ${labelBadge}
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-weight:800; font-size:17px; color:#059669;">$${(Number(day.totalCost) || 0).toLocaleString('es-CO')}</div>
+                                    <div style="font-size:11px; color:var(--text-muted); font-weight:600;">${day.purchaseCount} compra(s)</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                ${purchasesDetailHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                bodyEl.innerHTML = cardsHtml;
+
+            } catch (err) {
+                console.error('[Restaurante] Error cargando histórico diario de compras:', err);
+                bodyEl.innerHTML = '<div style="text-align:center; padding:30px; color:#ef4444;">❌ Error al cargar el histórico diario. Intenta nuevamente.</div>';
+            }
+        }
+
+        function closeDailyHistoryModal() {
+            document.getElementById('daily-spending-history-modal')?.classList.remove('active');
         }
 
         // --- INVOICE SCANNING & IA OCR FUNCTIONS ---
@@ -2774,6 +2917,7 @@
 
             renderInventoryTable();
             closeScanModal();
+            loadDailySpendingKPI();
             showToast('🎉 ¡Agregado exitosamente!', 3000);
         }
 
@@ -3650,6 +3794,9 @@
             bindClick('btn-close-portion-modal', closePortionSettingModal);
             bindClick('btn-cancel-portion-modal', closePortionSettingModal);
             bindClick('btn-save-portion-modal', savePortionSetting);
+            bindClick('btn-open-daily-history-modal', openDailyHistoryModal);
+            bindClick('btn-close-daily-history-modal', closeDailyHistoryModal);
+            bindClick('btn-close-daily-history-modal-footer', closeDailyHistoryModal);
 
             const manualNameInput = document.getElementById('manual-inv-name');
             if (manualNameInput) {
@@ -4185,6 +4332,7 @@
             loadInventory();
             updateSuppliersDatalist();
             updateCategoriesDatalist();
+            loadDailySpendingKPI();
             setupEventListeners();
             switchMode('order');
         });

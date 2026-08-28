@@ -30,6 +30,39 @@ export async function handler(event) {
 						};
 					});
 					return json(memoryMap);
+				if (action === 'daily_spending_history') {
+					const purchases = await sql`
+						SELECT id, supplier_name, total_cost, items, created_at
+						FROM restaurant_purchases
+						ORDER BY created_at DESC
+						LIMIT 300
+					`;
+					const daysMap = {};
+					purchases.forEach(p => {
+						const dateStr = p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : 'Desconocida';
+						if (!daysMap[dateStr]) {
+							daysMap[dateStr] = {
+								date: dateStr,
+								totalCost: 0,
+								purchaseCount: 0,
+								purchases: []
+							};
+						}
+						const cost = Number(p.total_cost) || 0;
+						daysMap[dateStr].totalCost += cost;
+						daysMap[dateStr].purchaseCount += 1;
+						daysMap[dateStr].purchases.push({
+							id: p.id,
+							supplierName: p.supplier_name || 'Sin especificar',
+							totalCost: cost,
+							items: Array.isArray(p.items) ? p.items : [],
+							createdAt: p.created_at
+						});
+					});
+					const sortedDays = Object.values(daysMap).sort((a, b) => b.date.localeCompare(a.date));
+					return json(sortedDays);
+				}
+
 				if (action === 'item_history') {
 					const itemKey = (params.get('key') || '').trim().toLowerCase();
 					const purchases = await sql`
