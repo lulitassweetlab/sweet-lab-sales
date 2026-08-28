@@ -1613,11 +1613,13 @@
         const PAIRINGS_STORAGE_KEY = 'sweetlab_restaurante_pairings';
         const INVENTORY_STORAGE_KEY = 'sweetlab_restaurante_inventario';
         const EXPIRY_MEMORY_KEY = 'sweetlab_restaurante_expiry_memory';
+        const PRODUCT_MEMORY_KEY = 'sweetlab_restaurante_product_memory';
         let recipes = [];
         let cart = {}; // { recipeId: count }
         let pairingsMemory = {}; // { recipeId: { pairedRecipeId: count } }
         let inventory = {}; // { [lowercaseName]: { name: string, unit: string, stock: number } }
         let expiryMemory = {}; // { [lowercaseName]: days: number }
+        let productMemory = {}; // { [lowercaseName]: { name: string, unit: string, qty: number } }
         let selectedRecipeId = null;
         let editingRecipeId = null;
         let activeMealFilter = 'Todas';
@@ -1625,6 +1627,63 @@
         let activeOrderCategory = 'Todas';
         let onlyAvailableFilter = false;
         let currentMode = 'order'; // 'order', 'recipes', or 'inventory'
+
+        async function loadProductMemory() {
+            try {
+                const res = await fetch('/api/restaurant-inventory?action=memory');
+                if (res.ok) {
+                    const remoteMem = await res.json();
+                    if (typeof remoteMem === 'object' && remoteMem !== null && Object.keys(remoteMem).length > 0) {
+                        productMemory = remoteMem;
+                        localStorage.setItem(PRODUCT_MEMORY_KEY, JSON.stringify(productMemory));
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('[Restaurante] Error cargando memoria de productos desde Neon DB:', e);
+            }
+
+            try {
+                const stored = localStorage.getItem(PRODUCT_MEMORY_KEY);
+                if (stored) productMemory = JSON.parse(stored);
+            } catch (e) {
+                productMemory = {};
+            }
+        }
+
+        async function saveProductMemoryToNeon(items) {
+            try {
+                await fetch('/api/restaurant-inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'learn_product_memory', items })
+                });
+            } catch (e) {
+                console.error('[Restaurante] Error guardando memoria de productos en Neon DB:', e);
+            }
+        }
+
+        function learnProductPackage(name, unit, qty) {
+            if (!name || !unit || !qty || Number(qty) <= 0) return;
+            const key = name.trim().toLowerCase();
+            const itemObj = { name: name.trim(), unit: unit.trim(), qty: Number(qty) };
+            productMemory[key] = itemObj;
+            try {
+                localStorage.setItem(PRODUCT_MEMORY_KEY, JSON.stringify(productMemory));
+            } catch (e) {}
+            saveProductMemoryToNeon([itemObj]);
+        }
+
+        function getLearnedPackage(name) {
+            if (!name) return null;
+            const searchKey = name.trim().toLowerCase();
+            if (productMemory[searchKey]) return productMemory[searchKey];
+
+            // Fuzzy/substring match
+            const matchKey = Object.keys(productMemory).find(k => k === searchKey || k.includes(searchKey) || searchKey.includes(k));
+            if (matchKey) return productMemory[matchKey];
+            return null;
+        }
 
         function loadExpiryMemory() {
             try {
@@ -2255,21 +2314,31 @@
                         let suggestedName = originalName;
                         let unit = 'g';
 
-                        // Check match in restaurant inventory
                         const invMatchKey = Object.keys(inventory).find(k => k === originalName.toLowerCase() || k.includes(originalName.toLowerCase()) || originalName.toLowerCase().includes(k));
                         if (invMatchKey) {
                             suggestedName = inventory[invMatchKey].name;
                             unit = inventory[invMatchKey].unit || 'g';
                         }
 
+                        // Check learned product package memory
+                        const learned = getLearnedPackage(originalName) || getLearnedPackage(suggestedName);
+                        let finalQty = it.qty || 1;
+                        if (learned) {
+                            finalQty = learned.qty;
+                            unit = learned.unit;
+                        }
+
                         const tr = document.createElement('tr');
                         tr.style.borderBottom = '1px solid var(--border)';
                         tr.innerHTML = `
                             <td style="padding:10px 14px;">
-                                <input type="text" class="form-input scan-row-name" list="restaurant-ingredients-list" value="${escapeHtml(suggestedName)}" style="width:100%; font-weight:700;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <input type="text" class="form-input scan-row-name" list="restaurant-ingredients-list" value="${escapeHtml(suggestedName)}" style="flex:1; min-width:0; font-weight:700;">
+                                    ${learned ? `<span style="font-size:10px; font-weight:800; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; padding:2px 6px; border-radius:8px; white-space:nowrap;" title="Aprendido previamente de tus compras: ${learned.qty} ${learned.unit}">learned</span>` : ''}
+                                </div>
                             </td>
                             <td style="padding:10px 14px;">
-                                <input type="number" class="form-input scan-row-qty" value="${it.qty || 1}" style="width:100%; font-weight:700;" min="0.01" step="any">
+                                <input type="number" class="form-input scan-row-qty" value="${finalQty}" style="width:100%; font-weight:700;" min="0.01" step="any">
                             </td>
                             <td style="padding:10px 14px;">
                                 <input type="text" class="form-input scan-row-unit" value="${escapeHtml(unit)}" style="width:100%;">
@@ -3740,6 +3809,7 @@
             loadRecipes();
             loadPairingsMemory();
             loadExpiryMemory();
+            loadProductMemory();
             loadInventory();
             setupEventListeners();
             switchMode('order');

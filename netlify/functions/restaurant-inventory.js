@@ -11,6 +11,27 @@ export async function handler(event) {
 
 		switch (event.httpMethod) {
 			case 'GET': {
+				const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
+				const params = new URLSearchParams(raw);
+				const action = (params.get('action') || '').trim();
+
+				if (action === 'memory') {
+					const memRows = await sql`
+						SELECT key, name, unit, qty
+						FROM restaurant_product_memory
+						ORDER BY name ASC
+					`;
+					const memoryMap = {};
+					memRows.forEach(r => {
+						memoryMap[r.key] = {
+							name: r.name,
+							unit: r.unit || 'und',
+							qty: Number(r.qty) || 1
+						};
+					});
+					return json(memoryMap);
+				}
+
 				const rows = await sql`
 					SELECT 
 						key,
@@ -42,7 +63,28 @@ export async function handler(event) {
 			case 'POST': {
 				const body = JSON.parse(event.body || '{}');
 
-				// Case 1: Record purchase and update inventory
+				// Case 0: Save learned product memory rules
+				if (body.action === 'learn_product_memory') {
+					const items = Array.isArray(body.items) ? body.items : (body.item ? [body.item] : []);
+					for (const item of items) {
+						if (!item || !item.name) continue;
+						const key = item.name.trim().toLowerCase();
+						const name = item.name.trim();
+						const unit = (item.unit || 'und').trim();
+						const qty = Number(item.qty) || 1;
+
+						await sql`
+							INSERT INTO restaurant_product_memory (key, name, unit, qty, updated_at)
+							VALUES (${key}, ${name}, ${unit}, ${qty}, now())
+							ON CONFLICT (key) DO UPDATE SET
+								name = EXCLUDED.name,
+								unit = EXCLUDED.unit,
+								qty = EXCLUDED.qty,
+								updated_at = now()
+						`;
+					}
+					return json({ ok: true });
+				}
 				if (body.action === 'purchase') {
 					const purchaseId = 'compra_restaurante_' + Date.now();
 					const supplierName = (body.supplier_name || 'Factura Escaneada IA').toString();
