@@ -2750,6 +2750,14 @@
             }, 300);
         }
 
+        function saveInventoryLocally() {
+            try {
+                localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+            } catch (e) {
+                console.error('[Restaurante] Error guardando inventario localmente');
+            }
+        }
+
         function syncInventoryFromRecipes() {
             hydrateInventoryCostsFromRecipes();
             saveInventory(true);
@@ -3389,7 +3397,7 @@
             if (newExpiryDays > 0) learnExpiryDays(newName, newExpiryDays);
 
             // Persist locally & cloud
-            saveInventoryLocally();
+            saveInventory(true);
             await saveInventoryItemToNeon(newKey, updatedItem);
 
             // Propagate changes to recipes
