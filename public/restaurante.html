@@ -1299,15 +1299,15 @@
             <div class="menu-container">
                 <!-- Category & Meal Filter Pills Bar -->
                 <div class="category-filter-bar" id="order-cat-pills">
-                    <button class="cat-pill active" data-cat="Todas">Todas</button>
-                    <button class="cat-pill" data-cat="Desayuno">🍳 Desayunos</button>
-                    <button class="cat-pill" data-cat="Refrigerio">☕ Refrigerios</button>
-                    <button class="cat-pill" data-cat="Almuerzo">🍲 Almuerzos</button>
-                    <button class="cat-pill" data-cat="Cena">🌙 Cenas</button>
-                    <button class="cat-pill" data-cat="Bebida">🥤 Bebidas</button>
-                    <button class="cat-pill" data-cat="Postre">🍰 Postres</button>
-                    <button class="cat-pill" data-cat="Adicionales">🍟 Adicionales</button>
-                    <button type="button" class="cat-pill pill-disponibles" id="btn-filter-disponibles" style="background: #ecfdf5; border-color: #6ee7b7; color: #047857; font-weight: 800; transition: var(--transition);">
+                    <button type="button" class="cat-pill active" data-cat="Todas" onclick="selectOrderCategory('Todas', this)">Todas</button>
+                    <button type="button" class="cat-pill" data-cat="Desayuno" onclick="selectOrderCategory('Desayuno', this)">🍳 Desayunos</button>
+                    <button type="button" class="cat-pill" data-cat="Refrigerio" onclick="selectOrderCategory('Refrigerio', this)">☕ Refrigerios</button>
+                    <button type="button" class="cat-pill" data-cat="Almuerzo" onclick="selectOrderCategory('Almuerzo', this)">🍲 Almuerzos</button>
+                    <button type="button" class="cat-pill" data-cat="Cena" onclick="selectOrderCategory('Cena', this)">🌙 Cenas</button>
+                    <button type="button" class="cat-pill" data-cat="Bebida" onclick="selectOrderCategory('Bebida', this)">🥤 Bebidas</button>
+                    <button type="button" class="cat-pill" data-cat="Postre" onclick="selectOrderCategory('Postre', this)">🍰 Postres</button>
+                    <button type="button" class="cat-pill" data-cat="Adicionales" onclick="selectOrderCategory('Adicionales', this)">🍟 Adicionales</button>
+                    <button type="button" class="cat-pill pill-disponibles" id="btn-filter-disponibles" onclick="toggleOnlyAvailable(this)" style="background: #ecfdf5; border-color: #6ee7b7; color: #047857; font-weight: 800; transition: var(--transition);">
                         💡 Disponibles
                     </button>
                 </div>
@@ -4906,18 +4906,42 @@
             return score;
         }
 
+        window.selectOrderCategory = function(cat, btn) {
+            activeOrderCategory = cat || 'Todas';
+            activeGuidedBanner = null;
+            document.querySelectorAll('#order-cat-pills .cat-pill').forEach(p => {
+                if (p.id !== 'btn-filter-disponibles') p.classList.remove('active');
+            });
+            if (btn) {
+                btn.classList.add('active');
+            } else {
+                document.querySelectorAll('#order-cat-pills .cat-pill').forEach(p => {
+                    if (p.getAttribute('data-cat') === activeOrderCategory) p.classList.add('active');
+                });
+            }
+            renderOrderingMenu();
+        };
+
+        window.toggleOnlyAvailable = function(btn) {
+            onlyAvailableFilter = !onlyAvailableFilter;
+            const btnEl = btn || document.getElementById('btn-filter-disponibles');
+            if (btnEl) {
+                if (onlyAvailableFilter) {
+                    btnEl.style.backgroundColor = '#047857';
+                    btnEl.style.color = '#ffffff';
+                    btnEl.style.borderColor = '#047857';
+                } else {
+                    btnEl.style.backgroundColor = '#ecfdf5';
+                    btnEl.style.color = '#047857';
+                    btnEl.style.borderColor = '#6ee7b7';
+                }
+            }
+            renderOrderingMenu();
+        };
+
         window.returnToFoodCategory = function(mealCat) {
             activeGuidedBanner = null;
-            activeOrderCategory = mealCat || 'Todas';
-            document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
-                const pillCat = pill.getAttribute('data-cat');
-                if (pillCat === activeOrderCategory) {
-                    pill.classList.add('active');
-                } else if (pillCat) {
-                    pill.classList.remove('active');
-                }
-            });
-            renderOrderingMenu();
+            selectOrderCategory(mealCat || 'Todas');
         };
 
         window.dismissGuidedBanner = function() {
