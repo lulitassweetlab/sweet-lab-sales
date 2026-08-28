@@ -30,6 +30,8 @@ export async function handler(event) {
 						};
 					});
 					return json(memoryMap);
+				}
+
 				if (action === 'daily_spending_history') {
 					const purchases = await sql`
 						SELECT id, supplier_name, total_cost, items, created_at
