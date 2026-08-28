@@ -126,7 +126,8 @@ export async function handler(event) {
 				rows.forEach(r => {
 					const cat = (r.category || '').trim();
 					const cleanCat = (cat === 'Otros' || cat === 'otros') ? '' : cat;
-					inventoryMap[r.key] = {
+					const normKey = (r.key || r.name).trim().toLowerCase();
+					inventoryMap[normKey] = {
 						name: r.name,
 						category: cleanCat,
 						unit: r.unit || 'g',

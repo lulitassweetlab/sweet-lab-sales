@@ -2303,35 +2303,35 @@
             }
 
             // Purge legacy 'Otros' or 'otros' and generic scan suppliers from remote and local inventory
+            const cleanMap = {};
             Object.keys(inventory).forEach(k => {
+                const normK = k.trim().toLowerCase();
                 const cat = (inventory[k].category || '').trim();
-                if (cat === 'Otros' || cat === 'otros') {
-                    inventory[k].category = '';
-                }
-                if (isGenericScanSup(inventory[k].supplierName)) {
-                    inventory[k].supplierName = '';
-                }
-            });
-            Object.keys(localInventory).forEach(k => {
-                const cat = (localInventory[k].category || '').trim();
-                if (cat === 'Otros' || cat === 'otros') {
-                    localInventory[k].category = '';
-                }
-                if (isGenericScanSup(localInventory[k].supplierName)) {
-                    localInventory[k].supplierName = '';
+                if (cat === 'Otros' || cat === 'otros') inventory[k].category = '';
+                if (isGenericScanSup(inventory[k].supplierName)) inventory[k].supplierName = '';
+                if (!cleanMap[normK] || (Number(inventory[k].portionGrams) > 0 && !cleanMap[normK].portionGrams)) {
+                    cleanMap[normK] = inventory[k];
                 }
             });
+            inventory = cleanMap;
 
-            // Merge local categories and supplier names if local has more specific information
             Object.keys(localInventory).forEach(k => {
-                if (!inventory[k]) {
-                    inventory[k] = localInventory[k];
+                const normK = k.trim().toLowerCase();
+                const cat = (localInventory[k].category || '').trim();
+                if (cat === 'Otros' || cat === 'otros') localInventory[k].category = '';
+                if (isGenericScanSup(localInventory[k].supplierName)) localInventory[k].supplierName = '';
+
+                if (!inventory[normK]) {
+                    inventory[normK] = localInventory[k];
                 } else {
-                    if (localInventory[k].category && !inventory[k].category) {
-                        inventory[k].category = localInventory[k].category;
+                    if (localInventory[k].category && !inventory[normK].category) {
+                        inventory[normK].category = localInventory[k].category;
                     }
-                    if (localInventory[k].supplierName && !inventory[k].supplierName) {
-                        inventory[k].supplierName = localInventory[k].supplierName;
+                    if (localInventory[k].supplierName && !inventory[normK].supplierName) {
+                        inventory[normK].supplierName = localInventory[k].supplierName;
+                    }
+                    if (Number(localInventory[k].portionGrams) > 0 && (!inventory[normK].portionGrams || Number(inventory[normK].portionGrams) === 0)) {
+                        inventory[normK].portionGrams = Number(localInventory[k].portionGrams);
                     }
                 }
             });
