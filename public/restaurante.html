@@ -2177,14 +2177,67 @@
                     Object.keys(inventory).forEach(k => {
                         if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
                     });
-                } else {
-                    syncInventoryFromRecipes();
                 }
             } catch (e) {
                 inventory = {};
             }
+            hydrateInventoryCostsFromRecipes();
             seedLearnedAssociationsFromInventory();
             renderInventoryTable();
+        }
+
+        function hydrateInventoryCostsFromRecipes() {
+            let changed = false;
+            const clean = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+            (recipes || []).forEach(r => {
+                (r.ingredients || []).forEach(ing => {
+                    if (ing && ing.name && !ing.isSubRecipe) {
+                        const rawKey = ing.name.trim().toLowerCase();
+                        const cKey = clean(ing.name);
+                        
+                        // Find match in inventory
+                        let invKey = Object.keys(inventory).find(k => k === rawKey || clean(k) === cKey || clean(inventory[k]?.name) === cKey);
+                        
+                        const pCost = Number(ing.pkgCost) || 0;
+                        const pQty = Number(ing.pkgQty) || (normalizeUnit(ing.unit) === 'u' ? 1 : 1000);
+                        const uCost = (pCost > 0 && pQty > 0) ? (pCost / pQty) : 0;
+                        const unit = normalizeUnit(ing.unit || 'g');
+
+                        if (invKey && inventory[invKey]) {
+                            const item = inventory[invKey];
+                            if ((!item.lastPkgCost || Number(item.lastPkgCost) === 0) && pCost > 0) {
+                                item.lastPkgCost = pCost;
+                                item.lastPkgQty = pQty;
+                                item.lastUnitCost = uCost;
+                                changed = true;
+                            }
+                            if (!item.unit || item.unit === 'g') {
+                                item.unit = unit;
+                            }
+                        } else {
+                            inventory[rawKey] = {
+                                name: ing.name.trim(),
+                                category: 'Otros',
+                                unit: unit,
+                                stock: pQty,
+                                lastPkgCost: pCost,
+                                lastPkgQty: pQty,
+                                lastUnitCost: uCost,
+                                supplierName: '',
+                                lastPurchasedAt: new Date().toISOString()
+                            };
+                            changed = true;
+                        }
+                    }
+                });
+            });
+
+            if (changed) {
+                saveInventory();
+                updateIngredientsDatalist();
+            }
+            return changed;
         }
 
         function seedLearnedAssociationsFromInventory() {
@@ -2250,22 +2303,10 @@
         }
 
         function syncInventoryFromRecipes() {
-            (recipes || []).forEach(r => {
-                (r.ingredients || []).forEach(ing => {
-                    if (ing && ing.name && !ing.isSubRecipe) {
-                        const key = ing.name.trim().toLowerCase();
-                        if (!inventory[key]) {
-                            inventory[key] = {
-                                name: ing.name.trim(),
-                                unit: ing.unit || 'g',
-                                stock: Number(ing.pkgQty) || 1000
-                            };
-                        }
-                    }
-                });
-            });
+            hydrateInventoryCostsFromRecipes();
             saveInventory();
             renderInventoryTable();
+            updateIngredientsDatalist();
         }
 
         function isRecipe100PercentAvailable(recipe, visited = new Set()) {
@@ -3717,6 +3758,7 @@
                             recipes = [];
                         }
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+                        hydrateInventoryCostsFromRecipes();
                         refreshCurrentModeView();
                         return;
                     }
@@ -3740,6 +3782,7 @@
             } catch (e) {
                 recipes = SEED_DATA;
             }
+            hydrateInventoryCostsFromRecipes();
             refreshCurrentModeView();
         }
 
