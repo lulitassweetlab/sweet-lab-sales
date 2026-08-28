@@ -3648,9 +3648,6 @@
                 }
             });
 
-            saveInventory();
-            updateSuppliersDatalist();
-
             // Record purchase entry & inventory sync in cloud Neon DB
             try {
                 const res = await fetch('/api/restaurant-inventory', {
@@ -3670,6 +3667,10 @@
                 console.error('[Restaurante] Error registrando compra en Neon DB:', err);
                 alert('⚠️ Ocurrió un inconveniente al guardar la compra en la nube. Se guardó localmente.');
             } finally {
+                try {
+                    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+                } catch (e) {}
+                updateSuppliersDatalist();
                 if (btnConfirm) {
                     btnConfirm.disabled = false;
                     btnConfirm.innerHTML = '✅ Confirmar y Agregar al Inventario';
