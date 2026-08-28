@@ -5030,8 +5030,15 @@
                 baseSelectOptions += `<option value="${b.id}" ${b.id === subRecipeId ? 'selected' : ''}>${escapeHtml(b.name)} ($${uCost.toLocaleString('es-CO')}/porción)</option>`;
             });
 
-            const initialUnit = isSubRecipe ? 'porción' : (unit ? normalizeUnit(unit) : '');
-            const initialUnitLabel = isSubRecipe ? 'porción' : (unit ? normalizeUnit(unit) : 'Medida');
+            let resolvedUnit = unit ? normalizeUnit(unit) : '';
+            if (name && !isSubRecipe) {
+                const invMatch = findInventoryItem(name);
+                if (invMatch && Number(invMatch.portionGrams) > 0 && (!unit || unit === 'g')) {
+                    resolvedUnit = 'u';
+                }
+            }
+            const initialUnit = isSubRecipe ? 'porción' : (resolvedUnit || 'g');
+            const initialUnitLabel = isSubRecipe ? 'porción' : (resolvedUnit || 'Medida');
 
             row.innerHTML = `
                 <select class="form-select ing-type-select" style="border-radius:var(--radius-sm); width: 80px;">
@@ -5195,11 +5202,10 @@
 
                 if (matchKey && catalog[matchKey]) {
                     const match = catalog[matchKey];
-                    const normU = normalizeUnit(match.unit) || 'g';
-                    if (!unitInput.value || unitInput.value === 'porción') {
-                        unitInput.value = normU;
-                        unitLabel.textContent = normU;
-                    }
+                    const hasPortions = Number(match.portionGrams) > 0;
+                    const normU = hasPortions ? 'u' : (normalizeUnit(match.unit) || 'g');
+                    unitInput.value = normU;
+                    unitLabel.textContent = normU;
                     if (match.pkgQty) pQtyInput.value = match.pkgQty;
                     if (match.pkgCost > 0) pCostInput.value = match.pkgCost;
                     if (!rQtyInput.value || Number(rQtyInput.value) <= 0) {
