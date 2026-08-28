@@ -1339,7 +1339,7 @@
                             ⚡ Sincronizar Insumos desde Recetas
                         </button>
                         <button type="button" class="btn-primary" id="btn-add-inventory-item" style="font-weight: 700; padding: 10px 16px;">
-                            + Agregar Insumo
+                            + Compra
                         </button>
                     </div>
                 </div>
@@ -1580,14 +1580,19 @@
                     </div>
                 </div>
 
-                <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Días de Vida Útil</label>
+                        <label class="form-label" style="font-weight: 700;">Días Vida Útil</label>
                         <input type="number" class="form-input" id="manual-inv-expiry-days" placeholder="Ej: 7" value="14" min="1">
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Fecha de Vencimiento</label>
+                        <label class="form-label" style="font-weight: 700;">Peso 1 Porción (g)</label>
+                        <input type="number" class="form-input" id="manual-inv-portion-grams" placeholder="Ej: 250" value="0" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 700;">Fecha Vencimiento</label>
                         <input type="date" class="form-input" id="manual-inv-expiry-date">
                     </div>
                 </div>
@@ -1898,10 +1903,18 @@
                     expiringCount++;
                 }
 
+                const portionCount = (item.portionGrams && item.portionGrams > 0)
+                    ? Math.floor((Number(item.stock) || 0) / Number(item.portionGrams))
+                    : 0;
+
                 tr.innerHTML = `
                     <td style="padding:14px 20px; font-weight:700; color:var(--text);">${escapeHtml(item.name)}</td>
                     <td style="padding:14px 20px;">
                         <input type="number" class="form-input stock-input" value="${item.stock}" style="width:100px; padding:6px 10px; font-weight:700;" min="0">
+                        ${(item.portionGrams && item.portionGrams > 0)
+                            ? `<div class="portion-badge" style="font-size:11px; color:#0284c7; font-weight:800; margin-top:4px; cursor:pointer;" title="Haz clic para modificar el peso por porción">≈ ${portionCount} porcion(es) (${item.portionGrams}g c/u) ✏️</div>`
+                            : `<div style="font-size:10px; margin-top:2px;"><button type="button" class="btn-set-portion" style="background:none; border:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">+ Definir g/porción</button></div>`
+                        }
                     </td>
                     <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
                     <td style="padding:14px 20px;">
@@ -1924,7 +1937,39 @@
                     const val = Math.max(0, Number(e.target.value) || 0);
                     inventory[key].stock = val;
                     saveInventory();
+                    // Update portion count text inline if element exists
+                    const badge = tr.querySelector('.portion-badge');
+                    if (badge && item.portionGrams > 0) {
+                        const newPortions = Math.floor(val / item.portionGrams);
+                        badge.textContent = `≈ ${newPortions} porcion(es) (${item.portionGrams}g c/u) ✏️`;
+                    }
                 });
+
+                const btnSetPortion = tr.querySelector('.btn-set-portion');
+                if (btnSetPortion) {
+                    btnSetPortion.addEventListener('click', () => {
+                        const val = prompt(`Ingresa el peso en gramos (g) de 1 porción de "${item.name}":`, '250');
+                        if (val !== null && !isNaN(Number(val))) {
+                            const pGrams = Math.max(0, Number(val));
+                            inventory[key].portionGrams = pGrams;
+                            saveInventory();
+                            renderInventoryTable();
+                        }
+                    });
+                }
+
+                const portionBadge = tr.querySelector('.portion-badge');
+                if (portionBadge) {
+                    portionBadge.addEventListener('click', () => {
+                        const val = prompt(`Modificar el peso en gramos (g) de 1 porción de "${item.name}":`, item.portionGrams || 250);
+                        if (val !== null && !isNaN(Number(val))) {
+                            const pGrams = Math.max(0, Number(val));
+                            inventory[key].portionGrams = pGrams;
+                            saveInventory();
+                            renderInventoryTable();
+                        }
+                    });
+                }
 
                 const expiryInput = tr.querySelector('.expiry-date-input');
                 expiryInput.addEventListener('change', (e) => {
@@ -1975,6 +2020,9 @@
             const costEl = document.getElementById('manual-inv-cost');
             if (costEl) costEl.value = '0';
 
+            const portionEl = document.getElementById('manual-inv-portion-grams');
+            if (portionEl) portionEl.value = '0';
+
             const daysEl = document.getElementById('manual-inv-expiry-days');
             if (daysEl) daysEl.value = '14';
 
@@ -1998,6 +2046,7 @@
             const unit = document.getElementById('manual-inv-unit').value.trim() || 'g';
             const stock = Number(document.getElementById('manual-inv-stock').value) || 0;
             const cost = Number(document.getElementById('manual-inv-cost')?.value) || 0;
+            const portionGrams = Number(document.getElementById('manual-inv-portion-grams')?.value) || 0;
 
             const expiryDays = Number(document.getElementById('manual-inv-expiry-days')?.value) || getRememberedExpiryDays(name);
             let expiryDate = document.getElementById('manual-inv-expiry-date')?.value;
@@ -2013,11 +2062,13 @@
                 inventory[key].lastPurchasedAt = nowIso;
                 inventory[key].expiryDays = expiryDays;
                 inventory[key].expiryDate = expiryDate;
+                if (portionGrams > 0) inventory[key].portionGrams = portionGrams;
             } else {
                 inventory[key] = {
                     name: name,
                     unit: unit,
                     stock: stock,
+                    portionGrams: portionGrams,
                     lastPurchasedAt: nowIso,
                     expiryDays: expiryDays,
                     expiryDate: expiryDate
@@ -2036,7 +2087,7 @@
                             action: 'purchase',
                             supplier_name: 'Compra Manual',
                             total_cost: cost,
-                            items: [{ name, qty: stock, unit, cost, expiryDays, expiryDate }]
+                            items: [{ name, qty: stock, unit, cost, portionGrams, expiryDays, expiryDate }]
                         })
                     });
                 } catch (err) {
@@ -3203,6 +3254,21 @@
                         unitInput.value = catalog[val].unit || 'g';
                     } else if (inventory[val] && unitInput) {
                         unitInput.value = inventory[val].unit || 'g';
+                    }
+
+                    const remDays = getRememberedExpiryDays(val);
+                    const daysEl = document.getElementById('manual-inv-expiry-days');
+                    const dateEl = document.getElementById('manual-inv-expiry-date');
+                    const portionEl = document.getElementById('manual-inv-portion-grams');
+
+                    if (daysEl) daysEl.value = remDays;
+                    if (dateEl) dateEl.value = calculateExpiryDate(new Date(), remDays);
+                    if (portionEl) {
+                        if (inventory[val] && inventory[val].portionGrams) {
+                            portionEl.value = inventory[val].portionGrams;
+                        } else if (catalog[val] && catalog[val].recipeQty) {
+                            portionEl.value = catalog[val].recipeQty;
+                        }
                     }
                 });
             }
