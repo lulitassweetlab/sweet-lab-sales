@@ -2387,23 +2387,6 @@
                             if (!invItem.unit) {
                                 invItem.unit = unit;
                             }
-                        } else {
-                            const rawKey = ing.name.trim().toLowerCase();
-                            const learnedCat = getLearnedCategory(ing.name) || '';
-                            const learnedSup = getLearnedSupplier(ing.name) || '';
-                            inventory[rawKey] = {
-                                name: ing.name.trim(),
-                                category: learnedCat,
-                                unit: unit,
-                                stock: pQty,
-                                portionGrams: 0,
-                                lastPkgCost: pCost,
-                                lastPkgQty: pQty,
-                                lastUnitCost: uCost,
-                                supplierName: learnedSup,
-                                lastPurchasedAt: new Date().toISOString()
-                            };
-                            changed = true;
                         }
                     }
                 });
@@ -2796,6 +2779,15 @@
                     }
 
                 const stockInput = tr.querySelector('.stock-input');
+                const handleStockPersist = () => {
+                    const val = Math.max(0, Number(stockInput.value) || 0);
+                    inventory[key].stock = val;
+                    try {
+                        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+                    } catch (e) {}
+                    saveInventoryItemToNeon(key, inventory[key]);
+                    saveInventory(true);
+                };
                 stockInput.addEventListener('input', (e) => {
                     const val = Math.max(0, Number(e.target.value) || 0);
                     inventory[key].stock = val;
@@ -2807,6 +2799,8 @@
                         badge.textContent = `${newPortions} porciones`;
                     }
                 });
+                stockInput.addEventListener('change', handleStockPersist);
+                stockInput.addEventListener('blur', handleStockPersist);
 
                 const btnSetPortion = tr.querySelector('.btn-set-portion');
                 if (btnSetPortion) {
@@ -2998,15 +2992,19 @@
             activePortionKey = null;
         }
 
-        function savePortionSetting() {
+        async function savePortionSetting() {
             if (!activePortionKey || !inventory[activePortionKey]) return;
             const inputEl = document.getElementById('portion-modal-input');
             const val = Number(inputEl?.value) || 0;
             inventory[activePortionKey].portionGrams = Math.max(0, val);
+            if (!inventory[activePortionKey].unit || inventory[activePortionKey].unit === 'u') {
+                inventory[activePortionKey].unit = 'g';
+            }
             try {
                 localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
             } catch (e) {}
-            saveInventoryItemToNeon(activePortionKey, inventory[activePortionKey]);
+            await saveInventoryItemToNeon(activePortionKey, inventory[activePortionKey]);
+            saveInventory(true);
             renderInventoryTable();
             closePortionSettingModal();
             showToast('⚖️ Porción guardada correctamente', 2500);
