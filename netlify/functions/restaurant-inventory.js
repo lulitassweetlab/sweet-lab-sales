@@ -26,6 +26,60 @@ export async function handler(event) {
 				const params = new URLSearchParams(raw);
 				const action = (params.get('action') || '').trim();
 
+				if (action === 'purge_receipts_before_feb_2026') {
+					const confirm = params.get('confirm') === 'true';
+
+					const [beforeCountRow] = await sql`
+						SELECT COUNT(*) AS count_before_feb
+						FROM sale_receipts
+						WHERE created_at < '2026-02-01'::timestamptz
+					`;
+
+					const [afterCountRow] = await sql`
+						SELECT COUNT(*) AS count_after_feb
+						FROM sale_receipts
+						WHERE created_at >= '2026-02-01'::timestamptz
+					`;
+
+					if (!confirm) {
+						return json({
+							status: 'preview',
+							will_delete: Number(beforeCountRow.count_before_feb) || 0,
+							will_keep: Number(afterCountRow.count_after_feb) || 0,
+							cutoff: '2026-02-01T00:00:00Z',
+							message: 'Pass confirm=true to execute deletion.'
+						});
+					}
+
+					const deletedRows = await sql`
+						DELETE FROM sale_receipts
+						WHERE created_at < '2026-02-01'::timestamptz
+						RETURNING id
+					`;
+
+					try {
+						await sql`VACUUM sale_receipts`;
+					} catch(e) {}
+
+					const [newDbSizeRow] = await sql`
+						SELECT pg_size_pretty(pg_database_size(current_database())) AS total_db_size
+					`;
+
+					const [newTableSizeRow] = await sql`
+						SELECT pg_size_pretty(pg_total_relation_size('sale_receipts'::regclass)) AS total_size,
+						       COUNT(*) AS remaining_rows
+						FROM sale_receipts
+					`;
+
+					return json({
+						status: 'success',
+						deleted_count: deletedRows.length,
+						remaining_rows: Number(newTableSizeRow.remaining_rows) || 0,
+						new_receipts_size: newTableSizeRow.total_size,
+						new_db_size: newDbSizeRow.total_db_size
+					});
+				}
+
 				if (action === 'db_diagnostics') {
 					const [dbSizeRow] = await sql`
 						SELECT pg_size_pretty(pg_database_size(current_database())) AS total_db_size,
