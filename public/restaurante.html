@@ -2256,6 +2256,27 @@
             return clean;
         }
 
+        function cleanIngredientText(str) {
+            return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        }
+
+        function findInventoryItem(name) {
+            if (!name) return null;
+            const target = cleanIngredientText(name);
+            if (!target) return null;
+            if (inventory[target]) return inventory[target];
+            const keys = Object.keys(inventory || {});
+            const exactKey = keys.find(k => cleanIngredientText(k) === target);
+            if (exactKey) return inventory[exactKey];
+            const singularTarget = target.replace(/s$/, '');
+            const fuzzyKey = keys.find(k => {
+                const cleanK = cleanIngredientText(k);
+                const singularK = cleanK.replace(/s$/, '');
+                return cleanK === target || singularK === singularTarget || cleanK === target.replace(/s$/, '') || target === cleanK.replace(/s$/, '') || cleanK.includes(target) || target.includes(cleanK);
+            });
+            return fuzzyKey ? inventory[fuzzyKey] : null;
+        }
+
         // Isolated Restaurant Inventory Functions (Neon DB Cloud Synced)
         async function loadInventory() {
             let localInventory = {};
@@ -2315,9 +2336,12 @@
                 }
             });
 
-            // Normalize units
+            // Normalize units and auto-heal any bulk items with portionGrams that were saved as 'u'
             Object.keys(inventory).forEach(k => {
                 if (inventory[k].unit) inventory[k].unit = normalizeUnit(inventory[k].unit);
+                if (inventory[k].unit === 'u' && Number(inventory[k].portionGrams) > 0 && Number(inventory[k].lastPkgQty || inventory[k].stock) > 10) {
+                    inventory[k].unit = 'g';
+                }
             });
 
             hydrateInventoryCostsFromRecipes(false);
@@ -2343,34 +2367,28 @@
 
         function hydrateInventoryCostsFromRecipes(persistToCloud = false) {
             let changed = false;
-            const clean = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
             (recipes || []).forEach(r => {
                 (r.ingredients || []).forEach(ing => {
                     if (ing && ing.name && !ing.isSubRecipe) {
-                        const rawKey = ing.name.trim().toLowerCase();
-                        const cKey = clean(ing.name);
-                        
-                        // Find match in inventory
-                        let invKey = Object.keys(inventory).find(k => k === rawKey || clean(k) === cKey || clean(inventory[k]?.name) === cKey);
-                        
+                        const invItem = findInventoryItem(ing.name);
                         const pCost = Number(ing.pkgCost) || 0;
                         const pQty = Number(ing.pkgQty) || (normalizeUnit(ing.unit) === 'u' ? 1 : 1000);
                         const uCost = (pCost > 0 && pQty > 0) ? (pCost / pQty) : 0;
                         const unit = normalizeUnit(ing.unit || 'g');
 
-                        if (invKey && inventory[invKey]) {
-                            const item = inventory[invKey];
-                            if ((!item.lastPkgCost || Number(item.lastPkgCost) === 0) && pCost > 0) {
-                                item.lastPkgCost = pCost;
-                                item.lastPkgQty = pQty;
-                                item.lastUnitCost = uCost;
+                        if (invItem) {
+                            if ((!invItem.lastPkgCost || Number(invItem.lastPkgCost) === 0) && pCost > 0) {
+                                invItem.lastPkgCost = pCost;
+                                invItem.lastPkgQty = pQty;
+                                invItem.lastUnitCost = uCost;
                                 changed = true;
                             }
-                            if (!item.unit || item.unit === 'g') {
-                                item.unit = unit;
+                            if (!invItem.unit) {
+                                invItem.unit = unit;
                             }
                         } else {
+                            const rawKey = ing.name.trim().toLowerCase();
                             const learnedCat = getLearnedCategory(ing.name) || '';
                             const learnedSup = getLearnedSupplier(ing.name) || '';
                             inventory[rawKey] = {
@@ -2378,6 +2396,7 @@
                                 category: learnedCat,
                                 unit: unit,
                                 stock: pQty,
+                                portionGrams: 0,
                                 lastPkgCost: pCost,
                                 lastPkgQty: pQty,
                                 lastUnitCost: uCost,
@@ -2487,11 +2506,18 @@
                         return false;
                     }
                 } else {
-                    const key = (ing.name || '').trim().toLowerCase();
                     const reqQty = Number(ing.recipeQty || ing.qty) || 0;
-                    const stockItem = inventory[key];
+                    if (reqQty <= 0) return false;
+                    const stockItem = findInventoryItem(ing.name || '');
                     const availableStock = stockItem ? (Number(stockItem.stock) || 0) : 0;
-                    if (availableStock < reqQty || reqQty <= 0) {
+                    
+                    let effectiveReq = reqQty;
+                    const ingUnit = normalizeUnit(ing.unit);
+                    if (stockItem && (ingUnit === 'u') && (stockItem.unit === 'g' || stockItem.unit === 'ml') && Number(stockItem.portionGrams) > 0) {
+                        effectiveReq = reqQty * Number(stockItem.portionGrams);
+                    }
+
+                    if (availableStock < effectiveReq) {
                         return false;
                     }
                 }
@@ -3696,11 +3722,22 @@
         }
 
         // Helper to calculate exact ingredient cost in recipe
-        function computeIngCost(recipeQty, pkgQty, pkgCost) {
+        function computeIngCost(recipeQty, pkgQty, pkgCost, ingUnit = null, ingName = null) {
             const rQty = Number(recipeQty) || 0;
             const pQty = Number(pkgQty) || 1;
             const pCost = Number(pkgCost) || 0;
-            if (pQty <= 0) return 0;
+            if (pQty <= 0 || rQty <= 0) return 0;
+
+            const cleanU = ingUnit ? normalizeUnit(ingUnit) : null;
+            if (cleanU === 'u' && ingName) {
+                const invItem = findInventoryItem(ingName);
+                if (invItem && Number(invItem.portionGrams) > 0) {
+                    const portionGrams = Number(invItem.portionGrams);
+                    const effectiveGrams = rQty * portionGrams;
+                    return Math.round((effectiveGrams / pQty) * pCost);
+                }
+            }
+
             return Math.round((rQty / pQty) * pCost);
         }
 
@@ -3715,7 +3752,7 @@
                     const subUnitCost = getSubRecipeUnitCost(ing.subRecipeId, new Set(visited));
                     return acc + Math.round(subUnitCost * (Number(ing.recipeQty) || 1));
                 } else {
-                    return acc + computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0);
+                    return acc + computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0, ing.unit, ing.name);
                 }
             }, 0);
             const servings = Number(sub.servings) || 1;
@@ -3731,7 +3768,7 @@
                     const subUnitCost = getSubRecipeUnitCost(ing.subRecipeId, new Set(visited));
                     return acc + Math.round(subUnitCost * (Number(ing.recipeQty) || 1));
                 } else {
-                    return acc + computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0);
+                    return acc + computeIngCost(ing.recipeQty || ing.qty, ing.pkgQty || ing.recipeQty || 1, ing.pkgCost || ing.cost || 0, ing.unit, ing.name);
                 }
             }, 0);
         }
@@ -4264,10 +4301,14 @@
                         deductRecipeIngredientsFromInventory(subMatch, subQty * multiplier, new Set(visited));
                     }
                 } else {
-                    const key = (ing.name || '').trim().toLowerCase();
-                    const reqQty = (Number(ing.recipeQty || ing.qty) || 0) * multiplier;
-                    if (key && inventory[key]) {
-                        inventory[key].stock = Math.max(0, (Number(inventory[key].stock) || 0) - reqQty);
+                    let reqQty = (Number(ing.recipeQty || ing.qty) || 0) * multiplier;
+                    const stockItem = findInventoryItem(ing.name || '');
+                    if (stockItem) {
+                        const ingUnit = normalizeUnit(ing.unit);
+                        if (ingUnit === 'u' && (stockItem.unit === 'g' || stockItem.unit === 'ml') && Number(stockItem.portionGrams) > 0) {
+                            reqQty = reqQty * Number(stockItem.portionGrams);
+                        }
+                        stockItem.stock = Math.max(0, (Number(stockItem.stock) || 0) - reqQty);
                     }
                 }
             });
@@ -4464,13 +4505,21 @@
                     const rQty = Number(ing.recipeQty || ing.qty) || 0;
                     const pQty = Number(ing.pkgQty || ing.recipeQty || 1) || 1;
                     const pCost = Number(ing.pkgCost || ing.cost || 0);
-                    const calcCost = computeIngCost(rQty, pQty, pCost);
                     const displayUnit = normalizeUnit(ing.unit);
+                    const calcCost = computeIngCost(rQty, pQty, pCost, displayUnit, ing.name);
+
+                    let qtyLabel = `${rQty} ${escapeHtml(displayUnit)}`;
+                    const invItem = findInventoryItem(ing.name);
+                    if (displayUnit === 'u' && invItem && (invItem.unit === 'g' || invItem.unit === 'ml') && Number(invItem.portionGrams) > 0) {
+                        const totalG = Math.round(rQty * Number(invItem.portionGrams) * 10) / 10;
+                        qtyLabel += ` <span style="color:#64748b; font-size:11px; font-weight:600;">(${totalG} ${invItem.unit})</span>`;
+                    }
+                    const packageUnit = invItem ? normalizeUnit(invItem.unit) : displayUnit;
 
                     tr.innerHTML = `
                         <td style="font-weight:600;">${escapeHtml(ing.name)}</td>
-                        <td style="font-weight:700; color:var(--primary-hover);">${rQty} ${escapeHtml(displayUnit)}</td>
-                        <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(displayUnit)} ($${pCost.toLocaleString('es-CO')})</td>
+                        <td style="font-weight:700; color:var(--primary-hover);">${qtyLabel}</td>
+                        <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(packageUnit)} ($${pCost.toLocaleString('es-CO')})</td>
                         <td class="ing-cost">$${calcCost.toLocaleString('es-CO')}</td>
                     `;
                     tbody.appendChild(tr);
@@ -4806,7 +4855,8 @@
                         name: item.name.trim(),
                         unit: unit,
                         pkgQty: pkgQty,
-                        pkgCost: pkgCost
+                        pkgCost: pkgCost,
+                        portionGrams: Number(item.portionGrams) || 0
                     };
                 }
             });
@@ -4821,7 +4871,8 @@
                                 name: ing.name.trim(),
                                 unit: normalizeUnit(ing.unit || 'g'),
                                 pkgQty: Number(ing.pkgQty) || 1,
-                                pkgCost: Number(ing.pkgCost) || 0
+                                pkgCost: Number(ing.pkgCost) || 0,
+                                portionGrams: 0
                             };
                         } else if (!catalog[key].pkgCost && ing.pkgCost) {
                             catalog[key].pkgCost = Number(ing.pkgCost);
@@ -5028,7 +5079,9 @@
                 } else {
                     const pQty = Number(pQtyInput.value) || 1;
                     const pCost = Number(pCostInput.value) || 0;
-                    cost = (pQty > 0) ? Math.round((rQty / pQty) * pCost) : 0;
+                    const currentUnit = normalizeUnit(unitInput.value);
+                    const currentName = nameInput.value.trim();
+                    cost = computeIngCost(rQty, pQty, pCost, currentUnit, currentName);
                 }
                 calcCostEl.textContent = `$${cost.toLocaleString('es-CO')}`;
                 recalcEditorModalTotalCost();
@@ -5053,6 +5106,7 @@
                     unitInput.value = val;
                     unitLabel.textContent = val;
                     unitMenu.classList.remove('open');
+                    updateRowCalcCost();
                 });
             });
 
@@ -5106,16 +5160,14 @@
                 updateRowCalcCost();
             });
 
-            const cleanText = (str) => String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
             const handleNameChange = () => {
                 if (typeSelect.value === 'sub') return;
                 const rawVal = nameInput.value.trim();
-                const val = cleanText(rawVal);
+                const val = cleanIngredientText(rawVal);
                 if (!val) return;
                 
                 // Automatic check if name matches ANY existing recipe (except current recipe being edited)
-                const matchedRecipe = recipes.find(r => r.id !== editingRecipeId && cleanText(r.name) === val);
+                const matchedRecipe = recipes.find(r => r.id !== editingRecipeId && cleanIngredientText(r.name) === val);
                 if (matchedRecipe) {
                     typeSelect.value = 'sub';
                     typeSelect.dispatchEvent(new Event('change'));
@@ -5128,15 +5180,17 @@
                 // Check in raw ingredients catalog and inventory
                 const catalog = getRestaurantIngredientsCatalog();
                 const matchKey = Object.keys(catalog).find(k => {
-                    const cleanK = cleanText(k);
+                    const cleanK = cleanIngredientText(k);
                     return cleanK === val || cleanK === val.replace(/s$/, '') || val === cleanK.replace(/s$/, '') || cleanK.includes(val) || val.includes(cleanK);
                 });
 
                 if (matchKey && catalog[matchKey]) {
                     const match = catalog[matchKey];
                     const normU = normalizeUnit(match.unit) || 'g';
-                    unitInput.value = normU;
-                    unitLabel.textContent = normU;
+                    if (!unitInput.value || unitInput.value === 'porción') {
+                        unitInput.value = normU;
+                        unitLabel.textContent = normU;
+                    }
                     if (match.pkgQty) pQtyInput.value = match.pkgQty;
                     if (match.pkgCost > 0) pCostInput.value = match.pkgCost;
                     if (!rQtyInput.value || Number(rQtyInput.value) <= 0) {
@@ -5173,9 +5227,9 @@
                 } else {
                     const pQty = Number(row.querySelector('.ing-p-qty')?.value) || 1;
                     const pCost = Number(row.querySelector('.ing-p-cost')?.value) || 0;
-                    if (pQty > 0) {
-                        total += Math.round((rQty / pQty) * pCost);
-                    }
+                    const currentUnit = normalizeUnit(row.querySelector('.ing-unit')?.value);
+                    const currentName = row.querySelector('.ing-name')?.value?.trim();
+                    total += computeIngCost(rQty, pQty, pCost, currentUnit, currentName);
                 }
             });
             const totalEl = document.getElementById('form-total-recipe-cost');
@@ -5246,10 +5300,15 @@
             let invChanged = false;
             ingredients.forEach(ing => {
                 if (!ing.isSubRecipe && ing.name) {
-                    const key = ing.name.trim().toLowerCase();
+                    const key = cleanIngredientText(ing.name);
                     const uCost = (ing.pkgCost && ing.pkgQty > 0) ? (ing.pkgCost / ing.pkgQty) : 0;
                     if (inventory[key]) {
-                        if (ing.unit) inventory[key].unit = ing.unit;
+                        // Preserve base inventory unit if already set to g or ml, do not overwrite with 'u'
+                        if (!inventory[key].unit) {
+                            inventory[key].unit = ing.unit || 'g';
+                        } else if (ing.unit && ing.unit !== 'u' && inventory[key].unit !== 'g' && inventory[key].unit !== 'ml') {
+                            inventory[key].unit = ing.unit;
+                        }
                         if (ing.pkgQty > 0) inventory[key].lastPkgQty = ing.pkgQty;
                         if (ing.pkgCost > 0) {
                             inventory[key].lastPkgCost = ing.pkgCost;
@@ -5277,7 +5336,7 @@
                         }
                         invChanged = true;
                     }
-                    if (ing.pkgQty > 0) {
+                    if (ing.pkgQty > 0 && ing.unit !== 'u') {
                         learnProductPackage(ing.name.trim(), ing.unit, ing.pkgQty);
                     }
                 }
