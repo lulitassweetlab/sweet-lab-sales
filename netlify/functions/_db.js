@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 69; // 69: add restaurant_recipes table for isolated restaurant menu
+const SCHEMA_VERSION = 76; // 76: add last_pkg_cost and last_pkg_qty to restaurant_inventory
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -814,6 +814,78 @@ export async function ensureSchema() {
 						)
 					`;
 					await sql`UPDATE schema_meta SET version = 69`;
+				}
+
+				if (Number(meta[0].version) < 70) {
+					console.log('Migrating to v70: Creating restaurant_inventory and restaurant_purchases tables...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS restaurant_inventory (
+							key TEXT PRIMARY KEY,
+							name TEXT NOT NULL,
+							unit TEXT NOT NULL DEFAULT 'g',
+							stock NUMERIC NOT NULL DEFAULT 0,
+							updated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`
+						CREATE TABLE IF NOT EXISTS restaurant_purchases (
+							id TEXT PRIMARY KEY,
+							supplier_name TEXT DEFAULT '',
+							total_cost NUMERIC NOT NULL DEFAULT 0,
+							items JSONB NOT NULL DEFAULT '[]'::jsonb,
+							created_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 70`;
+				}
+
+				if (Number(meta[0].version) < 71) {
+					console.log('Migrating to v71: Adding purchase date and expiry columns to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_purchased_at TIMESTAMPTZ DEFAULT now()`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS expiry_days INTEGER DEFAULT 14`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS expiry_date DATE`;
+					await sql`UPDATE schema_meta SET version = 71`;
+				}
+
+				if (Number(meta[0].version) < 72) {
+					console.log('Migrating to v72: Adding portion_grams column to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS portion_grams NUMERIC DEFAULT 0`;
+					await sql`UPDATE schema_meta SET version = 72`;
+				}
+
+				if (Number(meta[0].version) < 73) {
+					console.log('Migrating to v73: Creating restaurant_product_memory table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS restaurant_product_memory (
+							key TEXT PRIMARY KEY,
+							name TEXT NOT NULL,
+							unit TEXT NOT NULL DEFAULT 'und',
+							qty NUMERIC NOT NULL DEFAULT 1,
+							updated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 73`;
+				}
+
+				if (Number(meta[0].version) < 74) {
+					console.log('Migrating to v74: Adding supplier_name, last_unit_cost, and prev_unit_cost to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS supplier_name TEXT DEFAULT ''`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_unit_cost NUMERIC DEFAULT 0`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS prev_unit_cost NUMERIC DEFAULT 0`;
+					await sql`UPDATE schema_meta SET version = 74`;
+				}
+
+				if (Number(meta[0].version) < 75) {
+					console.log('Migrating to v75: Adding category column to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT ''`;
+					await sql`UPDATE schema_meta SET version = 75`;
+				}
+
+				if (Number(meta[0].version) < 76) {
+					console.log('Migrating to v76: Adding last_pkg_cost and last_pkg_qty to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_pkg_cost NUMERIC DEFAULT 0`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_pkg_qty NUMERIC DEFAULT 1`;
+					await sql`UPDATE schema_meta SET version = 76`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
