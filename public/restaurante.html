@@ -1783,15 +1783,15 @@
 
     <!-- Ingredient Timeline / Purchase History Modal -->
     <div class="modal-overlay" id="ingredient-history-modal">
-        <div class="editor-modal" style="max-width: 620px;">
+        <div class="editor-modal" style="max-width: 720px; width: 95vw;">
             <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border);">
-                <h3 style="font-size: 18px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
-                    <span>📜</span> Línea del Tiempo: <span id="history-modal-ingredient-name" style="color: var(--primary); font-weight: 800;"></span>
+                <h3 style="font-size: 17px; color: var(--navy-dark); display: flex; align-items: center; gap: 8px;">
+                    <span>📋</span> Ficha & Línea del Tiempo: <span id="history-modal-ingredient-name" style="color: var(--primary); font-weight: 800;"></span>
                 </h3>
                 <button id="btn-close-history-modal" style="background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
             </div>
 
-            <div class="modal-body" style="padding: 24px; max-height: 480px; overflow-y: auto;">
+            <div class="modal-body" style="padding: 20px 24px; max-height: 540px; overflow-y: auto;">
                 <div id="history-modal-body">
                     <!-- Dynamic Timeline Entries -->
                 </div>
@@ -3271,33 +3271,196 @@
             showToast('⚖️ Porción guardada correctamente', 2500);
         }
 
+        window.navigateToRecipe = function(recipeId) {
+            closeIngredientHistoryModal();
+            switchMode('recipes');
+            setTimeout(() => {
+                openModal(recipeId);
+            }, 150);
+        };
+
+        window.handleModalUnitChange = async function(key, newUnit) {
+            if (!key) return;
+            const normKey = key.trim().toLowerCase();
+            if (!inventory[normKey]) {
+                inventory[normKey] = { name: key, unit: 'g', stock: 0 };
+            }
+            inventory[normKey].unit = normalizeUnit(newUnit);
+            saveInventoryLocally();
+            renderInventoryTable();
+            await saveInventoryItemToNeon(normKey, inventory[normKey]);
+            showToast(`⚖️ Unidad cambiada a ${newUnit}`, 1800);
+            
+            const item = inventory[normKey];
+            openIngredientHistoryModal(normKey, item.name || key);
+        };
+
         async function openIngredientHistoryModal(key, name) {
             const modal = document.getElementById('ingredient-history-modal');
             const titleEl = document.getElementById('history-modal-ingredient-name');
             const bodyEl = document.getElementById('history-modal-body');
             if (!modal || !bodyEl) return;
 
+            const normKey = (key || name || '').trim().toLowerCase();
+            const item = inventory[normKey] || findInventoryItem(name) || {};
+            const learnedPkg = getLearnedPackage(name);
+            const learnedChoice = getLearnedChoice(name);
+            const unit = normalizeUnit(item.unit || (learnedPkg ? learnedPkg.unit : 'g'));
+            const pkgQty = Number(item.lastPkgQty) || (learnedPkg ? Number(learnedPkg.qty) : (unit === 'u' ? 1 : 1000));
+            const pkgCost = Number(item.lastPkgCost) || 0;
+            const unitCost = Number(item.lastUnitCost) || (pkgQty > 0 ? (pkgCost / pkgQty) : 0);
+            const portionGrams = Number(item.portionGrams) || 0;
+            const supplierName = item.supplierName || learnedChoice.supplierName || 'Sin especificar';
+            const category = item.category || learnedChoice.category || 'General';
+            const stock = Number(item.stock) || 0;
+            const expiryDate = item.expiryDate || (item.expiryDays ? calculateExpiryDate(new Date(), item.expiryDays) : null);
+
             if (titleEl) titleEl.textContent = name;
-            bodyEl.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">⏳ Cargando línea del tiempo de compras...</div>';
             modal.classList.add('active');
 
+            // Find associated recipes
+            const cleanTarget = cleanIngredientText(name);
+            const usedInRecipes = (recipes || []).filter(r => (r.ingredients || []).some(ing => {
+                if (!ing || !ing.name || ing.isSubRecipe) return false;
+                const cleanIng = cleanIngredientText(ing.name);
+                return cleanIng === cleanTarget || cleanIng.includes(cleanTarget) || cleanTarget.includes(cleanIng);
+            }));
+
+            // Top Header & Stats Cards Template
+            const renderDossierHeader = (timelineContent) => `
+                <div style="display:flex; flex-direction:column; gap:18px;">
+                    <!-- 1. Header Card with Category, Supplier, and Expiry -->
+                    <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:22px;">📦</span>
+                                <h3 style="margin:0; font-size:18px; font-weight:800; color:var(--navy-dark);">${escapeHtml(name)}</h3>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                <span style="background:white; border:1px solid #cbd5e1; color:#334155; font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">
+                                    📂 ${escapeHtml(category)}
+                                </span>
+                                <span style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">
+                                    🛒 Comercio: ${escapeHtml(supplierName)}
+                                </span>
+                                ${expiryDate ? `<span style="background:#fef3c7; border:1px solid #fde68a; color:#92400e; font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">⏳ Vence: ${expiryDate}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Technical Stats Grid -->
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
+                        <!-- Stock Actual con Unidad Editable -->
+                        <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; box-shadow:var(--shadow-sm);">
+                            <div style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Stock Disponible</div>
+                            <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                                <span style="font-size:17px; font-weight:900; color:#0284c7;">${stock.toLocaleString('es-CO')}</span>
+                                <select onchange="handleModalUnitChange('${escapeHtml(normKey)}', this.value)" style="font-size:12px; font-weight:800; border:1px solid #cbd5e1; border-radius:6px; padding:2px 4px; background:#f8fafc; color:var(--navy-dark); cursor:pointer;">
+                                    <option value="g" ${unit === 'g' ? 'selected' : ''}>g</option>
+                                    <option value="ml" ${unit === 'ml' ? 'selected' : ''}>ml</option>
+                                    <option value="u" ${unit === 'u' ? 'selected' : ''}>u</option>
+                                </select>
+                            </div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">(Unidad editable)</div>
+                        </div>
+
+                        <!-- Contenido por Paquete -->
+                        <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; box-shadow:var(--shadow-sm);">
+                            <div style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Cant. por Paquete</div>
+                            <div style="font-size:17px; font-weight:900; color:var(--navy-dark); margin-top:4px;">
+                                ${pkgQty ? `${pkgQty.toLocaleString('es-CO')} ${unit}` : '--'}
+                            </div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Tamaño compra</div>
+                        </div>
+
+                        <!-- Costo Paquete -->
+                        <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; box-shadow:var(--shadow-sm);">
+                            <div style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Costo Paquete</div>
+                            <div style="font-size:17px; font-weight:900; color:var(--primary); margin-top:4px;">
+                                ${pkgCost > 0 ? `$${pkgCost.toLocaleString('es-CO')}` : '--'}
+                            </div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Última compra</div>
+                        </div>
+
+                        <!-- Costo por Medida -->
+                        <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; box-shadow:var(--shadow-sm);">
+                            <div style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Costo por ${unit}</div>
+                            <div style="font-size:17px; font-weight:900; color:#059669; margin-top:4px;">
+                                ${unitCost > 0 ? `$${(Math.round(unitCost * 100) / 100).toLocaleString('es-CO')}` : '--'}
+                            </div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Costo unitario</div>
+                        </div>
+
+                        <!-- Porción y Rendimiento -->
+                        <div style="background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; box-shadow:var(--shadow-sm);">
+                            <div style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Porción / Rendimiento</div>
+                            <div style="font-size:17px; font-weight:900; color:#7c3aed; margin-top:4px;">
+                                ${portionGrams > 0 ? `${portionGrams} ${unit}` : 'Sin porción'}
+                            </div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">
+                                ${portionGrams > 0 && pkgQty > 0 ? `~${Math.floor(pkgQty / portionGrams)} porc/paquete` : '1 porc. = 1u'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Recetas Asociadas (Clickeables) -->
+                    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:var(--radius-md); padding:12px 16px;">
+                        <div style="font-size:12px; font-weight:800; color:var(--navy-dark); display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                            <span>👩‍🍳</span> Recetas donde se utiliza este ingrediente (${usedInRecipes.length}):
+                        </div>
+                        ${usedInRecipes.length > 0 ? `
+                            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                                ${usedInRecipes.map(r => {
+                                    const ingMatch = (r.ingredients || []).find(i => {
+                                        const c = cleanIngredientText(i.name || '');
+                                        return c === cleanTarget || c.includes(cleanTarget) || cleanTarget.includes(c);
+                                    });
+                                    const qtyLabel = ingMatch ? `${ingMatch.recipeQty || ingMatch.qty || ''} ${ingMatch.unit || ''}` : '';
+                                    return `
+                                        <button type="button" onclick="navigateToRecipe('${r.id}')" style="background:white; border:1px solid #cbd5e1; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; color:var(--navy-dark); display:flex; align-items:center; gap:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.05); transition:var(--transition);" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='#cbd5e1'; this.style.color='var(--navy-dark)';" title="Clic para ver o editar esta receta">
+                                            <span>🍽️</span>
+                                            <span>${escapeHtml(r.name)}</span>
+                                            ${qtyLabel ? `<span style="font-size:10px; color:var(--text-muted); background:#f1f5f9; padding:2px 6px; border-radius:10px;">${escapeHtml(qtyLabel)}</span>` : ''}
+                                            <span style="font-size:10px; opacity:0.6;">➔</span>
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : `
+                            <div style="font-size:12px; color:var(--text-muted); font-style:italic;">Este insumo aún no está asignado a ninguna receta.</div>
+                        `}
+                    </div>
+
+                    <!-- 4. Línea de Tiempo de Compras -->
+                    <div>
+                        <div style="font-size:13px; font-weight:800; color:var(--navy-dark); display:flex; align-items:center; gap:6px; margin-bottom:10px;">
+                            <span>📜</span> Línea de Tiempo de Compras & Precios:
+                        </div>
+                        ${timelineContent}
+                    </div>
+                </div>
+            `;
+
+            bodyEl.innerHTML = renderDossierHeader('<div style="text-align:center; padding:20px; color:var(--text-muted);">⏳ Cargando historial de compras...</div>');
+
             try {
-                const res = await fetch(`/api/restaurant-inventory?action=item_history&key=${encodeURIComponent(key)}`);
+                const res = await fetch(`/api/restaurant-inventory?action=item_history&key=${encodeURIComponent(normKey)}`);
                 if (!res.ok) throw new Error('Error de servidor');
                 const history = await res.json();
 
                 if (!Array.isArray(history) || history.length === 0) {
-                    bodyEl.innerHTML = `
-                        <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
-                            <span style="font-size:32px;">📜</span>
-                            <div style="font-weight:700; margin-top:8px;">No hay historial de compras registrado aún para "${escapeHtml(name)}".</div>
-                            <div style="font-size:12px; margin-top:4px;">Las futuras compras ingresadas por factura o manualmente aparecerán aquí ordenadas cronológicamente.</div>
+                    const emptyHistoryHtml = `
+                        <div style="text-align:center; padding:25px 20px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:var(--radius-sm); color:var(--text-muted);">
+                            <span style="font-size:24px;">📜</span>
+                            <div style="font-weight:700; margin-top:4px; font-size:13px;">No hay facturas escaneadas registradas aún para "${escapeHtml(name)}".</div>
+                            <div style="font-size:11px; margin-top:2px;">Las compras ingresadas mediante factura aparecerán aquí cronológicamente con sus precios y comercios.</div>
                         </div>
                     `;
+                    bodyEl.innerHTML = renderDossierHeader(emptyHistoryHtml);
                     return;
                 }
 
-                let timelineHtml = '<div style="display:flex; flex-direction:column; gap:14px; position:relative; border-left:2px solid #e2e8f0; padding-left:20px; margin-left:10px;">';
+                let timelineHtml = '<div style="display:flex; flex-direction:column; gap:12px; position:relative; border-left:2px solid #e2e8f0; padding-left:18px; margin-left:8px;">';
 
                 history.forEach((entry, idx) => {
                     const dateStr = entry.createdAt ? new Date(entry.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Fecha desconocida';
@@ -3311,28 +3474,28 @@
                         if (entry.unitCost > 0 && olderEntry.unitCost > 0) {
                             const diff = entry.unitCost - olderEntry.unitCost;
                             if (diff > 0) {
-                                diffBadgeHtml = `<span style="color:#dc2626; font-weight:800; font-size:12px; background:#fef2f2; padding:2px 8px; border-radius:10px; border:1px solid #fecaca;">+$${diff.toLocaleString('es-CO')}</span>`;
+                                diffBadgeHtml = `<span style="color:#dc2626; font-weight:800; font-size:11px; background:#fef2f2; padding:2px 8px; border-radius:10px; border:1px solid #fecaca;">+$${diff.toLocaleString('es-CO')}</span>`;
                             } else if (diff < 0) {
-                                diffBadgeHtml = `<span style="color:#16a34a; font-weight:800; font-size:12px; background:#f0fdf4; padding:2px 8px; border-radius:10px; border:1px solid #bbf7d0;">-$${Math.abs(diff).toLocaleString('es-CO')}</span>`;
+                                diffBadgeHtml = `<span style="color:#16a34a; font-weight:800; font-size:11px; background:#f0fdf4; padding:2px 8px; border-radius:10px; border:1px solid #bbf7d0;">-$${Math.abs(diff).toLocaleString('es-CO')}</span>`;
                             }
                         }
                     }
 
                     timelineHtml += `
-                        <div style="position:relative; background:white; border:1px solid var(--border); padding:14px 18px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
-                            <div style="position:absolute; left:-27px; top:16px; width:12px; height:12px; border-radius:50%; background:#0284c7; border:3px solid white; box-shadow:0 0 0 1px #0284c7;"></div>
+                        <div style="position:relative; background:white; border:1px solid var(--border); padding:12px 16px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
+                            <div style="position:absolute; left:-25px; top:14px; width:12px; height:12px; border-radius:50%; background:#0284c7; border:3px solid white; box-shadow:0 0 0 1px #0284c7;"></div>
                             
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                <span style="font-size:12px; font-weight:800; color:var(--text-muted);">📅 ${dateStr}</span>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span style="font-size:11px; font-weight:800; color:var(--text-muted);">📅 ${dateStr}</span>
                                 <div>${diffBadgeHtml}</div>
                             </div>
                             
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-weight:800; font-size:15px; color:var(--navy-dark); display:flex; align-items:center; gap:6px;">
+                                <div style="font-weight:800; font-size:14px; color:var(--navy-dark); display:flex; align-items:center; gap:6px;">
                                     <span>🛒</span> ${escapeHtml(entry.supplierName || 'Sin especificar')}
                                 </div>
                                 <div style="text-align:right;">
-                                    <div style="font-weight:800; color:var(--primary); font-size:15px;">${unitCostStr}</div>
+                                    <div style="font-weight:800; color:var(--primary); font-size:14px;">${unitCostStr}</div>
                                     <div style="font-size:11px; color:var(--text-muted);">${entry.qty} ${escapeHtml(displayEntryUnit)} (Total: ${totalCostStr})</div>
                                 </div>
                             </div>
@@ -3341,11 +3504,11 @@
                 });
 
                 timelineHtml += '</div>';
-                bodyEl.innerHTML = timelineHtml;
+                bodyEl.innerHTML = renderDossierHeader(timelineHtml);
 
             } catch (err) {
                 console.error('[Restaurante] Error cargando historial de compras:', err);
-                bodyEl.innerHTML = '<div style="text-align:center; padding:30px; color:#ef4444;">❌ Error al cargar la línea del tiempo. Intenta nuevamente.</div>';
+                bodyEl.innerHTML = renderDossierHeader('<div style="text-align:center; padding:20px; color:#ef4444;">❌ Error al cargar la línea del tiempo.</div>');
             }
         }
 
