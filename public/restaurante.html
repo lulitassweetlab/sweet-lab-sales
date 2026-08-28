@@ -1524,9 +1524,10 @@
                             <thead>
                                 <tr style="background: #f1f5f9; color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase;">
                                     <th style="padding: 10px 14px;">Insumo (Restaurante)</th>
-                                    <th style="padding: 10px 14px; width: 120px;">Cant. Comprada</th>
-                                    <th style="padding: 10px 14px; width: 90px;">Unidad</th>
-                                    <th style="padding: 10px 14px; width: 130px;">Costo Total ($)</th>
+                                    <th style="padding: 10px 14px; width: 110px;">Cant. Comprada</th>
+                                    <th style="padding: 10px 14px; width: 80px;">Unidad</th>
+                                    <th style="padding: 10px 14px; width: 90px;">Porción</th>
+                                    <th style="padding: 10px 14px; width: 120px;">Costo Total ($)</th>
                                     <th style="padding: 10px 14px; width: 40px;"></th>
                                 </tr>
                             </thead>
@@ -1588,7 +1589,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Peso 1 Porción (g)</label>
+                        <label class="form-label" style="font-weight: 700;">Porción</label>
                         <input type="number" class="form-input" id="manual-inv-portion-grams" placeholder="Ej: 250" value="0" min="0">
                     </div>
 
@@ -2513,9 +2514,11 @@
                         let unit = 'g';
 
                         const invMatchKey = Object.keys(inventory).find(k => k === originalName.toLowerCase() || k.includes(originalName.toLowerCase()) || originalName.toLowerCase().includes(k));
+                        let suggestedPortion = 0;
                         if (invMatchKey) {
                             suggestedName = inventory[invMatchKey].name;
                             unit = inventory[invMatchKey].unit || 'g';
+                            suggestedPortion = inventory[invMatchKey].portionGrams || 0;
                         }
 
                         // Check learned product package memory
@@ -2540,6 +2543,9 @@
                             </td>
                             <td style="padding:10px 14px;">
                                 <input type="text" class="form-input scan-row-unit" value="${escapeHtml(unit)}" style="width:100%;">
+                            </td>
+                            <td style="padding:10px 14px;">
+                                <input type="number" class="form-input scan-row-portion" placeholder="Ej: 250" value="${suggestedPortion || ''}" style="width:100%; font-weight:700;" min="0" step="any">
                             </td>
                             <td style="padding:10px 14px;">
                                 <input type="number" class="form-input scan-row-cost" value="${it.total || 0}" style="width:100%; font-weight:700;" min="0">
@@ -2589,7 +2595,9 @@
                 const name = tr.querySelector('.scan-row-name').value.trim();
                 const qty = Number(tr.querySelector('.scan-row-qty').value) || 0;
                 const unit = tr.querySelector('.scan-row-unit').value.trim() || 'g';
+                const portionGrams = Number(tr.querySelector('.scan-row-portion')?.value) || 0;
                 const cost = Number(tr.querySelector('.scan-row-cost').value) || 0;
+                const newUnitCost = qty > 0 ? (cost / qty) : 0;
 
                 if (name && qty > 0) {
                     const key = name.toLowerCase();
@@ -2602,17 +2610,25 @@
                         inventory[key].lastPurchasedAt = nowIso;
                         inventory[key].expiryDays = inventory[key].expiryDays || remDays;
                         inventory[key].expiryDate = inventory[key].expiryDate || calcExpDate;
+                        if (portionGrams > 0) inventory[key].portionGrams = portionGrams;
+                        if (newUnitCost > 0) {
+                            inventory[key].prevUnitCost = inventory[key].lastUnitCost || 0;
+                            inventory[key].lastUnitCost = newUnitCost;
+                        }
                     } else {
                         inventory[key] = {
                             name: name,
                             unit: unit,
                             stock: qty,
+                            portionGrams: portionGrams,
+                            lastUnitCost: newUnitCost,
+                            prevUnitCost: 0,
                             lastPurchasedAt: nowIso,
                             expiryDays: remDays,
                             expiryDate: calcExpDate
                         };
                     }
-                    purchaseItems.push({ name, qty, unit, cost, expiryDays: remDays, expiryDate: calcExpDate });
+                    purchaseItems.push({ name, qty, unit, cost, portionGrams, expiryDays: remDays, expiryDate: calcExpDate });
                     totalCostSum += cost;
                     addedCount++;
                 }
