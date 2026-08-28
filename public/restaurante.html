@@ -2411,6 +2411,7 @@
             expiryMemory[key] = Number(days);
             saveExpiryMemory();
         }
+        const learnExpiryDays = rememberIngredientExpiry;
 
         function getRememberedExpiryDays(name) {
             if (!name) return 14;
@@ -3572,7 +3573,7 @@ window.recalcFichaUnitCost = function() {
 
                 if (newCat) learnIngredientChoice(newName, newCat, newSup);
                 if (newPkgQty > 0 && newUnit !== 'u') learnProductPackage(newName, newUnit, newPkgQty);
-                if (newExpiryDays > 0) learnExpiryDays(newName, newExpiryDays);
+                if (newExpiryDays > 0) rememberIngredientExpiry(newName, newExpiryDays);
 
                 // Save locally first
                 saveInventoryLocally();
