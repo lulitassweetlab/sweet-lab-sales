@@ -30,6 +30,34 @@ export async function handler(event) {
 						};
 					});
 					return json(memoryMap);
+				if (action === 'item_history') {
+					const itemKey = (params.get('key') || '').trim().toLowerCase();
+					const purchases = await sql`
+						SELECT id, supplier_name, total_cost, items, created_at
+						FROM restaurant_purchases
+						ORDER BY created_at DESC
+						LIMIT 50
+					`;
+					const history = [];
+					purchases.forEach(p => {
+						const itemsArr = Array.isArray(p.items) ? p.items : [];
+						const match = itemsArr.find(it => it && it.name && (it.name.trim().toLowerCase() === itemKey || itemKey.includes(it.name.trim().toLowerCase()) || it.name.trim().toLowerCase().includes(itemKey)));
+						if (match) {
+							const qty = Number(match.qty) || 1;
+							const totalCost = Number(match.cost) || 0;
+							const unitCost = qty > 0 ? (totalCost / qty) : 0;
+							history.push({
+								id: p.id,
+								supplierName: match.supplierName || match.supplier_name || p.supplier_name || 'Sin especificar',
+								qty,
+								unit: match.unit || 'u',
+								cost: totalCost,
+								unitCost,
+								createdAt: p.created_at
+							});
+						}
+					});
+					return json(history);
 				}
 
 				const rows = await sql`
