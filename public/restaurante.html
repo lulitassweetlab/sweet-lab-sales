@@ -2962,7 +2962,12 @@
 
                     tr.innerHTML = `
                         <td style="padding:14px 20px;">
-                            <input type="text" class="form-input name-input" value="${escapeHtml(item.name)}" autocomplete="off" style="width:200px; font-weight:700; padding:6px 10px; border-radius:var(--radius-sm);">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <input type="text" class="form-input name-input" value="${escapeHtml(item.name)}" autocomplete="off" style="width:160px; font-weight:700; padding:6px 10px; border-radius:var(--radius-sm);">
+                                <button type="button" class="btn-open-ficha-direct" style="background:#f8fafc; border:1px solid #cbd5e1; font-size:11px; font-weight:800; color:var(--navy-dark); padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:3px;" title="Abrir Ficha Principal de este insumo">
+                                    📋 Ficha
+                                </button>
+                            </div>
                         </td>
                         <td style="padding:14px 20px;">
                             <input type="text" class="form-input category-input" list="restaurant-categories-list" value="${escapeHtml(item.category || '')}" placeholder="Ej: Carnes..." autocomplete="off" style="width:110px; font-weight:700; padding:6px 8px; border-radius:var(--radius-sm); font-size:12px;">
@@ -2996,7 +3001,7 @@
                             </span>
                         </td>
                         <td style="padding:14px 20px; text-align:right;">
-                            <button type="button" class="btn-view-history" style="background:none; border:none; color:#0284c7; font-weight:700; cursor:pointer; font-size:16px; margin-right:8px;" title="Ver línea del tiempo de compras">
+                            <button type="button" class="btn-view-history" style="background:none; border:none; color:#0284c7; font-weight:700; cursor:pointer; font-size:16px; margin-right:8px;" title="Ver Ficha y línea del tiempo">
                                 📜
                             </button>
                             <button type="button" class="btn-remove-inv" style="background:none; border:none; color:#ef4444; font-weight:700; cursor:pointer; font-size:16px;" title="Eliminar insumo">
@@ -3004,6 +3009,13 @@
                             </button>
                         </td>
                     `;
+
+                    const btnFichaDirect = tr.querySelector('.btn-open-ficha-direct');
+                    if (btnFichaDirect) {
+                        btnFichaDirect.addEventListener('click', () => {
+                            openIngredientHistoryModal(key, item.name);
+                        });
+                    }
 
                     const nameInput = tr.querySelector('.name-input');
                     nameInput.addEventListener('change', async (e) => {
@@ -5704,11 +5716,21 @@ window.recalcFichaUnitCost = function() {
                     const packageUnit = invItem ? normalizeUnit(invItem.unit) : displayUnit;
 
                     tr.innerHTML = `
-                        <td style="font-weight:600;">${escapeHtml(ing.name)}</td>
+                        <td style="font-weight:600;">
+                            <span class="btn-open-ing-ficha" style="cursor:pointer; color:var(--navy-dark); text-decoration:underline; font-weight:700;" title="Clic para abrir Ficha del insumo">${escapeHtml(ing.name)}</span>
+                            <button type="button" class="btn-quick-ficha-open" style="background:#f1f5f9; border:1px solid #cbd5e1; font-size:10px; font-weight:700; color:var(--text); padding:2px 6px; border-radius:4px; margin-left:6px; cursor:pointer;" title="Abrir Ficha de Control">📋</button>
+                        </td>
                         <td style="font-weight:700; color:var(--primary-hover);">${qtyLabel}</td>
                         <td style="color:var(--text-muted); font-size:13px;">${pQty} ${escapeHtml(packageUnit)} ($${pCost.toLocaleString('es-CO')})</td>
                         <td class="ing-cost">$${calcCost.toLocaleString('es-CO')}</td>
                     `;
+
+                    const openFichaFn = () => openIngredientHistoryModal(ing.name.toLowerCase(), ing.name);
+                    const ingNameClick = tr.querySelector('.btn-open-ing-ficha');
+                    const quickBtn = tr.querySelector('.btn-quick-ficha-open');
+                    if (ingNameClick) ingNameClick.addEventListener('click', openFichaFn);
+                    if (quickBtn) quickBtn.addEventListener('click', openFichaFn);
+
                     tbody.appendChild(tr);
                 }
             });
@@ -6234,8 +6256,9 @@ window.recalcFichaUnitCost = function() {
                     <option value="raw" ${!isSubRecipe ? 'selected' : ''}>Insumo</option>
                     <option value="sub" ${isSubRecipe ? 'selected' : ''}>Receta</option>
                 </select>
-                <div class="ing-name-wrap" style="display:flex; flex:1; min-width:0;">
+                <div class="ing-name-wrap" style="display:flex; align-items:center; gap:4px; flex:1; min-width:0;">
                     <input type="text" class="form-input ing-name" list="restaurant-ingredients-list" placeholder="Ingrediente..." value="${escapeHtml(name)}" autocomplete="off" style="${isSubRecipe ? 'display:none;' : ''}">
+                    <button type="button" class="btn-ing-row-ficha" style="background:#f1f5f9; border:1px solid #cbd5e1; font-size:11px; padding:6px 6px; border-radius:4px; cursor:pointer; ${isSubRecipe ? 'display:none;' : ''}" title="Abrir Ficha Principal de este insumo">📋</button>
                     <select class="form-select ing-sub-select" style="${isSubRecipe ? '' : 'display:none;'}">
                         ${baseSelectOptions}
                     </select>
@@ -6325,6 +6348,7 @@ window.recalcFichaUnitCost = function() {
                     unitLabel.textContent = 'porción';
                     pQtyInput.value = 1;
                     pQtyInput.style.display = 'none';
+                    if (btnRowFicha) btnRowFicha.style.display = 'none';
                     if (subSelect.value) {
                         const subMatch = recipes.find(r => r.id === subSelect.value);
                         if (subMatch) {
@@ -6335,6 +6359,7 @@ window.recalcFichaUnitCost = function() {
                     }
                 } else {
                     nameInput.style.display = 'block';
+                    if (btnRowFicha) btnRowFicha.style.display = 'inline-flex';
                     subSelect.style.display = 'none';
                     pQtyInput.style.display = 'block';
                     row.setAttribute('data-subrecipe-id', '');
@@ -6345,6 +6370,14 @@ window.recalcFichaUnitCost = function() {
                 }
                 updateRowCalcCost();
             });
+
+            const btnRowFicha = row.querySelector('.btn-ing-row-ficha');
+            if (btnRowFicha) {
+                btnRowFicha.addEventListener('click', () => {
+                    const val = nameInput.value.trim();
+                    if (val) openIngredientHistoryModal(val.toLowerCase(), val);
+                });
+            }
 
             subSelect.addEventListener('change', () => {
                 const subId = subSelect.value;
