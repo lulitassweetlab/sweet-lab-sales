@@ -39,6 +39,9 @@ export async function handler(event) {
 						unit,
 						stock,
 						portion_grams AS "portionGrams",
+						supplier_name AS "supplierName",
+						last_unit_cost AS "lastUnitCost",
+						prev_unit_cost AS "prevUnitCost",
 						last_purchased_at AS "lastPurchasedAt",
 						expiry_days AS "expiryDays",
 						expiry_date AS "expiryDate",
@@ -53,6 +56,9 @@ export async function handler(event) {
 						unit: r.unit || 'g',
 						stock: Number(r.stock) || 0,
 						portionGrams: Number(r.portionGrams) || 0,
+						supplierName: r.supplierName || '',
+						lastUnitCost: Number(r.lastUnitCost) || 0,
+						prevUnitCost: Number(r.prevUnitCost) || 0,
 						lastPurchasedAt: r.lastPurchasedAt || r.updatedAt,
 						expiryDays: Number(r.expiryDays) || 14,
 						expiryDate: r.expiryDate ? r.expiryDate.toString().split('T')[0] : null
@@ -104,18 +110,24 @@ export async function handler(event) {
 						const name = item.name.trim();
 						const unit = (item.unit || 'g').trim();
 						const qty = Number(item.qty) || 0;
+						const itemCost = Number(item.cost) || 0;
+						const unitCost = qty > 0 ? (itemCost / qty) : 0;
+						const itemSupplier = (item.supplierName || item.supplier_name || supplierName || '').trim();
 						const portionGrams = Number(item.portionGrams || item.portion_grams) || 0;
 						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
 						const expiryDate = item.expiryDate || item.expiry_date || null;
 
 						await sql`
-							INSERT INTO restaurant_inventory (key, name, unit, stock, portion_grams, last_purchased_at, expiry_days, expiry_date, updated_at)
-							VALUES (${key}, ${name}, ${unit}, ${qty}, ${portionGrams}, now(), ${expiryDays}, ${expiryDate}, now())
+							INSERT INTO restaurant_inventory (key, name, unit, stock, portion_grams, supplier_name, last_unit_cost, prev_unit_cost, last_purchased_at, expiry_days, expiry_date, updated_at)
+							VALUES (${key}, ${name}, ${unit}, ${qty}, ${portionGrams}, ${itemSupplier}, ${unitCost}, 0, now(), ${expiryDays}, ${expiryDate}, now())
 							ON CONFLICT (key) DO UPDATE SET
 								name = EXCLUDED.name,
 								unit = EXCLUDED.unit,
 								stock = restaurant_inventory.stock + EXCLUDED.stock,
 								portion_grams = CASE WHEN EXCLUDED.portion_grams > 0 THEN EXCLUDED.portion_grams ELSE restaurant_inventory.portion_grams END,
+								supplier_name = CASE WHEN EXCLUDED.supplier_name <> '' THEN EXCLUDED.supplier_name ELSE restaurant_inventory.supplier_name END,
+								prev_unit_cost = CASE WHEN EXCLUDED.last_unit_cost > 0 THEN restaurant_inventory.last_unit_cost ELSE restaurant_inventory.prev_unit_cost END,
+								last_unit_cost = CASE WHEN EXCLUDED.last_unit_cost > 0 THEN EXCLUDED.last_unit_cost ELSE restaurant_inventory.last_unit_cost END,
 								last_purchased_at = now(),
 								expiry_days = COALESCE(EXCLUDED.expiry_days, restaurant_inventory.expiry_days),
 								expiry_date = COALESCE(EXCLUDED.expiry_date, restaurant_inventory.expiry_date),
@@ -140,26 +152,30 @@ export async function handler(event) {
 						const unit = (item.unit || 'g').trim();
 						const stock = Number(item.stock) || 0;
 						const portionGrams = Number(item.portionGrams || item.portion_grams) || 0;
+						const supplierName = (item.supplierName || item.supplier_name || '').trim();
+						const lastUnitCost = Number(item.lastUnitCost || item.last_unit_cost) || 0;
+						const prevUnitCost = Number(item.prevUnitCost || item.prev_unit_cost) || 0;
 						const expiryDays = Number(item.expiryDays || item.expiry_days) || 14;
 						const expiryDate = item.expiryDate || item.expiry_date || null;
 						const lastPurchasedAt = item.lastPurchasedAt || item.last_purchased_at || null;
 
 						await sql`
-							INSERT INTO restaurant_inventory (key, name, unit, stock, portion_grams, last_purchased_at, expiry_days, expiry_date, updated_at)
-							VALUES (${key}, ${name}, ${unit}, ${stock}, ${portionGrams}, COALESCE(${lastPurchasedAt}::timestamptz, now()), ${expiryDays}, ${expiryDate}, now())
+							INSERT INTO restaurant_inventory (key, name, unit, stock, portion_grams, supplier_name, last_unit_cost, prev_unit_cost, last_purchased_at, expiry_days, expiry_date, updated_at)
+							VALUES (${key}, ${name}, ${unit}, ${stock}, ${portionGrams}, ${supplierName}, ${lastUnitCost}, ${prevUnitCost}, COALESCE(${lastPurchasedAt}::timestamptz, now()), ${expiryDays}, ${expiryDate}, now())
 							ON CONFLICT (key) DO UPDATE SET
 								name = EXCLUDED.name,
 								unit = EXCLUDED.unit,
 								stock = EXCLUDED.stock,
 								portion_grams = EXCLUDED.portion_grams,
+								supplier_name = EXCLUDED.supplier_name,
+								last_unit_cost = EXCLUDED.last_unit_cost,
+								prev_unit_cost = EXCLUDED.prev_unit_cost,
 								expiry_days = EXCLUDED.expiry_days,
 								expiry_date = EXCLUDED.expiry_date,
 								last_purchased_at = COALESCE(EXCLUDED.last_purchased_at, restaurant_inventory.last_purchased_at),
 								updated_at = now()
 						`;
 					}
-					return json({ ok: true });
-				}
 					return json({ ok: true });
 				}
 

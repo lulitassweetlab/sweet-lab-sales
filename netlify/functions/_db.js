@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 73; // 73: add restaurant_product_memory table for AI OCR product learning
+const SCHEMA_VERSION = 74; // 74: add supplier_name, last_unit_cost, prev_unit_cost columns to restaurant_inventory
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -865,6 +865,14 @@ export async function ensureSchema() {
 						)
 					`;
 					await sql`UPDATE schema_meta SET version = 73`;
+				}
+
+				if (Number(meta[0].version) < 74) {
+					console.log('Migrating to v74: Adding supplier_name, last_unit_cost, and prev_unit_cost to restaurant_inventory...');
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS supplier_name TEXT DEFAULT ''`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_unit_cost NUMERIC DEFAULT 0`;
+					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS prev_unit_cost NUMERIC DEFAULT 0`;
+					await sql`UPDATE schema_meta SET version = 74`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

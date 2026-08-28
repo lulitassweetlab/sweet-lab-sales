@@ -1365,6 +1365,7 @@
                                 <th style="padding: 14px 20px;">Nombre Insumo / Materia Prima</th>
                                 <th style="padding: 14px 20px;">Stock Disponible</th>
                                 <th style="padding: 14px 20px;">Unidad</th>
+                                <th style="padding: 14px 20px;">Lugar de Compra</th>
                                 <th style="padding: 14px 20px;">Fecha Vencimiento</th>
                                 <th style="padding: 14px 20px;">Estado Vencimiento</th>
                                 <th style="padding: 14px 20px; text-align: right;">Acciones</th>
@@ -1582,8 +1583,8 @@
 
                 <div class="form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                     <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Días Vida Útil</label>
-                        <input type="number" class="form-input" id="manual-inv-expiry-days" placeholder="Ej: 7" value="14" min="1">
+                        <label class="form-label" style="font-weight: 700;">Lugar de Compra</label>
+                        <input type="text" class="form-input" id="manual-inv-supplier" list="restaurant-suppliers-list" placeholder="Ej: Ricatas, Mercalider...">
                     </div>
 
                     <div class="form-group">
@@ -1943,53 +1944,75 @@
 
             let expiringCount = 0;
 
-            if (keys.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados en el inventario del restaurante. Haz clic en "Sincronizar Insumos desde Recetas" o "+ Agregar Insumo".</td></tr>';
-                if (alertBanner) alertBanner.style.display = 'none';
-                return;
-            }
-
-            keys.forEach(key => {
-                const item = inventory[key];
-                const tr = document.createElement('tr');
-                tr.style.borderBottom = '1px solid var(--border)';
-                
-                if (!item.expiryDays) item.expiryDays = getRememberedExpiryDays(item.name);
-                if (!item.expiryDate) item.expiryDate = calculateExpiryDate(item.lastPurchasedAt, item.expiryDays);
-
-                const expInfo = getExpiryStatus(item.expiryDate);
-                if (expInfo.status === 'warning' || expInfo.status === 'expired') {
-                    expiringCount++;
+                if (keys.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados en el inventario del restaurante. Haz clic en "Sincronizar Insumos desde Recetas" o "+ Compra".</td></tr>';
+                    if (alertBanner) alertBanner.style.display = 'none';
+                    return;
                 }
 
-                const portionCount = (item.portionGrams && item.portionGrams > 0)
-                    ? Math.floor((Number(item.stock) || 0) / Number(item.portionGrams))
-                    : 0;
+                keys.forEach(key => {
+                    const item = inventory[key];
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid var(--border)';
+                    
+                    if (!item.expiryDays) item.expiryDays = getRememberedExpiryDays(item.name);
+                    if (!item.expiryDate) item.expiryDate = calculateExpiryDate(item.lastPurchasedAt, item.expiryDays);
 
-                tr.innerHTML = `
-                    <td style="padding:14px 20px; font-weight:700; color:var(--text);">${escapeHtml(item.name)}</td>
-                    <td style="padding:14px 20px;">
-                        <input type="number" class="form-input stock-input" value="${item.stock}" style="width:100px; padding:6px 10px; font-weight:700;" min="0">
-                        ${(item.portionGrams && item.portionGrams > 0)
-                            ? `<div class="portion-badge" style="font-size:11px; color:#0284c7; font-weight:800; margin-top:4px; cursor:pointer;" title="Haz clic para modificar el peso por porción">≈ ${portionCount} porcion(es) (${item.portionGrams}g c/u) ✏️</div>`
-                            : `<div style="font-size:10px; margin-top:2px;"><button type="button" class="btn-set-portion" style="background:none; border:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">+ Definir g/porción</button></div>`
-                        }
-                    </td>
-                    <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
-                    <td style="padding:14px 20px;">
-                        <input type="date" class="form-input expiry-date-input" value="${item.expiryDate || ''}" style="width:140px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
-                    </td>
-                    <td style="padding:14px 20px;">
-                        <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; ${expInfo.status === 'ok' ? 'background:#ecfdf5; color:#047857;' : (expInfo.status === 'warning' ? 'background:#fef3c7; color:#92400e;' : 'background:#fef2f2; color:#b91c1c;')}">
-                            ${expInfo.text}
-                        </span>
-                    </td>
-                    <td style="padding:14px 20px; text-align:right;">
-                        <button type="button" class="btn-remove-inv" style="background:none; border:none; color:#ef4444; font-weight:700; cursor:pointer; font-size:16px;" title="Eliminar insumo">
-                            🗑️
-                        </button>
-                    </td>
-                `;
+                    const expInfo = getExpiryStatus(item.expiryDate);
+                    if (expInfo.status === 'warning' || expInfo.status === 'expired') {
+                        expiringCount++;
+                    }
+
+                    const portionCount = (item.portionGrams && item.portionGrams > 0)
+                        ? Math.floor((Number(item.stock) || 0) / Number(item.portionGrams))
+                        : 0;
+
+                    const lastCost = Number(item.lastUnitCost) || 0;
+                    const prevCost = Number(item.prevUnitCost) || 0;
+                    const costDiff = (lastCost > 0 && prevCost > 0) ? (lastCost - prevCost) : 0;
+                    let diffBadgeHtml = '';
+                    if (costDiff > 0) {
+                        diffBadgeHtml = `<span style="color:#dc2626; font-weight:800; font-size:11px; margin-left:4px;" title="El precio subió respecto a la compra anterior">+$${costDiff.toLocaleString('es-CO')}</span>`;
+                    } else if (costDiff < 0) {
+                        diffBadgeHtml = `<span style="color:#16a34a; font-weight:800; font-size:11px; margin-left:4px;" title="El precio bajó respecto a la compra anterior">-$${Math.abs(costDiff).toLocaleString('es-CO')}</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td style="padding:14px 20px; font-weight:700; color:var(--text);">${escapeHtml(item.name)}</td>
+                        <td style="padding:14px 20px;">
+                            <input type="number" class="form-input stock-input" value="${item.stock}" style="width:100px; padding:6px 10px; font-weight:700;" min="0">
+                            ${(item.portionGrams && item.portionGrams > 0)
+                                ? `<div class="portion-badge" style="font-size:11px; color:#0284c7; font-weight:800; margin-top:4px; cursor:pointer;" title="Haz clic para modificar el peso por porción">≈ ${portionCount} porcion(es) (${item.portionGrams}g c/u) ✏️</div>`
+                                : `<div style="font-size:10px; margin-top:2px;"><button type="button" class="btn-set-portion" style="background:none; border:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">+ Definir g/porción</button></div>`
+                            }
+                        </td>
+                        <td style="padding:14px 20px; color:var(--text-muted);">${escapeHtml(item.unit || 'g')}</td>
+                        <td style="padding:14px 20px;">
+                            <input type="text" class="form-input supplier-input" list="restaurant-suppliers-list" value="${escapeHtml(item.supplierName || '')}" placeholder="Ej: Ricatas..." style="width:130px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
+                            ${lastCost > 0 ? `<div style="font-size:10px; color:var(--text-muted); margin-top:3px; font-weight:600;">$${lastCost.toLocaleString('es-CO')}/${item.unit || 'u'} ${diffBadgeHtml}</div>` : ''}
+                        </td>
+                        <td style="padding:14px 20px;">
+                            <input type="date" class="form-input expiry-date-input" value="${item.expiryDate || ''}" style="width:140px; padding:6px 8px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);">
+                        </td>
+                        <td style="padding:14px 20px;">
+                            <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; ${expInfo.status === 'ok' ? 'background:#ecfdf5; color:#047857;' : (expInfo.status === 'warning' ? 'background:#fef3c7; color:#92400e;' : 'background:#fef2f2; color:#b91c1c;')}">
+                                ${expInfo.text}
+                            </span>
+                        </td>
+                        <td style="padding:14px 20px; text-align:right;">
+                            <button type="button" class="btn-remove-inv" style="background:none; border:none; color:#ef4444; font-weight:700; cursor:pointer; font-size:16px;" title="Eliminar insumo">
+                                🗑️
+                            </button>
+                        </td>
+                    `;
+
+                    const supplierInput = tr.querySelector('.supplier-input');
+                    supplierInput.addEventListener('change', (e) => {
+                        const val = e.target.value.trim();
+                        inventory[key].supplierName = val;
+                        saveInventory();
+                        updateSuppliersDatalist();
+                    });
 
                 const stockInput = tr.querySelector('.stock-input');
                 stockInput.addEventListener('input', (e) => {
@@ -2073,11 +2096,15 @@
 
         function openManualInventoryModal() {
             updateIngredientsDatalist();
+            updateSuppliersDatalist();
             document.getElementById('manual-inv-name').value = '';
             document.getElementById('manual-inv-unit').value = 'g';
             document.getElementById('manual-inv-stock').value = '1000';
             const costEl = document.getElementById('manual-inv-cost');
             if (costEl) costEl.value = '0';
+
+            const supplierEl = document.getElementById('manual-inv-supplier');
+            if (supplierEl) supplierEl.value = '';
 
             const portionEl = document.getElementById('manual-inv-portion-grams');
             if (portionEl) portionEl.value = '0';
@@ -2105,6 +2132,7 @@
             const unit = document.getElementById('manual-inv-unit').value.trim() || 'g';
             const stock = Number(document.getElementById('manual-inv-stock').value) || 0;
             const cost = Number(document.getElementById('manual-inv-cost')?.value) || 0;
+            const supplierName = document.getElementById('manual-inv-supplier')?.value.trim() || '';
             const portionGrams = Number(document.getElementById('manual-inv-portion-grams')?.value) || 0;
 
             const expiryDays = Number(document.getElementById('manual-inv-expiry-days')?.value) || getRememberedExpiryDays(name);
@@ -2115,19 +2143,28 @@
 
             const key = name.toLowerCase();
             const nowIso = new Date().toISOString();
+            const newUnitCost = stock > 0 ? (cost / stock) : 0;
 
             if (inventory[key]) {
                 inventory[key].stock = (Number(inventory[key].stock) || 0) + stock;
                 inventory[key].lastPurchasedAt = nowIso;
                 inventory[key].expiryDays = expiryDays;
                 inventory[key].expiryDate = expiryDate;
+                if (supplierName) inventory[key].supplierName = supplierName;
                 if (portionGrams > 0) inventory[key].portionGrams = portionGrams;
+                if (newUnitCost > 0) {
+                    inventory[key].prevUnitCost = inventory[key].lastUnitCost || 0;
+                    inventory[key].lastUnitCost = newUnitCost;
+                }
             } else {
                 inventory[key] = {
                     name: name,
                     unit: unit,
                     stock: stock,
                     portionGrams: portionGrams,
+                    supplierName: supplierName,
+                    lastUnitCost: newUnitCost,
+                    prevUnitCost: 0,
                     lastPurchasedAt: nowIso,
                     expiryDays: expiryDays,
                     expiryDate: expiryDate
@@ -2135,6 +2172,7 @@
             }
 
             saveInventory();
+            updateSuppliersDatalist();
 
             // Record purchase entry in cloud if cost > 0
             if (cost > 0) {
@@ -2144,9 +2182,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             action: 'purchase',
-                            supplier_name: 'Compra Manual',
+                            supplier_name: supplierName || 'Compra Manual',
                             total_cost: cost,
-                            items: [{ name, qty: stock, unit, cost, portionGrams, expiryDays, expiryDate }]
+                            items: [{ name, qty: stock, unit, cost, supplierName, portionGrams, expiryDays, expiryDate }]
                         })
                     });
                 } catch (err) {
@@ -3804,6 +3842,26 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function updateSuppliersDatalist() {
+            const datalist = document.getElementById('restaurant-suppliers-list');
+            if (!datalist) return;
+            const suppliers = new Set();
+            Object.values(inventory || {}).forEach(item => {
+                if (item.supplierName && item.supplierName.trim()) {
+                    suppliers.add(item.supplierName.trim());
+                }
+            });
+            suppliers.add('Ricatas');
+            suppliers.add('Mercalider');
+            suppliers.add('Makro');
+            suppliers.add('Éxito');
+            suppliers.add('Carulla');
+
+            datalist.innerHTML = Array.from(suppliers)
+                .map(sup => `<option value="${escapeHtml(sup)}"></option>`)
+                .join('');
+        }
+
         // Initialize App
         document.addEventListener('DOMContentLoaded', () => {
             loadRecipes();
@@ -3811,6 +3869,7 @@
             loadExpiryMemory();
             loadProductMemory();
             loadInventory();
+            updateSuppliersDatalist();
             setupEventListeners();
             switchMode('order');
         });
@@ -3823,6 +3882,7 @@
 
     <!-- Datalist for Isolated Restaurant Ingredients Autocomplete -->
     <datalist id="restaurant-ingredients-list"></datalist>
+    <datalist id="restaurant-suppliers-list"></datalist>
 
 </body>
 </html>
