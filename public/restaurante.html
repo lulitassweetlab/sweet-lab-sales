@@ -5313,18 +5313,19 @@
                             inventory[key].lastUnitCost = uCost;
                         }
                         invChanged = true;
-                    } else {
-                        // Create in inventory
+                        // Create in inventory with stock 0 until a real purchase is made
                         const learnedChoice = getLearnedChoice(ing.name.trim());
                         const finalCat = learnedChoice.category || '';
                         const finalSup = learnedChoice.supplierName || '';
+                        const normU = normalizeUnit(ing.unit || 'g');
                         inventory[key] = {
                             name: ing.name.trim(),
                             category: finalCat,
-                            unit: ing.unit || 'g',
-                            stock: ing.pkgQty || 1000,
-                            lastPkgQty: ing.pkgQty || 1000,
-                            lastPkgCost: ing.pkgCost || 0,
+                            unit: normU,
+                            stock: 0,
+                            portionGrams: 0,
+                            lastPkgQty: Number(ing.pkgQty) || (normU === 'u' ? 1 : 1000),
+                            lastPkgCost: Number(ing.pkgCost) || 0,
                             lastUnitCost: uCost,
                             supplierName: finalSup,
                             lastPurchasedAt: new Date().toISOString()
