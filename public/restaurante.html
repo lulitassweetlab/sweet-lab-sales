@@ -4724,6 +4724,43 @@
             renderOrderingMenu();
         };
 
+        function matchesOrderCategory(r, activeCat) {
+            if (!activeCat || activeCat === 'Todas') return true;
+
+            const target = activeCat.trim().toLowerCase();
+            const targetStem = target.replace(/s$/, ''); // 'desayuno', 'refrigerio', 'almuerzo', 'cena', 'bebida', 'postre', 'adicionale'
+
+            const cat = (r.category || '').trim().toLowerCase();
+            const catStem = cat.replace(/s$/, '');
+            const meal = (r.mealType || '').trim().toLowerCase();
+            const mealStem = meal.replace(/s$/, '');
+
+            // Specific category buttons: Bebida, Postre, Adicionales
+            if (targetStem === 'bebida') {
+                return catStem === 'bebida' || cat.includes('bebida') || mealStem === 'bebida';
+            }
+            if (targetStem === 'postre') {
+                return catStem === 'postre' || cat.includes('postre') || mealStem === 'postre';
+            }
+            if (targetStem === 'adicionale' || targetStem === 'adicional') {
+                return catStem.includes('adicional') || catStem === 'adicional' || catStem === 'otro' || catStem === 'otros';
+            }
+
+            // Meal moment buttons: Desayuno, Refrigerio, Almuerzo, Cena
+            const isMealMoment = ['desayuno', 'refrigerio', 'almuerzo', 'cena'].includes(targetStem);
+            if (isMealMoment) {
+                // Exact meal match
+                if (mealStem === targetStem || catStem === targetStem) return true;
+                // Universal meal (Cualquiera or empty or comida)
+                if (meal === 'cualquiera' || meal === 'todo' || meal === '' || !r.mealType) {
+                    return true;
+                }
+            }
+
+            // General fallback
+            return catStem === targetStem || mealStem === targetStem;
+        }
+
         // --- MODE 1: ORDERING MENU & CART RENDER ---
         function renderOrderingMenu() {
             const grid = document.getElementById('order-menu-grid');
@@ -4775,21 +4812,9 @@
                 grid.appendChild(banner);
             }
 
-            let filtered = recipes.filter(r => {
-                const cat = r.category || 'Comida';
-                const meal = r.mealType || 'Cualquiera';
-                const isMealSlot = activeOrderCategory === 'Desayuno' || activeOrderCategory === 'Almuerzo' || activeOrderCategory === 'Cena' || activeOrderCategory === 'Refrigerio';
-                const matchCategory = activeOrderCategory === 'Todas' || 
-                                     cat === activeOrderCategory || 
-                                     meal === activeOrderCategory ||
-                                     (isMealSlot && (meal === 'Cualquiera' || cat === 'Comida'));
-                
-                if (!matchCategory) return false;
-
-                if (onlyAvailableFilter) {
-                    return isRecipe100PercentAvailable(r);
-                }
-
+            let filtered = (recipes || []).filter(r => {
+                if (!matchesOrderCategory(r, activeOrderCategory)) return false;
+                if (onlyAvailableFilter && !isRecipe100PercentAvailable(r)) return false;
                 return true;
             });
 
