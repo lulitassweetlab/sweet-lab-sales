@@ -62,13 +62,7 @@ export async function handler(event) {
 							`;
 							if (colCheck.length > 0) {
 								const col = colCheck[0].column_name;
-								const rangeQuery = await sql.query(`
-									SELECT 
-										COUNT(*) AS exact_rows,
-										MIN("${col}") AS oldest_record,
-										MAX("${col}") AS newest_record
-									FROM "${tName}"
-								`);
+								const rangeQuery = await sql([`SELECT COUNT(*) AS exact_rows, MIN("${col}") AS oldest_record, MAX("${col}") AS newest_record FROM "${tName}"`]);
 								if (rangeQuery && rangeQuery[0]) {
 									timeRanges[tName] = {
 										dateColumn: col,
