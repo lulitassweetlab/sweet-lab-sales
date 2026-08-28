@@ -3648,6 +3648,31 @@ window.recalcFichaUnitCost = function() {
 
                 if (res.ok) {
                     showToast('✅ Registro de compra actualizado', 2000);
+                    
+                    const normKey = (itemKey || '').trim().toLowerCase();
+                    if (inventory[normKey]) {
+                        if (sup) inventory[normKey].supplierName = sup;
+                        if (cost > 0) {
+                            inventory[normKey].lastPkgCost = cost;
+                            inventory[normKey].lastPkgQty = qty;
+                            inventory[normKey].lastUnitCost = qty > 0 ? (cost / qty) : 0;
+                        }
+                        const supInput = document.getElementById('ficha-input-supplier');
+                        if (supInput && sup) supInput.value = sup;
+                        const costInput = document.getElementById('ficha-input-pkg-cost');
+                        if (costInput && cost > 0) costInput.value = cost;
+                        const qtyInput = document.getElementById('ficha-input-pkg-qty');
+                        if (qtyInput && qty > 0) qtyInput.value = qty;
+                        recalcFichaUnitCost();
+                        
+                        saveInventory(true);
+                        saveInventoryItemToNeon(normKey, inventory[normKey]);
+                        propagateInventoryItemToRecipes(inventory[normKey].name, inventory[normKey]);
+                        renderInventoryTable();
+                        renderRecipesList();
+                        renderOrderingMenu();
+                    }
+
                     loadPurchaseHistoryTimeline(itemKey, activeFichaKey);
                 } else {
                     showToast('❌ Error al actualizar registro', 2500);
