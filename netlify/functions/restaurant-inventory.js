@@ -117,9 +117,11 @@ export async function handler(event) {
 				`;
 				const inventoryMap = {};
 				rows.forEach(r => {
+					const cat = (r.category || '').trim();
+					const cleanCat = (cat === 'Otros' || cat === 'otros') ? '' : cat;
 					inventoryMap[r.key] = {
 						name: r.name,
-						category: r.category || '',
+						category: cleanCat,
 						unit: r.unit || 'g',
 						stock: Number(r.stock) || 0,
 						portionGrams: Number(r.portionGrams) || 0,
@@ -149,10 +151,12 @@ export async function handler(event) {
 							const qty = Number(it.qty) || 1;
 							const cost = Number(it.cost) || 0;
 							const uCost = qty > 0 ? (cost / qty) : 0;
+							const itCat = (it.category || '').trim();
+							const cleanItCat = (itCat === 'Otros' || itCat === 'otros') ? '' : itCat;
 							if (!inventoryMap[k]) {
 								inventoryMap[k] = {
 									name: it.name.trim(),
-									category: it.category || '',
+									category: cleanItCat,
 									unit: it.unit || 'g',
 									stock: qty,
 									portionGrams: Number(it.portionGrams || it.portion_grams) || 0,

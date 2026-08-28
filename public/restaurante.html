@@ -1900,13 +1900,20 @@
                 'Panadería', 'Lácteos', 'Salsas', 'Bebidas', 'Abarrotes', 'Empaques'
             ]);
             Object.values(inventory || {}).forEach(it => {
-                if (it && it.category && it.category.trim()) {
-                    validCategories.add(it.category.trim());
+                if (it) {
+                    const cat = (it.category || '').trim();
+                    if (cat === 'Otros' || cat === 'otros') {
+                        it.category = '';
+                    } else if (cat) {
+                        validCategories.add(cat);
+                    }
                 }
             });
 
             // Purge ghost categories from frequencyStats
             if (frequencyStats && frequencyStats.categories) {
+                delete frequencyStats.categories['Otros'];
+                delete frequencyStats.categories['otros'];
                 Object.keys(frequencyStats.categories).forEach(cat => {
                     if (!validCategories.has(cat)) {
                         delete frequencyStats.categories[cat];
@@ -1918,7 +1925,8 @@
             if (learnedAssociations) {
                 Object.keys(learnedAssociations).forEach(k => {
                     if (learnedAssociations[k] && learnedAssociations[k].category) {
-                        if (!validCategories.has(learnedAssociations[k].category)) {
+                        const cat = (learnedAssociations[k].category || '').trim();
+                        if (cat === 'Otros' || cat === 'otros' || !validCategories.has(cat)) {
                             delete learnedAssociations[k].category;
                         }
                     }
@@ -2228,6 +2236,20 @@
                 inventory = localInventory;
             }
 
+            // Purge legacy 'Otros' or 'otros' strings from remote and local inventory
+            Object.keys(inventory).forEach(k => {
+                const cat = (inventory[k].category || '').trim();
+                if (cat === 'Otros' || cat === 'otros') {
+                    inventory[k].category = '';
+                }
+            });
+            Object.keys(localInventory).forEach(k => {
+                const cat = (localInventory[k].category || '').trim();
+                if (cat === 'Otros' || cat === 'otros') {
+                    localInventory[k].category = '';
+                }
+            });
+
             // Merge local categories and supplier names if local has more specific information
             Object.keys(localInventory).forEach(k => {
                 if (!inventory[k]) {
@@ -2261,7 +2283,7 @@
                 await fetch('/api/restaurant-inventory', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'update_item', item: payload })
+                    body: JSON.stringify({ action: 'update_item', item: payload, inventory: inventory })
                 });
             } catch (err) {
                 console.error('[Restaurante] Error guardando item en Neon DB:', err);
