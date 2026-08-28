@@ -1516,9 +1516,15 @@
 
                 <!-- Results Table -->
                 <div id="scan-results-wrapper" style="display: none; margin-top: 24px;">
-                    <h4 style="font-size: 15px; color: var(--navy-dark); margin-bottom: 12px; font-weight: 800; display: flex; align-items: center; gap: 6px;">
-                        📋 Productos Detectados en la Factura
-                    </h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px; flex-wrap: wrap;">
+                        <h4 style="font-size: 15px; color: var(--navy-dark); font-weight: 800; margin: 0; display: flex; align-items: center; gap: 6px;">
+                            📋 Productos Detectados en la Factura
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-size: 13px; font-weight: 700; color: var(--navy-dark); white-space: nowrap;">Lugar de Compra:</label>
+                            <input type="text" class="form-input" id="scan-invoice-supplier" list="restaurant-suppliers-list" placeholder="Ej: Ricatas, Mercalider..." style="width: 180px; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: var(--radius-sm);">
+                        </div>
+                    </div>
                     <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                             <thead>
@@ -2505,6 +2511,11 @@
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
 
+                if (data.supplier && data.supplier.trim()) {
+                    const supplierEl = document.getElementById('scan-invoice-supplier');
+                    if (supplierEl) supplierEl.value = data.supplier.trim();
+                }
+
                 if (Array.isArray(data.items) && data.items.length > 0) {
                     tbody.innerHTML = '';
                     
@@ -2587,6 +2598,7 @@
                 return;
             }
 
+            const supplierName = document.getElementById('scan-invoice-supplier')?.value.trim() || '';
             let addedCount = 0;
             const purchaseItems = [];
             let totalCostSum = 0;
@@ -2610,6 +2622,7 @@
                         inventory[key].lastPurchasedAt = nowIso;
                         inventory[key].expiryDays = inventory[key].expiryDays || remDays;
                         inventory[key].expiryDate = inventory[key].expiryDate || calcExpDate;
+                        if (supplierName) inventory[key].supplierName = supplierName;
                         if (portionGrams > 0) inventory[key].portionGrams = portionGrams;
                         if (newUnitCost > 0) {
                             inventory[key].prevUnitCost = inventory[key].lastUnitCost || 0;
@@ -2621,6 +2634,7 @@
                             unit: unit,
                             stock: qty,
                             portionGrams: portionGrams,
+                            supplierName: supplierName,
                             lastUnitCost: newUnitCost,
                             prevUnitCost: 0,
                             lastPurchasedAt: nowIso,
@@ -2628,13 +2642,14 @@
                             expiryDate: calcExpDate
                         };
                     }
-                    purchaseItems.push({ name, qty, unit, cost, portionGrams, expiryDays: remDays, expiryDate: calcExpDate });
+                    purchaseItems.push({ name, qty, unit, cost, supplierName, portionGrams, expiryDays: remDays, expiryDate: calcExpDate });
                     totalCostSum += cost;
                     addedCount++;
                 }
             });
 
             saveInventory();
+            updateSuppliersDatalist();
 
             // Record purchase entry & inventory sync in cloud Neon DB
             try {
@@ -2643,7 +2658,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'purchase',
-                        supplier_name: 'Factura Escaneada IA',
+                        supplier_name: supplierName || 'Factura Escaneada IA',
                         total_cost: totalCostSum,
                         items: purchaseItems
                     })

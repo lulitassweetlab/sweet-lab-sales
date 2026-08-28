@@ -33,13 +33,13 @@ export async function handler(event) {
 		if (!apiKey) return json({ error: 'GEMINI_API_KEY no configurada.' }, 500);
 
 		const base64Data = file_base64.split(',')[1] || file_base64;
-		const prompt = `Analiza este recibo de compra. Extrae una lista de productos en formato JSON.
+		const prompt = `Analiza este recibo de compra. Extrae el nombre del lugar/proveedor de compra y la lista de productos en formato JSON.
 		REGLAS DE CANTIDAD:
 		- Si la cantidad es en Kilos (kg, k), multiplícala por 1000 (ej: 1.5kg -> 1500).
 		- Si dice "X und de Y" (ej: 6 und de 1000), devuelve el total multiplicado (ej: 6000).
 		- Si la unidad es litros (L) o mililitros (ml, c), trátalos como gramos (1:1).
 		- Para productos por unidad (como huevos), devuelve la cantidad de unidades tal cual.
-		Responde ÚNICAMENTE con el objeto JSON puro: {"items": [{"name": "...", "qty": número, "total": número}]}`;
+		Responde ÚNICAMENTE con el objeto JSON puro: {"supplier": "Nombre del proveedor o tienda (ej: Mercalider, Ricatas)", "items": [{"name": "...", "qty": número, "total": número}]}`;
 
 		const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
 		
