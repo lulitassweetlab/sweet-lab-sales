@@ -2362,7 +2362,7 @@
 
             renderInventoryTable();
             closeManualInventoryModal();
-            showToast('🎉 ¡Agregado exitosamente!', 6000);
+            showToast('🎉 ¡Agregado exitosamente!', 3000);
         }
 
         // --- INVOICE SCANNING & IA OCR FUNCTIONS ---
@@ -2669,7 +2669,7 @@
 
             renderInventoryTable();
             closeScanModal();
-            showToast('🎉 ¡Agregado exitosamente!', 6000);
+            showToast('🎉 ¡Agregado exitosamente!', 3000);
         }
 
         function savePairingsMemory() {
@@ -3297,7 +3297,7 @@
         }
 
         let toastTimeout = null;
-        function showToast(message = '¡Pedido exitoso!', duration = 6000) {
+        function showToast(message = '¡Pedido exitoso!', duration = 3000) {
             const toast = document.getElementById('toast-popover');
             const msgEl = document.getElementById('toast-message');
             if (!toast || !msgEl) return;
@@ -3318,7 +3318,7 @@
         function submitOrder() {
             const ids = Object.keys(cart);
             if (ids.length === 0) {
-                showToast('⚠️ El pedido está vacío. Agrega al menos un elemento.', 4000);
+                showToast('⚠️ El pedido está vacío. Agrega al menos un elemento.', 3000);
                 return;
             }
 
@@ -3336,8 +3336,8 @@
             // Save updated stock to Neon DB cloud!
             saveInventory();
 
-            // Show 6-second popover toast
-            showToast('🎉 ¡Pedido exitoso!', 6000);
+            // Show 3-second popover toast
+            showToast('🎉 ¡Pedido exitoso!', 3000);
 
             cart = {};
             renderCart();
