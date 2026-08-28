@@ -95,6 +95,13 @@ export async function handler(event) {
 					return json(history);
 				}
 
+				const cleanSupplier = (s) => {
+					if (!s) return '';
+					const low = String(s).trim().toLowerCase();
+					if (low.includes('factura escaneada') || low.includes('escaneada por ia') || low.includes('escaneada ia') || low === 'factura') return '';
+					return s.trim();
+				};
+
 				const rows = await sql`
 					SELECT 
 						key,
@@ -125,7 +132,7 @@ export async function handler(event) {
 						unit: r.unit || 'g',
 						stock: Number(r.stock) || 0,
 						portionGrams: Number(r.portionGrams) || 0,
-						supplierName: r.supplierName || '',
+						supplierName: cleanSupplier(r.supplierName),
 						lastUnitCost: Number(r.lastUnitCost) || 0,
 						prevUnitCost: Number(r.prevUnitCost) || 0,
 						lastPkgCost: Number(r.lastPkgCost) || 0,
@@ -153,6 +160,7 @@ export async function handler(event) {
 							const uCost = qty > 0 ? (cost / qty) : 0;
 							const itCat = (it.category || '').trim();
 							const cleanItCat = (itCat === 'Otros' || itCat === 'otros') ? '' : itCat;
+							const sup = cleanSupplier(it.supplierName || it.supplier_name || p.supplier_name);
 							if (!inventoryMap[k]) {
 								inventoryMap[k] = {
 									name: it.name.trim(),
@@ -160,7 +168,7 @@ export async function handler(event) {
 									unit: it.unit || 'g',
 									stock: qty,
 									portionGrams: Number(it.portionGrams || it.portion_grams) || 0,
-									supplierName: it.supplierName || it.supplier_name || p.supplier_name || '',
+									supplierName: sup,
 									lastPkgCost: cost,
 									lastPkgQty: qty,
 									lastUnitCost: uCost,
@@ -175,8 +183,8 @@ export async function handler(event) {
 									inventoryMap[k].lastPkgQty = qty;
 									inventoryMap[k].lastUnitCost = uCost;
 								}
-								if (!inventoryMap[k].supplierName && (it.supplierName || p.supplier_name)) {
-									inventoryMap[k].supplierName = it.supplierName || p.supplier_name;
+								if (!inventoryMap[k].supplierName && sup) {
+									inventoryMap[k].supplierName = sup;
 								}
 							}
 						});
@@ -214,7 +222,7 @@ export async function handler(event) {
 				}
 				if (body.action === 'purchase') {
 					const purchaseId = 'compra_restaurante_' + Date.now();
-					const supplierName = (body.supplier_name || 'Factura Escaneada IA').toString();
+					const supplierName = (body.supplier_name || '').toString().trim();
 					const totalCost = Number(body.total_cost) || 0;
 					const items = Array.isArray(body.items) ? body.items : [];
 

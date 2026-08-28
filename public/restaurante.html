@@ -1894,6 +1894,12 @@
             if (!frequencyStats.suppliers) frequencyStats.suppliers = {};
         }
 
+        function isGenericScanSup(s) {
+            if (!s) return false;
+            const low = String(s).trim().toLowerCase();
+            return low.includes('factura escaneada') || low.includes('escaneada por ia') || low.includes('escaneada ia') || low === 'factura';
+        }
+
         function cleanupLearnedAssociations() {
             const validCategories = new Set([
                 'Carnes', 'Carnes Frías', 'Verduras', 'Frutas',
@@ -1906,6 +1912,9 @@
                         it.category = '';
                     } else if (cat) {
                         validCategories.add(cat);
+                    }
+                    if (isGenericScanSup(it.supplierName)) {
+                        it.supplierName = '';
                     }
                 }
             });
@@ -1921,13 +1930,27 @@
                 });
             }
 
-            // Purge ghost categories from learnedAssociations
+            // Purge generic scan suppliers from frequencyStats
+            if (frequencyStats && frequencyStats.suppliers) {
+                Object.keys(frequencyStats.suppliers).forEach(sup => {
+                    if (isGenericScanSup(sup)) {
+                        delete frequencyStats.suppliers[sup];
+                    }
+                });
+            }
+
+            // Purge ghost categories and generic scan suppliers from learnedAssociations
             if (learnedAssociations) {
                 Object.keys(learnedAssociations).forEach(k => {
-                    if (learnedAssociations[k] && learnedAssociations[k].category) {
-                        const cat = (learnedAssociations[k].category || '').trim();
-                        if (cat === 'Otros' || cat === 'otros' || !validCategories.has(cat)) {
-                            delete learnedAssociations[k].category;
+                    if (learnedAssociations[k]) {
+                        if (learnedAssociations[k].category) {
+                            const cat = (learnedAssociations[k].category || '').trim();
+                            if (cat === 'Otros' || cat === 'otros' || !validCategories.has(cat)) {
+                                delete learnedAssociations[k].category;
+                            }
+                        }
+                        if (isGenericScanSup(learnedAssociations[k].supplierName)) {
+                            delete learnedAssociations[k].supplierName;
                         }
                     }
                 });
@@ -2236,17 +2259,23 @@
                 inventory = localInventory;
             }
 
-            // Purge legacy 'Otros' or 'otros' strings from remote and local inventory
+            // Purge legacy 'Otros' or 'otros' and generic scan suppliers from remote and local inventory
             Object.keys(inventory).forEach(k => {
                 const cat = (inventory[k].category || '').trim();
                 if (cat === 'Otros' || cat === 'otros') {
                     inventory[k].category = '';
+                }
+                if (isGenericScanSup(inventory[k].supplierName)) {
+                    inventory[k].supplierName = '';
                 }
             });
             Object.keys(localInventory).forEach(k => {
                 const cat = (localInventory[k].category || '').trim();
                 if (cat === 'Otros' || cat === 'otros') {
                     localInventory[k].category = '';
+                }
+                if (isGenericScanSup(localInventory[k].supplierName)) {
+                    localInventory[k].supplierName = '';
                 }
             });
 
@@ -2696,6 +2725,7 @@
                         supplierInput.addEventListener('click', () => supplierInput.select());
                         const handleSupUpdate = (val) => {
                             val = (val || '').trim();
+                            if (isGenericScanSup(val)) val = '';
                             if (inventory[key].supplierName === val) return;
                             inventory[key].supplierName = val;
                             try {
@@ -3512,7 +3542,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'purchase',
-                        supplier_name: supplierName || 'Factura Escaneada IA',
+                        supplier_name: supplierName || '',
                         total_cost: totalCostSum,
                         items: purchaseItems
                     })
@@ -5222,26 +5252,21 @@
             if (!datalist) return;
             const suppliers = new Set();
             Object.values(inventory || {}).forEach(item => {
-                if (item.supplierName && item.supplierName.trim()) {
-                    suppliers.add(item.supplierName.trim());
+                if (item && item.supplierName && item.supplierName.trim()) {
+                    const sup = item.supplierName.trim();
+                    if (!isGenericScanSup(sup)) {
+                        suppliers.add(sup);
+                    }
                 }
-            });
-            Object.values(learnedAssociations || {}).forEach(item => {
-                if (item.supplierName && item.supplierName.trim()) {
-                    suppliers.add(item.supplierName.trim());
-                }
-            });
-            Object.keys(frequencyStats.suppliers || {}).forEach(sup => {
-                if (sup && sup.trim()) suppliers.add(sup.trim());
             });
 
             const sorted = Array.from(suppliers).sort((a, b) => {
                 if (preferredSupplier && a.toLowerCase() === preferredSupplier.toLowerCase()) return -1;
                 if (preferredSupplier && b.toLowerCase() === preferredSupplier.toLowerCase()) return 1;
-                const countA = frequencyStats.suppliers[a] || 0;
-                const countB = frequencyStats.suppliers[b] || 0;
+                const countA = (frequencyStats.suppliers && frequencyStats.suppliers[a]) || 0;
+                const countB = (frequencyStats.suppliers && frequencyStats.suppliers[b]) || 0;
                 if (countB !== countA) return countB - countA;
-                return a.localeCompare(b);
+                return a.localeCompare(b, 'es', { sensitivity: 'base' });
             });
 
             const newHtml = sorted
