@@ -4401,12 +4401,101 @@
             }
         }
 
+        let activeGuidedBanner = null;
+        let lastOrderedMealCategory = 'Almuerzo';
+
+        function getBeverageRelevanceScore(beverage, mealType) {
+            const name = (beverage.name || '').toLowerCase();
+            const meal = (mealType || '').toLowerCase();
+            let score = 0;
+
+            if (meal.includes('desayuno')) {
+                if (/café|cafe|tinto|capuchino|latte|chocolate|milo|leche|avena|jugo de naranja|naranja/i.test(name)) score += 60;
+                if (/té|aromatica|aromática/i.test(name)) score += 30;
+                if (/jugo|zumo/i.test(name)) score += 20;
+            } else if (meal.includes('almuerzo')) {
+                if (/limonada|jugo|zumo|gaseosa|coca|cola|sprite|agua|hawaiano|mango|maracuya|maracuyá|mora|lulo|piña/i.test(name)) score += 60;
+                if (/cerveza|soda|michelada|hielo/i.test(name)) score += 30;
+            } else if (meal.includes('cena')) {
+                if (/limonada|jugo|té|aromatica|aromática|agua|vino|gaseosa/i.test(name)) score += 60;
+            } else if (meal.includes('refrigerio')) {
+                if (/café|cafe|capuchino|milo|malteada|frappé|frappe|granizado|jugo/i.test(name)) score += 60;
+            }
+
+            return score;
+        }
+
+        window.returnToFoodCategory = function(mealCat) {
+            activeGuidedBanner = null;
+            activeOrderCategory = mealCat || 'Todas';
+            document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
+                const pillCat = pill.getAttribute('data-cat');
+                if (pillCat === activeOrderCategory) {
+                    pill.classList.add('active');
+                } else if (pillCat) {
+                    pill.classList.remove('active');
+                }
+            });
+            renderOrderingMenu();
+        };
+
+        window.dismissGuidedBanner = function() {
+            activeGuidedBanner = null;
+            renderOrderingMenu();
+        };
+
         // --- MODE 1: ORDERING MENU & CART RENDER ---
         function renderOrderingMenu() {
             const grid = document.getElementById('order-menu-grid');
             grid.innerHTML = '';
 
-            const filtered = recipes.filter(r => {
+            // Render Guided Flow Banner if active
+            if (activeGuidedBanner) {
+                const banner = document.createElement('div');
+                banner.className = 'guided-flow-banner';
+                banner.style.cssText = 'grid-column: 1 / -1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-md); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex-wrap: wrap; animation: fadeIn 0.25s ease;';
+                
+                if (activeGuidedBanner.type === 'beverage') {
+                    banner.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="font-size:26px; background:#e0f2fe; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%;">🥤</div>
+                            <div>
+                                <div style="font-weight:800; color:var(--navy-dark); font-size:14px;">¿Qué bebida deseas para tu <span style="color:#0284c7;">${escapeHtml(activeGuidedBanner.recipeName)}</span>?</div>
+                                <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Te mostramos primero las bebidas más recomendadas para ${escapeHtml(activeGuidedBanner.mealCat)}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button type="button" onclick="returnToFoodCategory('${escapeHtml(activeGuidedBanner.mealCat)}')" style="background:#ffffff; border:1px solid #cbd5e1; padding:7px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; color:var(--navy-dark); display:flex; align-items:center; gap:5px; transition:var(--transition);">
+                                <span>🔙</span> Elegir otra comida
+                            </button>
+                            <button type="button" onclick="dismissGuidedBanner()" style="background:#f1f5f9; border:1px solid #cbd5e1; padding:7px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; color:var(--text-muted); transition:var(--transition);">
+                                Continuar sin bebida ➔
+                            </button>
+                        </div>
+                    `;
+                } else if (activeGuidedBanner.type === 'dessert') {
+                    banner.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="font-size:26px; background:#fef3c7; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%;">🍰</div>
+                            <div>
+                                <div style="font-weight:800; color:var(--navy-dark); font-size:14px;">¿Deseas agregar un postre a tu pedido?</div>
+                                <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Acompaña tu almuerzo con un delicioso toque dulce</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button type="button" onclick="returnToFoodCategory('${escapeHtml(activeGuidedBanner.mealCat)}')" style="background:#ffffff; border:1px solid #cbd5e1; padding:7px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; color:var(--navy-dark); display:flex; align-items:center; gap:5px; transition:var(--transition);">
+                                <span>🔙</span> Volver a comidas
+                            </button>
+                            <button type="button" onclick="dismissGuidedBanner()" style="background:#ecfdf5; border:1px solid #bbf7d0; padding:7px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; color:#166534; transition:var(--transition);">
+                                Continuar con pedido 🛒
+                            </button>
+                        </div>
+                    `;
+                }
+                grid.appendChild(banner);
+            }
+
+            let filtered = recipes.filter(r => {
                 const cat = r.category || 'Comida';
                 const meal = r.mealType || 'Almuerzo';
                 const matchCategory = activeOrderCategory === 'Todas' || cat === activeOrderCategory || meal === activeOrderCategory;
@@ -4420,11 +4509,23 @@
                 return true;
             });
 
+            if (activeOrderCategory === 'Bebida') {
+                filtered.sort((a, b) => {
+                    const scoreA = getBeverageRelevanceScore(a, activeGuidedBanner ? activeGuidedBanner.mealCat : lastOrderedMealCategory);
+                    const scoreB = getBeverageRelevanceScore(b, activeGuidedBanner ? activeGuidedBanner.mealCat : lastOrderedMealCategory);
+                    if (scoreB !== scoreA) return scoreB - scoreA;
+                    return (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' });
+                });
+            }
+
             if (filtered.length === 0) {
                 const emptyMsg = onlyAvailableFilter 
                     ? 'No hay platos con 100% de ingredientes disponibles en stock para esta categoría.'
                     : 'No hay ítems registrados en esta categoría.';
-                grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;">${emptyMsg}</div>`;
+                const emptyDiv = document.createElement('div');
+                emptyDiv.style.cssText = 'grid-column:1/-1; text-align:center; color:var(--text-muted); padding:40px;';
+                emptyDiv.textContent = emptyMsg;
+                grid.appendChild(emptyDiv);
                 return;
             }
 
@@ -4463,6 +4564,66 @@
         window.addToCart = function(id) {
             cart[id] = (cart[id] || 0) + 1;
             renderCart();
+
+            const item = recipes.find(r => r.id === id);
+            if (!item) return;
+
+            const isBeverage = item.category === 'Bebida';
+            const isDessert = item.category === 'Postre';
+
+            if (!isBeverage && !isDessert) {
+                // Main meal food item added (Desayuno, Almuerzo, Cena, Refrigerio)
+                lastOrderedMealCategory = item.mealType || item.category || 'Almuerzo';
+                activeGuidedBanner = {
+                    type: 'beverage',
+                    mealCat: lastOrderedMealCategory,
+                    recipeName: item.name
+                };
+                activeOrderCategory = 'Bebida';
+                document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
+                    const pillCat = pill.getAttribute('data-cat');
+                    if (pillCat === 'Bebida') {
+                        pill.classList.add('active');
+                    } else if (pillCat) {
+                        pill.classList.remove('active');
+                    }
+                });
+                renderOrderingMenu();
+                showToast(`🥤 Agregado. ¿Qué bebida deseas para tu ${item.name}?`, 2000);
+            } else if (isBeverage) {
+                // Beverage added: If meal is lunch or dinner, suggest dessert
+                const hasLunchOrDinner = Object.keys(cart).some(cId => {
+                    const r = recipes.find(rec => rec.id === cId);
+                    if (!r) return false;
+                    const m = (r.mealType || r.category || '').toLowerCase();
+                    return m.includes('almuerzo') || m.includes('cena');
+                });
+
+                if (hasLunchOrDinner || lastOrderedMealCategory === 'Almuerzo' || lastOrderedMealCategory === 'Cena') {
+                    activeGuidedBanner = {
+                        type: 'dessert',
+                        mealCat: lastOrderedMealCategory,
+                        recipeName: item.name
+                    };
+                    activeOrderCategory = 'Postre';
+                    document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
+                        const pillCat = pill.getAttribute('data-cat');
+                        if (pillCat === 'Postre') {
+                            pill.classList.add('active');
+                        } else if (pillCat) {
+                            pill.classList.remove('active');
+                        }
+                    });
+                    renderOrderingMenu();
+                    showToast('🍰 ¿Deseas agregar un postre a tu almuerzo?', 2000);
+                } else {
+                    activeGuidedBanner = null;
+                    renderOrderingMenu();
+                }
+            } else {
+                activeGuidedBanner = null;
+                renderOrderingMenu();
+            }
         };
 
         window.updateCartQty = function(id, delta) {
@@ -4957,6 +5118,7 @@
                 pill.addEventListener('click', () => {
                     document.querySelectorAll('#order-cat-pills .cat-pill').forEach(p => p.classList.remove('active'));
                     pill.classList.add('active');
+                    activeGuidedBanner = null;
                     activeOrderCategory = pill.getAttribute('data-cat');
                     renderOrderingMenu();
                 });
