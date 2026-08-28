@@ -1885,6 +1885,53 @@
         let onlyAvailableFilter = false;
         let currentMode = 'order'; // 'order', 'recipes', or 'inventory'
 
+        function getTimeBasedDefaultCategory() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const totalMinutes = hours * 60 + minutes;
+
+            // 06:00 (360m) a 09:30 (570m): Desayuno
+            if (totalMinutes >= 6 * 60 && totalMinutes < 9 * 60 + 30) {
+                return 'Desayuno';
+            }
+            // 09:30 (570m) a 10:00 (600m): Refrigerio
+            if (totalMinutes >= 9 * 60 + 30 && totalMinutes < 10 * 60) {
+                return 'Refrigerio';
+            }
+            // 10:00 (600m) a 13:00 (780m): Almuerzo
+            if (totalMinutes >= 10 * 60 && totalMinutes < 13 * 60) {
+                return 'Almuerzo';
+            }
+            // 13:00 (780m) a 15:00 (900m): Refrigerio
+            if (totalMinutes >= 13 * 60 && totalMinutes < 15 * 60) {
+                return 'Refrigerio';
+            }
+            // 15:00 (900m) a 19:00 (1140m): Cena
+            if (totalMinutes >= 15 * 60 && totalMinutes < 19 * 60) {
+                return 'Cena';
+            }
+            // 19:00 (1140m) a 22:00 (1320m): Refrigerio
+            if (totalMinutes >= 19 * 60 && totalMinutes < 22 * 60) {
+                return 'Refrigerio';
+            }
+            // 22:00 a 06:00: Todas (mostrar todo)
+            return 'Todas';
+        }
+
+        function applyTimeBasedOrderCategory() {
+            const targetCat = getTimeBasedDefaultCategory();
+            activeOrderCategory = targetCat;
+            document.querySelectorAll('#order-cat-pills .cat-pill').forEach(pill => {
+                const pillCat = pill.getAttribute('data-cat');
+                if (pillCat === targetCat) {
+                    pill.classList.add('active');
+                } else if (pillCat) {
+                    pill.classList.remove('active');
+                }
+            });
+        }
+
         function loadLearnedAssociations() {
             try {
                 const storedAssoc = localStorage.getItem(LEARNED_ASSOCIATIONS_KEY);
@@ -5487,6 +5534,7 @@
             updateCategoriesDatalist();
             loadDailySpendingKPI();
             setupEventListeners();
+            applyTimeBasedOrderCategory();
             switchMode('order');
         });
     </script>
