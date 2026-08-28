@@ -1866,14 +1866,27 @@
         function loadLearnedAssociations() {
             try {
                 const storedAssoc = localStorage.getItem(LEARNED_ASSOCIATIONS_KEY);
-                if (storedAssoc) learnedAssociations = JSON.parse(storedAssoc);
+                if (storedAssoc) {
+                    learnedAssociations = JSON.parse(storedAssoc);
+                    // Purge legacy 'Otros' assignments so they never re-contaminate items
+                    Object.keys(learnedAssociations).forEach(k => {
+                        if (learnedAssociations[k].category === 'Otros') {
+                            delete learnedAssociations[k].category;
+                        }
+                    });
+                }
             } catch (e) {
                 learnedAssociations = {};
             }
 
             try {
                 const storedStats = localStorage.getItem(FREQUENCY_STATS_KEY);
-                if (storedStats) frequencyStats = JSON.parse(storedStats);
+                if (storedStats) {
+                    frequencyStats = JSON.parse(storedStats);
+                    if (frequencyStats.categories && frequencyStats.categories['Otros']) {
+                        delete frequencyStats.categories['Otros'];
+                    }
+                }
             } catch (e) {
                 frequencyStats = { categories: {}, suppliers: {} };
             }
@@ -1931,6 +1944,14 @@
                 };
             }
             return { category: '', supplierName: '' };
+        }
+
+        function getLearnedCategory(name) {
+            return getLearnedChoice(name).category || '';
+        }
+
+        function getLearnedSupplier(name) {
+            return getLearnedChoice(name).supplierName || '';
         }
 
         async function loadProductMemory() {
@@ -2287,10 +2308,11 @@
 
         async function saveInventoryToNeon(data) {
             try {
+                const payload = data || inventory;
                 await fetch('/api/restaurant-inventory', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ inventory: payload })
                 });
             } catch (err) {
                 console.error('[Restaurante] Error guardando inventario en Neon DB:', err);
