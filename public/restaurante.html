@@ -2963,12 +2963,7 @@
 
                     tr.innerHTML = `
                         <td style="padding:14px 20px;">
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <input type="text" class="form-input name-input" value="${escapeHtml(item.name)}" autocomplete="off" style="width:160px; font-weight:700; padding:6px 10px; border-radius:var(--radius-sm);">
-                                <button type="button" class="btn-open-ficha-direct" style="background:#f8fafc; border:1px solid #cbd5e1; font-size:11px; font-weight:800; color:var(--navy-dark); padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:3px;" title="Abrir Ficha Principal de este insumo">
-                                    📋 Ficha
-                                </button>
-                            </div>
+                            <input type="text" class="form-input name-input" value="${escapeHtml(item.name)}" autocomplete="off" style="width:100%; min-width:160px; font-weight:700; padding:6px 10px; border-radius:var(--radius-sm);">
                         </td>
                         <td style="padding:14px 20px;">
                             <input type="text" class="form-input category-input" list="restaurant-categories-list" value="${escapeHtml(item.category || '')}" placeholder="Ej: Carnes..." autocomplete="off" style="width:110px; font-weight:700; padding:6px 8px; border-radius:var(--radius-sm); font-size:12px;">
@@ -3010,13 +3005,6 @@
                             </button>
                         </td>
                     `;
-
-                    const btnFichaDirect = tr.querySelector('.btn-open-ficha-direct');
-                    if (btnFichaDirect) {
-                        btnFichaDirect.addEventListener('click', () => {
-                            openIngredientHistoryModal(key, item.name);
-                        });
-                    }
 
                     const nameInput = tr.querySelector('.name-input');
                     nameInput.addEventListener('change', async (e) => {
