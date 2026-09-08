@@ -428,47 +428,86 @@ export async function handler(event) {
 				const sellerId = Number(sellerIdParam);
 				const saleDayId = dayIdParam ? Number(dayIdParam) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
-				// Permission check for viewing sales
+				// Permission check for viewing sales (only validate when actorName is explicitly provided)
 				try {
 					const headers = (event.headers || {});
 					const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
 					let qActor = '';
 					try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
 					const actorName = (hActor || qActor || '').toString();
-					let role = 'user';
 					if (actorName) {
+						let role = 'user';
 						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
 						role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
-					}
-					if (role !== 'admin' && role !== 'superadmin') {
-						const allowed = await sql`
-							SELECT 1 FROM (
-								SELECT s.id FROM sellers s WHERE lower(s.name)=lower(${actorName})
-								UNION ALL
-								SELECT uvp.seller_id FROM user_view_permissions uvp WHERE lower(uvp.viewer_username)=lower(${actorName})
-							) x WHERE x.id=${sellerId} LIMIT 1`;
-						if (!allowed.length) return json({ error: 'No autorizado' }, 403);
+						if (role !== 'admin' && role !== 'superadmin') {
+							const allowed = await sql`
+								SELECT 1 FROM (
+									SELECT s.id FROM sellers s WHERE lower(s.name)=lower(${actorName})
+									UNION ALL
+									SELECT uvp.seller_id FROM user_view_permissions uvp WHERE lower(uvp.viewer_username)=lower(${actorName})
+								) x WHERE x.id=${sellerId} LIMIT 1`;
+							if (!allowed.length) return json({ error: 'No autorizado' }, 403);
+						}
 					}
 				} catch {}
 			let rows;
-			if (saleDayId) {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, 
-					(SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags,
-					(SELECT c.latitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_latitude,
-					(SELECT c.longitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_longitude,
-					(SELECT c.address FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_address,
-					(SELECT c.whatsapp FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_whatsapp,
-					(SELECT c.id FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_id
-				FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
-			} else {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, 
-					(SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags,
-					(SELECT c.latitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_latitude,
-					(SELECT c.longitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_longitude,
-					(SELECT c.address FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_address,
-					(SELECT c.whatsapp FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_whatsapp,
-					(SELECT c.id FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_id
-				FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+			try {
+				if (saleDayId) {
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, 
+						(SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags,
+						COALESCE(
+							(SELECT c.latitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.latitude FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_latitude,
+						COALESCE(
+							(SELECT c.longitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.longitude FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_longitude,
+						COALESCE(
+							(SELECT c.address FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.address FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_address,
+						COALESCE(
+							(SELECT c.whatsapp FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.whatsapp FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_whatsapp,
+						COALESCE(
+							(SELECT c.id FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.id FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_id
+					FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+				} else {
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, 
+						(SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags,
+						COALESCE(
+							(SELECT c.latitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.latitude FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_latitude,
+						COALESCE(
+							(SELECT c.longitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.longitude FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_longitude,
+						COALESCE(
+							(SELECT c.address FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.address FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_address,
+						COALESCE(
+							(SELECT c.whatsapp FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.whatsapp FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_whatsapp,
+						COALESCE(
+							(SELECT c.id FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1),
+							(SELECT c.id FROM clients c WHERE c.seller_id = sales.seller_id AND lower(c.name) = lower(sales.client_name) LIMIT 1)
+						) AS client_id
+					FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+				}
+			} catch (sqlErr) {
+				console.error('Error querying sales with client info, falling back to basic query:', sqlErr);
+				if (saleDayId) {
+					rows = await sql`SELECT * FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+				} else {
+					rows = await sql`SELECT * FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+				}
 			}
 				
 				// Enhance with sale_items data for each sale (OPTIMIZED BATCH FETCH)

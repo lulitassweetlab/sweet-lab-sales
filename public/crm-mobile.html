@@ -3305,10 +3305,45 @@
             }
 
             try {
-                const res = await fetch(`/.netlify/functions/sales?seller_id=${currentSellerId}&sale_day_id=${dayId}`);
-                if (!res.ok) throw new Error('Error al cargar pedidos');
+                const actor = (window.storeAuthUser && window.storeAuthUser.username) || currentSellerName || '';
+                const fetchHeaders = { 'Content-Type': 'application/json' };
+                if (actor) fetchHeaders['x-actor-name'] = actor;
+
+                const res = await fetch(`/.netlify/functions/sales?seller_id=${currentSellerId}&sale_day_id=${dayId}&actor=${encodeURIComponent(actor)}`, {
+                    headers: fetchHeaders
+                });
+                if (!res.ok) {
+                    const errBody = await res.text().catch(() => '');
+                    console.error('Fetch sales error response:', res.status, errBody);
+                    throw new Error(`HTTP ${res.status}: ${errBody || 'Error al cargar pedidos'}`);
+                }
                 const sales = await res.json();
-                window.currentDaySales = Array.isArray(sales) ? sales : [];
+                const rawSales = Array.isArray(sales) ? sales : [];
+
+                // Complement missing client location/id with activeDirectoryData or directoryData if available
+                const dirList = (Array.isArray(window.activeDirectoryData) && window.activeDirectoryData.length > 0)
+                    ? window.activeDirectoryData
+                    : (Array.isArray(directoryData) ? directoryData : []);
+
+                window.currentDaySales = rawSales.map(s => {
+                    if ((!s.client_latitude || !s.client_longitude || !s.client_id) && dirList.length > 0 && s.client_name) {
+                        const sName = s.client_name.trim().toLowerCase();
+                        const found = dirList.find(c => c.name && c.name.trim().toLowerCase() === sName);
+                        if (found) {
+                            return {
+                                ...s,
+                                client_id: s.client_id || found.id,
+                                client_latitude: s.client_latitude || found.latitude,
+                                client_longitude: s.client_longitude || found.longitude,
+                                client_address: s.client_address || found.address,
+                                client_whatsapp: s.client_whatsapp || found.whatsapp,
+                                client_tags: s.client_tags || found.custom_tags || []
+                            };
+                        }
+                    }
+                    return s;
+                });
+
                 renderSalesDayList(window.currentDaySales);
             } catch(err) {
                 console.error('Error fetching sales for day:', err);
