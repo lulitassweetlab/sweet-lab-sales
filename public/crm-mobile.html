@@ -708,7 +708,10 @@
                 <div id="deliveryRouteTitle" style="font-weight:800; font-size:0.92rem; color:var(--text-main); letter-spacing:-0.01em;">Ruta de Entregas</div>
                 <div id="deliveryRouteSubtitle" style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">0 paradas</div>
             </div>
-            <button onclick="recenterRouteMap()" style="background:var(--bg); border:1px solid var(--border); border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:0.95rem; cursor:pointer;" title="Mi ubicación actual">📍</button>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <button onclick="openFullGoogleRoute(false)" style="background:var(--bg); border:1px solid var(--border); border-radius:10px; height:36px; padding:0 9px; display:flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:700; cursor:pointer; color:var(--text-main);" title="Abrir todas las paradas en Google Maps">🗺️ Ruta</button>
+                <button onclick="recenterRouteMap()" style="background:var(--bg); border:1px solid var(--border); border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; cursor:pointer;" title="Ubicar mi moto">🛵</button>
+            </div>
         </header>
         
         <div id="deliveryNoGpsWarning" style="display:none; background:#fffbeb; color:#92400e; padding:7px 14px; font-size:0.72rem; font-weight:700; border-bottom:1px solid #fef3c7; justify-content:space-between; align-items:center;">
@@ -787,18 +790,24 @@
             box-shadow: 0 3px 10px rgba(236,72,153,0.4);
         }
         .seller-live-pin {
-            width: 18px;
-            height: 18px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             background: #0284c7;
-            border: 3px solid #ffffff;
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.45), 0 3px 8px rgba(0,0,0,0.35);
-            animation: pulse-seller-ring 1.8s infinite;
+            border: 2.5px solid #ffffff;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            animation: pulse-seller-ring 2s infinite;
+            user-select: none;
+            cursor: pointer;
         }
         @keyframes pulse-seller-ring {
-            0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.7), 0 3px 8px rgba(0,0,0,0.35); }
-            70% { box-shadow: 0 0 0 10px rgba(2, 132, 199, 0), 0 3px 8px rgba(0,0,0,0.35); }
-            100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0), 0 3px 8px rgba(0,0,0,0.35); }
+            0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.7), 0 4px 14px rgba(0,0,0,0.3); }
+            70% { box-shadow: 0 0 0 14px rgba(2, 132, 199, 0), 0 4px 14px rgba(0,0,0,0.3); }
+            100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0), 0 4px 14px rgba(0,0,0,0.3); }
         }
         .next-client-pill {
             background: #f0fdf4;
@@ -3670,9 +3679,9 @@
                 sellerLocationMarker = L.marker([sellerLat, sellerLng], {
                     icon: L.divIcon({
                         className: '',
-                        html: '<div class="seller-live-pin" title="Tu ubicación"></div>',
-                        iconSize: [18, 18],
-                        iconAnchor: [9, 9]
+                        html: '<div class="seller-live-pin" title="Tu moto en ruta">🛵</div>',
+                        iconSize: [38, 38],
+                        iconAnchor: [19, 19]
                     })
                 }).addTo(deliveryMap);
             }
@@ -3746,9 +3755,9 @@
                     sellerLocationMarker = L.marker([lat, lng], {
                         icon: L.divIcon({
                             className: '',
-                            html: '<div class="seller-live-pin" title="Tu ubicación"></div>',
-                            iconSize: [18, 18],
-                            iconAnchor: [9, 9]
+                            html: '<div class="seller-live-pin" title="Tu moto en ruta">🛵</div>',
+                            iconSize: [38, 38],
+                            iconAnchor: [19, 19]
                         })
                     }).addTo(deliveryMap);
                 }
@@ -3903,7 +3912,7 @@
 
             // Navigation URLs
             const wazeUrl = `https://waze.com/ul?navigate=yes&ll=${stop.lat},${stop.lng}`;
-            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=${stop.lat},${stop.lng}`;
+            const mapsUrl = getGoogleMapsRouteUrl(activeRouteStopIndex);
 
             // Clean Payment Status Badge
             let statusPill = '';
@@ -3981,21 +3990,54 @@
                     <div style="display:flex; gap:6px; align-items:center; justify-content:space-between; border-top:1px solid var(--border); padding-top:8px;">
                         <button onclick="focusActiveStopOnMap()" 
                             style="background:none; border:none; color:var(--text-muted); font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px;">
-                            🎯 Centrar en mapa
+                            🎯 Centrar
                         </button>
                         <div style="display:flex; gap:8px;">
                             <button onclick="window.open('${wazeUrl}', '_blank')" 
-                                style="background:none; border:none; color:#0284c7; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px; padding:4px;">
+                                style="background:none; border:none; color:#0284c7; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px; padding:4px;"
+                                title="Navegar a esta entrega en Waze">
                                 🚙 Waze
                             </button>
-                            <button onclick="window.open('${mapsUrl}', '_blank')" 
-                                style="background:none; border:none; color:var(--text-muted); font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px; padding:4px;">
-                                🗺️ Maps
+                            <button onclick="openFullGoogleRoute(true)" 
+                                style="background:none; border:none; color:var(--text-muted); font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px; padding:4px;"
+                                title="Abrir ruta con todas las paradas pendientes en Google Maps">
+                                🗺️ Maps (Ruta)
                             </button>
                         </div>
                     </div>
                 </div>
             `;
+        }
+
+        function getGoogleMapsRouteUrl(startIndex = 0) {
+            const stops = routeStops || [];
+            const pending = stops.slice(Math.max(0, startIndex));
+            if (pending.length === 0) return '#';
+
+            const originParam = (sellerLiveCoords && sellerLiveCoords.lat)
+                ? `origin=${sellerLiveCoords.lat},${sellerLiveCoords.lng}&`
+                : 'origin=Current+Location&';
+
+            if (pending.length === 1) {
+                const dest = pending[0];
+                return `https://www.google.com/maps/dir/?api=1&${originParam}destination=${dest.lat},${dest.lng}&travelmode=driving`;
+            }
+
+            // Google Maps URL API accepts up to 9 intermediate waypoints + destination
+            const chunk = pending.slice(0, 10);
+            const dest = chunk[chunk.length - 1];
+            const intermediate = chunk.slice(0, -1);
+            const waypointsStr = intermediate.map(s => `${s.lat},${s.lng}`).join('|');
+
+            return `https://www.google.com/maps/dir/?api=1&${originParam}destination=${dest.lat},${dest.lng}&waypoints=${encodeURIComponent(waypointsStr)}&travelmode=driving`;
+        }
+
+        function openFullGoogleRoute(fromCurrentOnly = false) {
+            const startIndex = fromCurrentOnly ? activeRouteStopIndex : 0;
+            const url = getGoogleMapsRouteUrl(startIndex);
+            if (url && url !== '#') {
+                window.open(url, '_blank');
+            }
         }
 
         function focusActiveStopOnMap() {
