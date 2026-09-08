@@ -452,9 +452,23 @@ export async function handler(event) {
 				} catch {}
 			let rows;
 			if (saleDayId) {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, 
+					(SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags,
+					(SELECT c.latitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_latitude,
+					(SELECT c.longitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_longitude,
+					(SELECT c.address FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_address,
+					(SELECT c.whatsapp FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_whatsapp,
+					(SELECT c.id FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_id
+				FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
 			} else {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, 
+					(SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags,
+					(SELECT c.latitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_latitude,
+					(SELECT c.longitude FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_longitude,
+					(SELECT c.address FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_address,
+					(SELECT c.whatsapp FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_whatsapp,
+					(SELECT c.id FROM crm_client_sales ccs JOIN clients c ON ccs.client_id = c.id WHERE ccs.sale_id = sales.id LIMIT 1) AS client_id
+				FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
 			}
 				
 				// Enhance with sale_items data for each sale (OPTIMIZED BATCH FETCH)
