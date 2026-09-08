@@ -732,8 +732,8 @@
 
     <style>
         .route-num-pin {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             background: #2563eb;
             color: #ffffff;
@@ -747,9 +747,10 @@
             transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             user-select: none;
             cursor: pointer;
+            position: relative;
         }
         .route-num-pin.active {
-            transform: scale(1.25);
+            transform: scale(1.22);
             background: #ec4899 !important;
             box-shadow: 0 4px 16px rgba(236,72,153,0.65);
             z-index: 1000 !important;
@@ -760,6 +761,30 @@
         .route-num-pin.has-debt {
             border-color: #ef4444 !important;
         }
+        .route-pin-label {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            white-space: nowrap;
+            pointer-events: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            max-width: 110px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .route-pin-label.active {
+            background: #ec4899;
+            font-size: 11px;
+            font-weight: 800;
+        }
         .seller-live-pin {
             width: 18px;
             height: 18px;
@@ -767,7 +792,25 @@
             background: #0284c7;
             border: 3px solid #ffffff;
             box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.45), 0 3px 8px rgba(0,0,0,0.35);
-            animation: pulse-ring 1.8s infinite;
+            animation: pulse-seller-ring 1.8s infinite;
+        }
+        @keyframes pulse-seller-ring {
+            0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.7), 0 3px 8px rgba(0,0,0,0.35); }
+            70% { box-shadow: 0 0 0 10px rgba(2, 132, 199, 0), 0 3px 8px rgba(0,0,0,0.35); }
+            100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0), 0 3px 8px rgba(0,0,0,0.35); }
+        }
+        .same-block-badge {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 5px 8px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 8px;
         }
         .recent-day-btn {
             background: var(--surface);
@@ -3209,6 +3252,15 @@
         let sellerLocationMarker = null;
         let routeStops = [];
         let activeRouteStopIndex = 0;
+        let sellerLiveCoords = null; // { lat, lng }
+        let deliveryWatchId = null;
+
+        function stopDeliveryGpsWatch() {
+            if (deliveryWatchId !== null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(deliveryWatchId);
+                deliveryWatchId = null;
+            }
+        }
 
         function formatDayLabelShort(dayStr) {
             if (!dayStr) return 'Fecha';
@@ -3493,6 +3545,7 @@
         }
 
         function closeDeliveryRouteModal() {
+            stopDeliveryGpsWatch();
             const modal = document.getElementById('modalDeliveryRoute');
             if (modal) modal.style.display = 'none';
         }
@@ -3580,6 +3633,7 @@
             if (sellerLocationMarker) { deliveryMap.removeLayer(sellerLocationMarker); sellerLocationMarker = null; }
 
             if (hasSellerLoc) {
+                sellerLiveCoords = { lat: sellerLat, lng: sellerLng };
                 sellerLocationMarker = L.marker([sellerLat, sellerLng], {
                     icon: L.divIcon({
                         className: '',
@@ -3590,6 +3644,9 @@
                 }).addTo(deliveryMap);
             }
 
+            // Start live GPS tracking for real-time in-app navigation
+            startDeliveryGpsWatch();
+
             const latLngs = [];
             if (hasSellerLoc) latLngs.push([sellerLat, sellerLng]);
 
@@ -3599,11 +3656,13 @@
 
                 const isDelivered = stop.is_paid || stop.pay_method === 'entregado';
                 const hasDebt = !stop.is_paid && stop.total_cents > 0;
+                const clientFirstName = (stop.clientName || '').trim().split(' ')[0] || '';
 
                 const pinHtml = `
                     <div class="route-num-pin ${idx === 0 ? 'active' : ''} ${isDelivered ? 'delivered' : ''} ${hasDebt ? 'has-debt' : ''}" 
                          id="routePin_${idx}">
                         ${idx + 1}
+                        <div class="route-pin-label ${idx === 0 ? 'active' : ''}" id="routePinLabel_${idx}">${clientFirstName}</div>
                     </div>
                 `;
 
@@ -3611,8 +3670,8 @@
                     icon: L.divIcon({
                         className: '',
                         html: pinHtml,
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
                     })
                 }).addTo(deliveryMap);
 
@@ -3626,17 +3685,72 @@
             deliveryPolyline = L.polyline(latLngs, {
                 color: '#ec4899',
                 weight: 4,
-                opacity: 0.8,
+                opacity: 0.85,
                 dashArray: '8, 8',
                 lineJoin: 'round'
             }).addTo(deliveryMap);
 
             if (latLngs.length > 0) {
-                deliveryMap.fitBounds(L.latLngBounds(latLngs), { padding: [40, 40] });
+                deliveryMap.fitBounds(L.latLngBounds(latLngs), { padding: [50, 50] });
             }
 
             updateDeliveryStatsSubtitle();
             renderActiveStopCard();
+        }
+
+        function startDeliveryGpsWatch() {
+            stopDeliveryGpsWatch();
+            if (!navigator.geolocation) return;
+
+            deliveryWatchId = navigator.geolocation.watchPosition((pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                sellerLiveCoords = { lat, lng };
+
+                if (sellerLocationMarker && deliveryMap) {
+                    sellerLocationMarker.setLatLng([lat, lng]);
+                } else if (deliveryMap) {
+                    sellerLocationMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div class="seller-live-pin" title="Tu ubicación"></div>',
+                            iconSize: [18, 18],
+                            iconAnchor: [9, 9]
+                        })
+                    }).addTo(deliveryMap);
+                }
+
+                // Update live distance indicator on active stop card
+                updateLiveDistanceToActiveStop();
+            }, (err) => {
+                console.warn('Geolocation watch error:', err);
+            }, {
+                enableHighAccuracy: true,
+                maximumAge: 3000,
+                timeout: 10000
+            });
+        }
+
+        function getMetersToStop(stop) {
+            if (!sellerLiveCoords || !stop) return null;
+            const km = haversineDistance(sellerLiveCoords.lat, sellerLiveCoords.lng, stop.lat, stop.lng);
+            return Math.round(km * 1000);
+        }
+
+        function updateLiveDistanceToActiveStop() {
+            const distEl = document.getElementById('activeStopLiveDist');
+            if (!distEl || activeRouteStopIndex < 0 || activeRouteStopIndex >= routeStops.length) return;
+            const stop = routeStops[activeRouteStopIndex];
+            const meters = getMetersToStop(stop);
+            if (meters === null) return;
+
+            if (meters < 20) {
+                distEl.innerHTML = `🎯 <span style="color:#16a34a; font-weight:800;">¡Llegaste a esta entrega!</span>`;
+            } else if (meters < 1000) {
+                distEl.innerHTML = `📍 A <span style="font-weight:800; color:var(--text-main);">${meters} m</span> de distancia`;
+            } else {
+                distEl.innerHTML = `📍 A <span style="font-weight:800; color:var(--text-main);">${(meters / 1000).toFixed(1)} km</span>`;
+            }
         }
 
         function optimizeDeliveryRoute(startLat, startLng, salesWithGps) {
@@ -3690,8 +3804,10 @@
             activeRouteStopIndex = index;
 
             routeStops.forEach((_, idx) => {
-                const el = document.getElementById(`routePin_${idx}`);
-                if (el) el.classList.toggle('active', idx === activeRouteStopIndex);
+                const pin = document.getElementById(`routePin_${idx}`);
+                const lbl = document.getElementById(`routePinLabel_${idx}`);
+                if (pin) pin.classList.toggle('active', idx === activeRouteStopIndex);
+                if (lbl) lbl.classList.toggle('active', idx === activeRouteStopIndex);
             });
 
             const stop = routeStops[activeRouteStopIndex];
@@ -3716,85 +3832,159 @@
             const isPaid = stop.is_paid;
             const totalStr = formatMoney(stop.total_cents || 0);
 
+            // Check if other upcoming stops are nearby in the same block (< 120 meters)
+            const sameBlockStops = [];
+            routeStops.forEach((other, idx) => {
+                if (idx !== activeRouteStopIndex) {
+                    const distKm = haversineDistance(stop.lat, stop.lng, other.lat, other.lng);
+                    const distMeters = Math.round(distKm * 1000);
+                    if (distMeters <= 120) {
+                        sameBlockStops.push({ index: idx + 1, name: other.clientName, meters: distMeters, isDelivered: other.is_paid || other.pay_method === 'entregado' });
+                    }
+                }
+            });
+
+            // Calculate live distance from current seller location if available
+            const metersToStop = getMetersToStop(stop);
+            let liveDistHtml = '';
+            if (metersToStop !== null) {
+                if (metersToStop < 20) {
+                    liveDistHtml = `🎯 <span style="color:#16a34a; font-weight:800;">¡Llegaste a esta entrega!</span>`;
+                } else if (metersToStop < 1000) {
+                    liveDistHtml = `📍 A <span style="font-weight:800; color:var(--text-main);">${metersToStop} m</span>`;
+                } else {
+                    liveDistHtml = `📍 A <span style="font-weight:800; color:var(--text-main);">${(metersToStop / 1000).toFixed(1)} km</span>`;
+                }
+            }
+
+            // External navigation URLs (optional fallback)
             const wazeUrl = `https://waze.com/ul?navigate=yes&ll=${stop.lat},${stop.lng}`;
             const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=${stop.lat},${stop.lng}`;
 
+            // Status label string
+            let statusBadge = '';
+            if (stop.is_paid) {
+                const methodLabel = stop.pay_method === 'transf' ? 'Transferencia' : stop.pay_method === 'efectivo' ? 'Efectivo' : 'Pagado';
+                statusBadge = `<span style="font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:10px; background:#dcfce7; color:#15803d;">🟢 Pagado (${methodLabel})</span>`;
+            } else if (stop.pay_method === 'entregado') {
+                statusBadge = `<span style="font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:10px; background:#fef3c7; color:#b45309;">📦 Entregado (Por Cobrar)</span>`;
+            } else {
+                statusBadge = `<span style="font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:10px; background:#fee2e2; color:#b91c1c;">🔴 Pendiente de Cobro</span>`;
+            }
+
             card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span style="font-size:0.75rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">
-                        Parada #${activeRouteStopIndex + 1} de ${routeStops.length}
-                    </span>
+                <!-- Header: Stop progress + navigation arrows -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:0.75rem; font-weight:800; color:var(--primary); text-transform:uppercase; letter-spacing:0.05em;">
+                            Parada #${activeRouteStopIndex + 1} de ${routeStops.length}
+                        </span>
+                        <div id="activeStopLiveDist" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">
+                            ${liveDistHtml}
+                        </div>
+                    </div>
                     <div style="display:flex; gap:6px; align-items:center;">
                         <button onclick="prevRouteStop()" style="background:var(--bg); border:1px solid var(--border); border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:800;" ${activeRouteStopIndex === 0 ? 'disabled style="opacity:0.3;"' : ''}>‹</button>
                         <button onclick="nextRouteStop()" style="background:var(--bg); border:1px solid var(--border); border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:800;" ${activeRouteStopIndex === routeStops.length - 1 ? 'disabled style="opacity:0.3;"' : ''}>›</button>
                     </div>
                 </div>
 
+                <!-- Same Block Tip Badge (Misma Cuadra) -->
+                ${sameBlockStops.length > 0 ? `
+                    <div class="same-block-badge">
+                        <span>🛵</span>
+                        <span><b>En esta misma cuadra:</b> ${sameBlockStops.map(s => `Parada #${s.index} (${s.name.split(' ')[0]} a ${s.meters}m ${s.isDelivered ? '✅' : ''})`).join(', ')}</span>
+                    </div>
+                ` : ''}
+
+                <!-- Client Info & Total -->
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                    <div>
-                        <div style="font-size:1.1rem; font-weight:800; color:var(--text-main);">${stop.clientName}</div>
-                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">📍 ${stop.address || 'Ubicación marcada en mapa'}</div>
+                    <div style="flex:1; min-width:0; padding-right:8px;">
+                        <div style="font-size:1.1rem; font-weight:800; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${stop.clientName}
+                        </div>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
+                            📍 ${stop.address || 'Ubicación marcada en mapa'}
+                        </div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:1.05rem; font-weight:800; color:var(--text-main);">${totalStr}</div>
-                        <span style="display:inline-block; font-size:0.7rem; font-weight:800; padding:2px 8px; border-radius:10px; margin-top:2px; background:${isPaid ? '#dcfce7' : '#fee2e2'}; color:${isPaid ? '#15803d' : '#b91c1c'};">
-                            ${isPaid ? '🟢 Pagado' : '🔴 Por Cobrar'}
-                        </span>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <div style="font-size:1.1rem; font-weight:800; color:var(--text-main);">${totalStr}</div>
+                        <div style="margin-top:2px;">${statusBadge}</div>
                     </div>
                 </div>
 
-                <!-- Desserts -->
-                <div style="font-size:0.85rem; color:var(--text-main); font-weight:600; background:var(--bg); padding:8px 10px; border-radius:10px; margin-bottom:12px;">
+                <!-- Desserts & Comments -->
+                <div style="font-size:0.85rem; color:var(--text-main); font-weight:600; background:var(--bg); padding:7px 10px; border-radius:10px; margin-bottom:10px;">
                     🍰 ${stop.dessertsStr}
-                    ${stop.comment ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">💬 "${stop.comment}"</div>` : ''}
+                    ${stop.comment ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">💬 "${stop.comment}"</div>` : ''}
                 </div>
 
-                <!-- ACTIONS -->
-                <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:8px;">
-                    <div style="display:flex; gap:6px;">
-                        <button onclick="window.open('${wazeUrl}', '_blank')" 
-                            style="flex:1; height:46px; border-radius:12px; border:1px solid #33ccff; background:#f0f9ff; color:#0284c7; font-weight:800; font-size:0.8rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;"
-                            title="Navegar con Waze">
-                            <span>🚙</span> Waze
+                <!-- QUICK ACTIONS (One-touch without confirmation popups) -->
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <!-- Direct Payment / Delivery Buttons -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
+                        <button id="btnPayCash" onclick="recordStopPayment('efectivo')" 
+                            style="height:44px; border-radius:10px; border:1px solid #16a34a; background:#f0fdf4; color:#15803d; font-weight:800; font-size:0.8rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; box-shadow:0 2px 4px rgba(22,163,74,0.15);"
+                            title="Cobro en Efectivo y Entregado">
+                            <span>💵 Efectivo</span>
                         </button>
-                        <button onclick="window.open('${mapsUrl}', '_blank')" 
-                            style="flex:1; height:46px; border-radius:12px; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:800; font-size:0.8rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;"
-                            title="Navegar con Google Maps">
-                            <span>🗺️</span> Maps
+                        <button id="btnPayTransf" onclick="recordStopPayment('transf')" 
+                            style="height:44px; border-radius:10px; border:1px solid #2563eb; background:#eff6ff; color:#1d4ed8; font-weight:800; font-size:0.8rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; box-shadow:0 2px 4px rgba(37,99,235,0.15);"
+                            title="Cobro por Transferencia y Entregado">
+                            <span>📲 Transf.</span>
+                        </button>
+                        <button id="btnOnlyDelivered" onclick="recordStopPayment('entregado')" 
+                            style="height:44px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:800; font-size:0.8rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;"
+                            title="Entregado sin pagar (Queda debiendo)">
+                            <span>📦 Queda Saldo</span>
                         </button>
                     </div>
 
-                    <button id="btnDeliverActiveStop" onclick="markActiveStopDelivered()" 
-                        style="height:46px; border-radius:12px; border:none; background:${isDelivered ? '#16a34a' : 'var(--primary)'}; color:white; font-weight:800; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(0,0,0,0.15);">
-                        <span>${isDelivered ? '✅' : '📦'}</span> ${isDelivered ? 'Entregado' : 'Marcar Entregado'}
-                    </button>
+                    <!-- Secondary row: In-App Center & External Maps Fallbacks -->
+                    <div style="display:flex; gap:6px; align-items:center; justify-content:space-between; margin-top:2px;">
+                        <button onclick="focusActiveStopOnMap()" 
+                            style="flex:1; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-main); font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+                            🎯 Centrar parada
+                        </button>
+                        <div style="display:flex; gap:6px;">
+                            <button onclick="window.open('${wazeUrl}', '_blank')" 
+                                style="height:32px; padding:0 10px; border-radius:8px; border:1px solid #7dd3fc; background:#f0f9ff; color:#0284c7; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px;"
+                                title="Abrir Waze si es necesario">
+                                🚙 Waze
+                            </button>
+                            <button onclick="window.open('${mapsUrl}', '_blank')" 
+                                style="height:32px; padding:0 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px;"
+                                title="Abrir Google Maps si es necesario">
+                                🗺️ Maps
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `;
         }
 
-        async function markActiveStopDelivered() {
+        function focusActiveStopOnMap() {
+            if (!deliveryMap || activeRouteStopIndex < 0 || activeRouteStopIndex >= routeStops.length) return;
+            const stop = routeStops[activeRouteStopIndex];
+            deliveryMap.setView([stop.lat, stop.lng], 17);
+        }
+
+        async function recordStopPayment(method) {
             if (activeRouteStopIndex < 0 || activeRouteStopIndex >= routeStops.length) return;
             const stop = routeStops[activeRouteStopIndex];
-            const btn = document.getElementById('btnDeliverActiveStop');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = 'Guardando...';
-            }
+
+            // Disable buttons temporarily
+            const bCash = document.getElementById('btnPayCash');
+            const bTransf = document.getElementById('btnPayTransf');
+            const bDelivered = document.getElementById('btnOnlyDelivered');
+            if (bCash) bCash.disabled = true;
+            if (bTransf) bTransf.disabled = true;
+            if (bDelivered) bDelivered.disabled = true;
+
+            const isPaid = (method === 'efectivo' || method === 'transf');
+            const payMethod = method; // 'efectivo', 'transf', or 'entregado'
 
             try {
-                let payMethod = stop.pay_method;
-                let isPaid = stop.is_paid;
-
-                if (!isPaid) {
-                    const confirmPay = confirm(`¿El cliente pagó los ${formatMoney(stop.total_cents)} en efectivo?\n\n- Aceptar = Marcar PAGADO (Efectivo)\n- Cancelar = Marcar solo ENTREGADO (Queda debiendo)`);
-                    if (confirmPay) {
-                        isPaid = true;
-                        payMethod = 'efectivo';
-                    } else {
-                        payMethod = 'entregado';
-                    }
-                }
-
                 const res = await fetch('/api/sales', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -3802,7 +3992,7 @@
                         id: stop.saleId,
                         is_paid: isPaid,
                         pay_method: payMethod,
-                        _actor_name: (window.storeAuthUser && window.storeAuthUser.username) || 'Vendedor'
+                        _actor_name: (window.storeAuthUser && window.storeAuthUser.username) || currentSellerName || 'Vendedor'
                     })
                 });
 
@@ -3820,23 +4010,32 @@
                 const pinEl = document.getElementById(`routePin_${activeRouteStopIndex}`);
                 if (pinEl) {
                     pinEl.classList.add('delivered');
-                    if (isPaid) pinEl.classList.remove('has-debt');
+                    if (isPaid) {
+                        pinEl.classList.remove('has-debt');
+                    } else {
+                        pinEl.classList.add('has-debt');
+                    }
                 }
 
                 updateDeliveryStatsSubtitle();
 
+                // Advance to next stop automatically without popup
                 if (activeRouteStopIndex < routeStops.length - 1) {
                     selectRouteStop(activeRouteStopIndex + 1);
                 } else {
                     renderActiveStopCard();
                     alert('¡Felicitaciones! Has completado todas las entregas de esta ruta. 🎉');
                 }
-
             } catch(e) {
-                console.error('Error marking stop delivered:', e);
-                alert('No se pudo guardar el estado de entrega.');
+                console.error('Error recording stop delivery/payment:', e);
+                alert('No se pudo guardar el estado. Revisa tu conexión.');
                 renderActiveStopCard();
             }
+        }
+
+        // Backward compatibility if called elsewhere
+        async function markActiveStopDelivered() {
+            await recordStopPayment('efectivo');
         }
 
         function prevRouteStop() {
@@ -3853,11 +4052,13 @@
 
         function recenterRouteMap() {
             if (!deliveryMap) return;
-            if (sellerLocationMarker) {
-                deliveryMap.setView(sellerLocationMarker.getLatLng(), 15);
+            if (sellerLiveCoords) {
+                deliveryMap.setView([sellerLiveCoords.lat, sellerLiveCoords.lng], 16);
+            } else if (sellerLocationMarker) {
+                deliveryMap.setView(sellerLocationMarker.getLatLng(), 16);
             } else if (routeStops.length > 0) {
                 const stop = routeStops[activeRouteStopIndex];
-                deliveryMap.setView([stop.lat, stop.lng], 15);
+                deliveryMap.setView([stop.lat, stop.lng], 16);
             }
         }
 
