@@ -367,6 +367,13 @@ class SoundEffects {
 		}
 	}
 
+	genieMagic() {
+		const magicPitches = [392, 523.25, 659.25, 783.99, 1046.5, 1318.5];
+		magicPitches.forEach((p, idx) => {
+			setTimeout(() => this.playTone(p, 0.25, 'sine', 0.12), idx * 90);
+		});
+	}
+
 	step() {
 		this.playTone(340, 0.05, 'sine', 0.08);
 	}
@@ -841,9 +848,11 @@ function rollTwoDice() {
 	gameState.isRolling = true;
 	gameState.cameraViewOffset = 0; // Regresar la cámara a la ficha al tirar
 	btnRoll.disabled = true;
-	dice1?.classList.add('rolling');
-	dice2?.classList.add('rolling');
-	sounds.roll();
+
+	// Efecto Aladino en los dados (flotan, brillan y se expanden mágicamente)
+	dice1?.classList.add('aladdin-magic');
+	dice2?.classList.add('aladdin-magic');
+	sounds.genieMagic();
 
 	let rollCount = 0;
 	const interval = setInterval(() => {
@@ -853,10 +862,10 @@ function rollTwoDice() {
 		setDiceFace(2, temp2);
 		rollCount++;
 
-		if (rollCount > 9) {
+		if (rollCount > 10) {
 			clearInterval(interval);
-			dice1?.classList.remove('rolling');
-			dice2?.classList.remove('rolling');
+			dice1?.classList.remove('aladdin-magic');
+			dice2?.classList.remove('aladdin-magic');
 
 			const d1 = Math.floor(Math.random() * 6) + 1;
 			const d2 = Math.floor(Math.random() * 6) + 1;
@@ -865,12 +874,14 @@ function rollTwoDice() {
 			setDiceFace(1, d1);
 			setDiceFace(2, d2);
 
-			pill.textContent = `¡${player.name} tiró ${d1} + ${d2} = ${totalSteps} pasos hacia adelante!`;
+			pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Preparando avance...`;
 
-			// Movimiento paso a paso
-			stepForwardOnRoad(player, totalSteps);
+			// 1 SEGUNDO DE ESPERA antes de que empiece el movimiento de las tarjetas
+			setTimeout(() => {
+				stepForwardOnRoad(player, totalSteps);
+			}, 1000);
 		}
-	}, 65);
+	}, 75);
 }
 
 function stepForwardOnRoad(player, totalSteps) {
@@ -909,8 +920,13 @@ function stepForwardOnRoad(player, totalSteps) {
 
 		if (stepsRemaining <= 0) {
 			clearInterval(stepInterval);
-			gameState.isRolling = false;
-			handleLanding(player, currentTileData);
+			pill.textContent = `✨ ${player.name} llegó a: ${currentTileData.name}... Revelando evento...`;
+
+			// 1 SEGUNDO DE ESPERA en la casilla antes de que salga la información de la tarjeta
+			setTimeout(() => {
+				gameState.isRolling = false;
+				handleLanding(player, currentTileData);
+			}, 1000);
 		}
 	}, 230);
 }
@@ -1497,11 +1513,24 @@ function showModal({ headerClass, icon, title, subtitle, desc, stats = [], butto
 		footerEl.appendChild(btn);
 	});
 
+	const cardBox = modal.querySelector('.cf-card-modal');
+	if (cardBox) {
+		cardBox.classList.remove('genie-emerge');
+		// Forzar reflujo para reiniciar la animación
+		void cardBox.offsetWidth;
+		cardBox.classList.add('genie-emerge');
+	}
+
+	sounds.genieMagic();
 	modal.classList.add('open');
 }
 
 function closeModal() {
-	document.getElementById('card-modal')?.classList.remove('open');
+	const modal = document.getElementById('card-modal');
+	if (!modal) return;
+	modal.classList.remove('open');
+	const cardBox = modal.querySelector('.cf-card-modal');
+	if (cardBox) cardBox.classList.remove('genie-emerge');
 }
 
 function pickRandom(arr) {
