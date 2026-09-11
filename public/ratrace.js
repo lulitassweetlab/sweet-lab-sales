@@ -2562,110 +2562,167 @@ function animateTransactionNumbersToBalance({
 	});
 }
 
-function toggleSideBalanceComparison(player) {
-	const compBox = document.getElementById('side-bal-comparison-box');
-	const compContent = document.getElementById('side-bal-comp-content');
-	const historyBtn = document.getElementById('btn-side-bal-history');
-	if (!compBox || !compContent) return;
-
-	const isCurrentlyOpen = !compBox.classList.contains('hidden');
-	if (isCurrentlyOpen) {
-		compBox.classList.add('hidden');
-		if (historyBtn) historyBtn.classList.remove('active');
-		return;
-	}
-
+/**
+ * Muestra temporalmente en el widget de balance las cifras de cómo estaba antes,
+ * mientras el usuario mantiene presionado el botón.
+ */
+function showPreviousBalanceState(player) {
+	if (!player || !player.previousSnapshot) return;
 	const prev = player.previousSnapshot;
-	if (!prev) {
-		alert('Aún no se han realizado transacciones en esta partida.');
-		return;
+
+	const sideBalanceEl = document.getElementById('modal-side-balance');
+	if (sideBalanceEl) sideBalanceEl.classList.add('viewing-past-state');
+
+	const historyBtn = document.getElementById('btn-side-bal-history');
+	if (historyBtn) {
+		historyBtn.classList.add('active');
+		historyBtn.innerHTML = '⏪ Viendo ANTES (suelta para volver)';
 	}
 
-	const fin = getPlayerFinancials(player);
-	const cashDiff = player.cash - prev.cash;
-	const flowDiff = fin.monthlyCashFlow - prev.monthlyCashFlow;
-	const salDiff = player.salary - prev.salary;
-	const debtDiff = player.totalDebt - prev.totalDebt;
-	const rentDiff = (player.rentExpense || 500000) - (prev.rentExpense || 500000);
-	const assetsDiff = player.assets.length - prev.assetsCount;
-
-	compContent.innerHTML = `
-		<div style="font-size:0.85rem; color:#475569; margin-bottom:8px; background:#f1f5f9; padding:8px 12px; border-radius:10px; border:1px solid #e2e8f0;">
-			📌 <strong>Última transacción:</strong> ${prev.reason || 'Movimiento'} (${prev.time || ''})
-		</div>
-		<table class="comp-table">
-			<thead>
-				<tr>
-					<th>Concepto</th>
-					<th>Antes</th>
-					<th>Ahora</th>
-					<th>Cambio</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<td>💵 En Mano</td>
-					<td style="color:#64748b;">${formatCOP(prev.cash)}</td>
-					<td style="font-weight:900; color:#16a34a;">${formatCOP(player.cash)}</td>
-					<td style="font-weight:900; color:${cashDiff > 0 ? '#16a34a' : (cashDiff < 0 ? '#dc2626' : '#64748b')};">
-						${cashDiff > 0 ? '+' : ''}${formatCOP(cashDiff)}
-					</td>
-				</tr>
-				<tr>
-					<td>📈 Flujo Mensual</td>
-					<td style="color:#64748b;">${formatCOP(prev.monthlyCashFlow)}/m</td>
-					<td style="font-weight:900; color:#2563eb;">${formatCOP(fin.monthlyCashFlow)}/m</td>
-					<td style="font-weight:900; color:${flowDiff > 0 ? '#16a34a' : (flowDiff < 0 ? '#dc2626' : '#64748b')};">
-						${flowDiff > 0 ? '+' : ''}${formatCOP(flowDiff)}/m
-					</td>
-				</tr>
-				<tr>
-					<td>💼 Sueldo</td>
-					<td style="color:#64748b;">${formatCOP(prev.salary)}</td>
-					<td style="font-weight:900;">${formatCOP(player.salary)}</td>
-					<td style="font-weight:900; color:${salDiff > 0 ? '#16a34a' : '#64748b'};">
-						${salDiff > 0 ? `+${formatCOP(salDiff)}` : 'Sin cambio'}
-					</td>
-				</tr>
-				<tr>
-					<td>🏡 Alquiler</td>
-					<td style="color:#64748b;">${formatCOP(prev.rentExpense || 500000)}/m</td>
-					<td style="font-weight:900; color:#dc2626;">${formatCOP(player.rentExpense || 500000)}/m</td>
-					<td style="font-weight:900; color:${rentDiff > 0 ? '#dc2626' : (rentDiff < 0 ? '#16a34a' : '#64748b')};">
-						${rentDiff !== 0 ? (rentDiff > 0 ? `+${formatCOP(rentDiff)}` : `${formatCOP(rentDiff)}`) : 'Sin cambio'}
-					</td>
-				</tr>
-				<tr>
-					<td>🚀 Negocios</td>
-					<td style="color:#64748b;">${prev.assetsCount}</td>
-					<td style="font-weight:900;">${player.assets.length}</td>
-					<td style="font-weight:900; color:${assetsDiff > 0 ? '#16a34a' : (assetsDiff < 0 ? '#dc2626' : '#64748b')};">
-						${assetsDiff > 0 ? `+${assetsDiff} nuevo` : (assetsDiff < 0 ? `${assetsDiff} vendido` : 'Sin cambio')}
-					</td>
-				</tr>
-				<tr>
-					<td>💳 Deuda Banco</td>
-					<td style="color:#64748b;">${formatCOP(prev.totalDebt)}</td>
-					<td style="font-weight:900; color:${player.totalDebt > 0 ? '#dc2626' : '#64748b'};">${formatCOP(player.totalDebt)}</td>
-					<td style="font-weight:900; color:${debtDiff > 0 ? '#dc2626' : (debtDiff < 0 ? '#16a34a' : '#64748b')};">
-						${debtDiff !== 0 ? (debtDiff > 0 ? `+${formatCOP(debtDiff)}` : `${formatCOP(debtDiff)}`) : 'Sin deuda'}
-					</td>
-				</tr>
-			</tbody>
-		</table>
-	`;
-
-	compBox.classList.remove('hidden');
-	if (historyBtn) historyBtn.classList.add('active');
-
-	const closeBtn = document.getElementById('btn-close-comp-view');
-	if (closeBtn) {
-		closeBtn.onclick = (e) => {
-			e.stopPropagation();
-			compBox.classList.add('hidden');
-			if (historyBtn) historyBtn.classList.remove('active');
-		};
+	// Efectivo y Flujo
+	const cashEl = document.getElementById('side-bal-cash');
+	const flowEl = document.getElementById('side-bal-flow');
+	if (cashEl) {
+		cashEl.textContent = `${formatCOP(prev.cash)} COP`;
+		cashEl.className = `val cash ${prev.cash < 0 ? 'red' : ''} past-val-highlight`;
 	}
+	if (flowEl) {
+		flowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}/m`;
+		flowEl.className = `val flow ${prev.monthlyCashFlow < 0 ? 'red' : ''} past-val-highlight`;
+	}
+
+	// 1. Ingresos
+	const salaryEl = document.getElementById('side-bal-salary');
+	const passiveEl = document.getElementById('side-bal-passive');
+	const totalIncomeEl = document.getElementById('side-bal-total-income');
+	if (salaryEl) {
+		salaryEl.textContent = formatCOP(prev.salary);
+		salaryEl.classList.add('past-val-highlight');
+	}
+	if (passiveEl) {
+		passiveEl.textContent = `+${formatCOP(prev.passiveIncome)}`;
+		passiveEl.classList.add('past-val-highlight');
+	}
+	if (totalIncomeEl) {
+		totalIncomeEl.textContent = formatCOP((prev.salary || 0) + (prev.passiveIncome || 0));
+		totalIncomeEl.classList.add('past-val-highlight');
+	}
+
+	// 2. Salidas / Gastos
+	const rentExpEl = document.getElementById('side-bal-rent-exp');
+	const otherExpEl = document.getElementById('side-bal-other-exp');
+	const debtExpEl = document.getElementById('side-bal-debt-exp');
+	const totalExpEl = document.getElementById('side-bal-total-exp');
+	const prevRent = prev.rentExpense || 500000;
+	const prevOther = prev.otherExpenses || 0;
+	const prevDebt = prev.debtExpenses || 0;
+	const prevTotalExp = prev.totalExpenses || (prevRent + prevOther + prevDebt);
+
+	if (rentExpEl) {
+		rentExpEl.textContent = `-${formatCOP(prevRent)}`;
+		rentExpEl.classList.add('past-val-highlight');
+	}
+	if (otherExpEl) {
+		otherExpEl.textContent = `-${formatCOP(prevOther)}`;
+		otherExpEl.classList.add('past-val-highlight');
+	}
+	if (debtExpEl) {
+		debtExpEl.textContent = prevDebt > 0 ? `-${formatCOP(prevDebt)}` : '$0';
+		debtExpEl.classList.add('past-val-highlight');
+	}
+	if (totalExpEl) {
+		totalExpEl.textContent = `-${formatCOP(prevTotalExp)}`;
+		totalExpEl.classList.add('past-val-highlight');
+	}
+
+	// 3. Activos
+	const assetsCountEl = document.getElementById('side-bal-assets-count');
+	const assetsListEl = document.getElementById('side-bal-assets-list');
+	if (assetsCountEl) assetsCountEl.textContent = `${prev.assetsCount || 0} negocios (Antes)`;
+	if (assetsListEl && prev.assets) {
+		if (prev.assets.length > 0) {
+			assetsListEl.innerHTML = prev.assets.map(a => `
+				<div class="k-item past-val-highlight">
+					<span class="lbl" title="${a.title}">${a.title}</span>
+					<span class="val green">+${formatCOP(a.cashFlow || 0)}/m</span>
+				</div>
+			`).join('');
+		} else {
+			assetsListEl.innerHTML = `<span class="k-empty">Sin negocios antes</span>`;
+		}
+	}
+
+	// 4. Pasivos
+	const totalDebtEl = document.getElementById('side-bal-total-debt');
+	const debtValEl = document.getElementById('side-bal-debt-val');
+	const debtPayEl = document.getElementById('side-bal-debt-payment');
+	if (totalDebtEl) totalDebtEl.textContent = prev.totalDebt > 0 ? `${formatCOP(prev.totalDebt)}` : '$0';
+	if (debtValEl) debtValEl.textContent = prev.totalDebt > 0 ? `${formatCOP(prev.totalDebt)}` : '$0';
+	if (debtPayEl) debtPayEl.textContent = prev.debtExpenses > 0 ? `-${formatCOP(prev.debtExpenses)}/m` : '$0/m';
+}
+
+/**
+ * Restaura la información actualizada en el balance al soltar el botón.
+ */
+function restoreCurrentBalanceState() {
+	const sideBalanceEl = document.getElementById('modal-side-balance');
+	if (sideBalanceEl) sideBalanceEl.classList.remove('viewing-past-state');
+
+	const historyBtn = document.getElementById('btn-side-bal-history');
+	if (historyBtn) {
+		historyBtn.classList.remove('active');
+		historyBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+	}
+
+	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
+
+	renderModalSideBalance();
+}
+
+/**
+ * Conecta los eventos de "mantener presionado" y "soltar" de forma robusta
+ * para dispositivos móviles (touch) y desktop (mouse / pointer).
+ */
+function attachHoldToPeekEvents(buttonEl, onHold, onRelease) {
+	if (!buttonEl) return;
+
+	let isHolding = false;
+
+	const startHold = (e) => {
+		if (e.button !== undefined && e.button !== 0) return; // solo click principal izquierdo
+		if (!isHolding) {
+			isHolding = true;
+			onHold();
+		}
+	};
+
+	const endHold = () => {
+		if (isHolding) {
+			isHolding = false;
+			onRelease();
+		}
+	};
+
+	// Evitar menú contextual con pulsación larga en táctil
+	buttonEl.oncontextmenu = (e) => e.preventDefault();
+
+	// Pointer Events modernos
+	buttonEl.onpointerdown = startHold;
+	buttonEl.onpointerup = endHold;
+	buttonEl.onpointercancel = endHold;
+	buttonEl.onpointerleave = endHold;
+
+	// Touch Events de respaldo
+	buttonEl.ontouchstart = (e) => {
+		startHold(e);
+	};
+	buttonEl.ontouchend = endHold;
+	buttonEl.ontouchcancel = endHold;
+
+	// Mouse Events de respaldo
+	buttonEl.onmousedown = startHold;
+	buttonEl.onmouseup = endHold;
+	buttonEl.onmouseleave = endHold;
 }
 
 // ==========================================
@@ -3771,63 +3828,91 @@ function updateDrawerFinancials(playerIndex) {
 		}
 	}
 
-	// Historial "Cómo era antes" dentro del Drawer
+	// Historial "Cómo era antes" dentro del Drawer (Mantener presionado)
 	const drawerHistBtn = document.getElementById('btn-drawer-history');
-	const drawerHistBox = document.getElementById('drawer-history-box');
-	if (drawerHistBtn && drawerHistBox) {
+	if (drawerHistBtn) {
 		if (p.previousSnapshot) {
 			drawerHistBtn.parentElement?.classList.remove('hidden');
-			drawerHistBtn.onclick = () => {
-				const isHidden = drawerHistBox.classList.toggle('hidden');
-				if (!isHidden) {
-					const prev = p.previousSnapshot;
-					const cashDiff = p.cash - prev.cash;
-					const flowDiff = fin.monthlyCashFlow - prev.monthlyCashFlow;
-					const salDiff = p.salary - prev.salary;
-					const debtDiff = p.totalDebt - prev.totalDebt;
-					drawerHistBox.innerHTML = `
-						<div style="font-size:0.8rem; color:#475569; margin-bottom:6px;">
-							📌 <strong>Última acción:</strong> ${prev.reason} (${prev.time || ''})
-						</div>
-						<table class="comp-table" style="font-size:0.8rem;">
-							<thead>
-								<tr><th>Concepto</th><th>Antes</th><th>Ahora</th><th>Cambio</th></tr>
-							</thead>
-							<tbody>
-								<tr>
-									<td>💵 En Mano</td>
-									<td>${formatCOP(prev.cash)}</td>
-									<td style="color:#16a34a; font-weight:900;">${formatCOP(p.cash)}</td>
-									<td style="color:${cashDiff >= 0 ? '#16a34a' : '#dc2626'}; font-weight:900;">${cashDiff >= 0 ? '+' : ''}${formatCOP(cashDiff)}</td>
-								</tr>
-								<tr>
-									<td>📈 Flujo Mes</td>
-									<td>${formatCOP(prev.monthlyCashFlow)}</td>
-									<td style="color:#2563eb; font-weight:900;">${formatCOP(fin.monthlyCashFlow)}</td>
-									<td style="color:${flowDiff >= 0 ? '#16a34a' : '#dc2626'}; font-weight:900;">${flowDiff >= 0 ? '+' : ''}${formatCOP(flowDiff)}</td>
-								</tr>
-								<tr>
-									<td>💼 Sueldo</td>
-									<td>${formatCOP(prev.salary)}</td>
-									<td style="font-weight:900;">${formatCOP(p.salary)}</td>
-									<td style="font-weight:900;">${salDiff > 0 ? `+${formatCOP(salDiff)}` : 'Sin cambio'}</td>
-								</tr>
-								<tr>
-									<td>💳 Deuda</td>
-									<td>${formatCOP(prev.totalDebt)}</td>
-									<td style="font-weight:900;">${formatCOP(p.totalDebt)}</td>
-									<td style="font-weight:900;">${debtDiff !== 0 ? (debtDiff > 0 ? `+${formatCOP(debtDiff)}` : formatCOP(debtDiff)) : 'Sin deuda'}</td>
-								</tr>
-							</tbody>
-						</table>
-					`;
-				}
-			};
+			drawerHistBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+			attachHoldToPeekEvents(
+				drawerHistBtn,
+				() => showPreviousDrawerState(p),
+				() => restoreCurrentDrawerState(playerIndex)
+			);
 		} else {
 			drawerHistBtn.parentElement?.classList.add('hidden');
-			drawerHistBox.classList.add('hidden');
 		}
 	}
+}
+
+/**
+ * Muestra temporalmente en el Drawer las cifras previas mientras se mantenga presionado el botón.
+ */
+function showPreviousDrawerState(player) {
+	if (!player || !player.previousSnapshot) return;
+	const prev = player.previousSnapshot;
+
+	const drawerHistBtn = document.getElementById('btn-drawer-history');
+	if (drawerHistBtn) {
+		drawerHistBtn.classList.add('active');
+		drawerHistBtn.innerHTML = '⏪ Mostrando ANTES (suelta para volver)';
+	}
+
+	const cashValEl = document.getElementById('drawer-cash-val');
+	const cashflowEl = document.getElementById('drawer-cashflow-val');
+	const salaryEl = document.getElementById('drawer-salary');
+	const passiveEl = document.getElementById('drawer-passive');
+	const rentEl = document.getElementById('drawer-rent-exp');
+	const otherEl = document.getElementById('drawer-other-exp');
+	const fixedEl = document.getElementById('drawer-fixed-exp');
+	const debtEl = document.getElementById('drawer-debt-exp');
+
+	if (cashValEl) {
+		cashValEl.textContent = `${formatCOP(prev.cash)} COP`;
+		cashValEl.classList.add('past-val-highlight');
+	}
+	if (cashflowEl) {
+		cashflowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}`;
+		cashflowEl.style.color = prev.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
+		cashflowEl.classList.add('past-val-highlight');
+	}
+	if (salaryEl) {
+		salaryEl.textContent = formatCOP(prev.salary);
+		salaryEl.classList.add('past-val-highlight');
+	}
+	if (passiveEl) {
+		passiveEl.textContent = formatCOP(prev.passiveIncome);
+		passiveEl.classList.add('past-val-highlight');
+	}
+	if (rentEl) {
+		rentEl.textContent = formatCOP(prev.rentExpense || 500000);
+		rentEl.classList.add('past-val-highlight');
+	}
+	if (otherEl) {
+		otherEl.textContent = formatCOP(prev.otherExpenses || 0);
+		otherEl.classList.add('past-val-highlight');
+	}
+	if (fixedEl) {
+		fixedEl.textContent = formatCOP(prev.fixedExpenses);
+		fixedEl.classList.add('past-val-highlight');
+	}
+	if (debtEl) {
+		debtEl.textContent = formatCOP(prev.debtExpenses);
+		debtEl.classList.add('past-val-highlight');
+	}
+}
+
+/**
+ * Restaura la información actualizada en el Drawer al soltar el botón.
+ */
+function restoreCurrentDrawerState(playerIndex) {
+	const drawerHistBtn = document.getElementById('btn-drawer-history');
+	if (drawerHistBtn) {
+		drawerHistBtn.classList.remove('active');
+		drawerHistBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+	}
+	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
+	updateDrawerFinancials(playerIndex);
 }
 
 // ==========================================
@@ -4003,10 +4088,12 @@ function renderModalSideBalance() {
 	if (prev) {
 		if (historyBtn) {
 			historyBtn.classList.remove('hidden');
-			historyBtn.onclick = (e) => {
-				e.stopPropagation();
-				toggleSideBalanceComparison(player);
-			};
+			historyBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+			attachHoldToPeekEvents(
+				historyBtn,
+				() => showPreviousBalanceState(player),
+				() => restoreCurrentBalanceState()
+			);
 		}
 
 		// Delta en Efectivo
@@ -4035,14 +4122,20 @@ function renderModalSideBalance() {
 			}
 		}
 
+		// Si el usuario también mantiene presionadas las métricas de efectivo o flujo, muestra cómo era antes
 		if (cashMetricBox) {
-			cashMetricBox.onclick = () => toggleSideBalanceComparison(player);
+			attachHoldToPeekEvents(
+				cashMetricBox,
+				() => showPreviousBalanceState(player),
+				() => restoreCurrentBalanceState()
+			);
 		}
 		if (flowMetricBox) {
-			flowMetricBox.onclick = () => toggleSideBalanceComparison(player);
-		}
-		if (incomeQuad) {
-			incomeQuad.onclick = () => toggleSideBalanceComparison(player);
+			attachHoldToPeekEvents(
+				flowMetricBox,
+				() => showPreviousBalanceState(player),
+				() => restoreCurrentBalanceState()
+			);
 		}
 	} else {
 		if (historyBtn) historyBtn.classList.add('hidden');
@@ -4227,11 +4320,10 @@ function closeModal(callback) {
 	const flipper = document.getElementById('flying-card-flipper');
 	const sideBal = document.getElementById('modal-side-balance');
 
-	if (sideBal) sideBal.classList.remove('active');
-	const compBox = document.getElementById('side-bal-comparison-box');
-	if (compBox) compBox.classList.add('hidden');
+	if (sideBal) sideBal.classList.remove('active', 'viewing-past-state');
 	const historyBtn = document.getElementById('btn-side-bal-history');
 	if (historyBtn) historyBtn.classList.remove('active');
+	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
 
 	if (!wrapper || !gameState.isCardFlying) {
 		if (overlay) overlay.classList.remove('active');

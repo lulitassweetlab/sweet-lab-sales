@@ -1852,7 +1852,9 @@
 			transition: all 0.2s ease;
 			margin-left: auto;
 			white-space: nowrap;
-			flex-shrink: 0;
+			user-select: none;
+			-webkit-user-select: none;
+			touch-action: manipulation;
 		}
 
 		.btn-side-bal-history:hover {
@@ -1862,9 +1864,25 @@
 		}
 
 		.btn-side-bal-history.active {
-			background: #2563eb;
-			border-color: #1d4ed8;
+			background: linear-gradient(135deg, #f59e0b, #d97706);
+			border-color: #b45309;
 			color: #ffffff;
+			box-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
+			transform: scale(0.97);
+		}
+
+		.viewing-past-state {
+			box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.55), 0 20px 45px rgba(0, 0, 0, 0.35) !important;
+			border-color: #f59e0b !important;
+			transition: all 0.2s ease;
+		}
+
+		.past-val-highlight {
+			background-color: rgba(245, 158, 11, 0.18) !important;
+			color: #b45309 !important;
+			border-radius: 4px;
+			padding: 0 4px;
+			transition: all 0.15s ease;
 		}
 
 		/* Indicador delta antes / ahora */
@@ -2159,12 +2177,11 @@
 					<div id="drawer-assets-list" style="display:flex; flex-direction:column; gap:6px;"></div>
 				</div>
 
-				<!-- Botón y contenedor para ver "Cómo era antes" en el Drawer -->
+				<!-- Botón para ver "Cómo era antes" al mantener presionado en el Drawer -->
 				<div class="hidden" style="margin-top: 10px;">
-					<button id="btn-drawer-history" class="btn-side-bal-history" style="width:100%; justify-content:center; margin-left:0; padding:8px 14px;" type="button">
-						🕒 Ver cómo era antes de la última jugada
+					<button id="btn-drawer-history" class="btn-side-bal-history" style="width:100%; justify-content:center; margin-left:0; padding:10px 14px;" type="button" title="Mantén presionado para ver cómo era antes de esta jugada">
+						🕒 Mantén presionado: ¿Cómo era antes?
 					</button>
-					<div id="drawer-history-box" class="side-bal-comparison-view hidden" style="margin-top:8px;"></div>
 				</div>
 
 				<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:auto; padding-top:10px;">
@@ -2224,32 +2241,23 @@
 					<div id="side-bal-name" class="side-bal-name">Jugador (Turno)</div>
 					<div id="side-bal-job" class="side-bal-job">Profesión</div>
 				</div>
-				<button id="btn-side-bal-history" class="btn-side-bal-history hidden" type="button" title="Ver cómo era antes de esta transacción">
-					🕒 ¿Cómo era antes?
+				<button id="btn-side-bal-history" class="btn-side-bal-history hidden" type="button" title="Mantén presionado para ver cómo era antes de esta jugada">
+					🕒 Mantén presionado: ¿Cómo era antes?
 				</button>
 			</div>
 
 			<!-- Resumen Superior: Efectivo y Flujo Libre Mensual -->
 			<div class="side-bal-summary-bar">
-				<div class="side-bal-metric" id="side-bal-metric-cash" title="Click para ver historial antes vs ahora">
+				<div class="side-bal-metric" id="side-bal-metric-cash">
 					<span class="lbl">💵 En Mano</span>
 					<span id="side-bal-cash" class="val cash">$500.000 COP</span>
 					<span id="side-bal-cash-delta" class="bal-delta-pill hidden"></span>
 				</div>
-				<div class="side-bal-metric" id="side-bal-metric-flow" title="Click para ver historial antes vs ahora">
+				<div class="side-bal-metric" id="side-bal-metric-flow">
 					<span class="lbl">📈 Flujo Libre</span>
 					<span id="side-bal-flow" class="val flow">+$0 / mes</span>
 					<span id="side-bal-flow-delta" class="bal-delta-pill hidden"></span>
 				</div>
-			</div>
-
-			<!-- Vista Comparativa Desplegable "Cómo era antes" -->
-			<div id="side-bal-comparison-box" class="side-bal-comparison-view hidden">
-				<div class="comp-head">
-					<span class="comp-title">🕒 HISTORIAL: ¿CÓMO ERA ANTES?</span>
-					<button id="btn-close-comp-view" class="btn-close-comp" type="button">✕ Volver</button>
-				</div>
-				<div id="side-bal-comp-content" class="comp-body"></div>
 			</div>
 
 			<!-- 4 Cuadrantes Estilo Cashflow de Robert Kiyosaki -->
