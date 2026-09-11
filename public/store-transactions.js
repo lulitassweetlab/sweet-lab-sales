@@ -95,11 +95,25 @@ function updateAuthUI() {
     } else if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
         // Con acceso a ventas y vendedor seleccionado (mixto o solo ventas)
         if (storeKitchenBtn) storeKitchenBtn.style.display = hasProductionAccess ? 'block' : 'none';
-        storeAuthBtn.textContent = storeActiveSeller.name;
-        storeAuthBtn.style.color = 'var(--text)';
-        storeAuthBtn.style.borderColor = 'transparent';
-        storeAuthBtn.style.background = 'transparent';
-        storeAuthBtn.style.boxShadow = 'none';
+        const isSuper = storeAuthUser && (storeAuthUser.role === 'superadmin' || ['jorge', 'marcela'].includes((storeAuthUser.username || storeAuthUser.name || '').toLowerCase()));
+        if (isSuper) {
+            storeAuthBtn.innerHTML = `${storeActiveSeller.name} <span style="color:#be185d; font-size:0.75rem; font-weight:800; margin-left:3px;">▼</span>`;
+            storeAuthBtn.style.color = '#be185d';
+            storeAuthBtn.style.borderColor = '#fbcfe8';
+            storeAuthBtn.style.background = '#fdf2f8';
+            storeAuthBtn.style.boxShadow = 'none';
+            storeAuthBtn.style.borderRadius = '12px';
+            storeAuthBtn.style.padding = '6px 12px';
+            storeAuthBtn.title = 'Cambiar de vendedor (Superadmin)';
+        } else {
+            storeAuthBtn.textContent = storeActiveSeller.name;
+            storeAuthBtn.style.color = 'var(--text)';
+            storeAuthBtn.style.borderColor = 'transparent';
+            storeAuthBtn.style.background = 'transparent';
+            storeAuthBtn.style.boxShadow = 'none';
+            storeAuthBtn.style.padding = '8px 12px';
+            storeAuthBtn.title = '';
+        }
         storeClientsBtn.style.display = 'block';
         storeCrmBtn.style.display = 'block';
         if (storeQrBtn) storeQrBtn.style.display = 'block';
@@ -377,11 +391,64 @@ function setupClientAutocomplete() {
     input.addEventListener('blur', () => dropdown.classList.remove('show'));
 }
 
-async function showSellerSelection() {
+async function showSellerSelection(forceShow = false) {
     try {
         const res = await fetch('/api/sellers');
         if (!res.ok) throw new Error('Error al cargar vendedores');
         const allSellers = await res.json();
+
+        const isSuper = storeAuthUser && (storeAuthUser.role === 'superadmin' || ['jorge', 'marcela'].includes((storeAuthUser.username || storeAuthUser.name || '').toLowerCase()));
+
+        if (isSuper) {
+            if (!forceShow && storeActiveSeller) {
+                const fresh = allSellers.find(s => s.id === storeActiveSeller.id || (s.name && s.name.toLowerCase() === (storeActiveSeller.name || '').toLowerCase()));
+                if (fresh) {
+                    setSeller(fresh);
+                    return;
+                }
+            }
+
+            const container = document.getElementById('seller-buttons-container');
+            if (container) {
+                container.innerHTML = '';
+                allSellers.forEach(s => {
+                    const isCurrent = storeActiveSeller && (Number(s.id) === Number(storeActiveSeller.id) || s.name === storeActiveSeller.name);
+                    const btn = document.createElement('button');
+                    btn.className = 'internal-checkout-btn';
+                    btn.style.background = isCurrent ? '#fdf2f8' : 'var(--surface)';
+                    btn.style.color = isCurrent ? '#be185d' : 'var(--text)';
+                    btn.style.border = isCurrent ? '1.5px solid #be185d' : '1px solid var(--border)';
+                    btn.style.fontWeight = isCurrent ? '800' : '600';
+                    btn.style.display = 'flex';
+                    btn.style.justifyContent = 'space-between';
+                    btn.style.alignItems = 'center';
+                    btn.innerHTML = `<span>${s.name}</span> ${isCurrent ? '<span style="color:#be185d; font-size:0.8rem; font-weight:800;">✓ Activo</span>' : ''}`;
+                    btn.addEventListener('click', () => setSeller(s));
+                    container.appendChild(btn);
+                });
+
+                const logoutDiv = document.createElement('div');
+                logoutDiv.style.cssText = 'margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px;';
+                logoutDiv.innerHTML = `
+                    <button type="button" id="btnSuperCancelModal" style="flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-weight:700; cursor:pointer;">Cancelar</button>
+                    <button type="button" id="btnSuperLogoutModal" style="flex:1; padding:10px; border-radius:10px; border:none; background:#fee2e2; color:#b91c1c; font-weight:700; cursor:pointer;">Cerrar Sesión</button>
+                `;
+                container.appendChild(logoutDiv);
+                document.getElementById('btnSuperCancelModal')?.addEventListener('click', () => {
+                    document.getElementById('store-seller-modal').style.display = 'none';
+                });
+                document.getElementById('btnSuperLogoutModal')?.addEventListener('click', () => {
+                    storeAuthUser = null;
+                    storeActiveSeller = null;
+                    safeLS.removeItem('storeAuthUser');
+                    safeLS.removeItem('storeActiveSeller');
+                    safeLS.removeItem('authUser');
+                    window.location.reload();
+                });
+            }
+            document.getElementById('store-seller-modal').style.display = 'flex';
+            return;
+        }
 
         const targetName = (storeAuthUser && (storeAuthUser.username || storeAuthUser.name) || '').toLowerCase();
         let matchedSeller = null;

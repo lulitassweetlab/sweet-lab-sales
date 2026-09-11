@@ -182,7 +182,7 @@
                 onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">+</button>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-            <button id="btnTransferBulk" onclick="startBulkTransferMode()" style="display:none; background:#4f46e5; color:white; font-weight:700; border:none; padding:5px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer; align-items:center; gap:4px;" title="Transferir clientes">🔄 Transferir</button>
+            <button id="btnTransferBulk" onclick="startBulkTransferMode()" style="display:none; background:#be185d; color:white; font-weight:700; border:none; padding:5px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer; align-items:center; gap:4px;" title="Transferir clientes">🔄 Transferir</button>
             <button onclick="navTo('history')" style="background:none; border:none; color:var(--primary-dark); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Historial</button>
             <button onclick="window.location.href='/store.html'" style="background:var(--secondary); color:var(--primary-dark); font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer;" title="Volver a Tienda">Volver</button>
             <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
@@ -206,7 +206,7 @@
             </div>
 
             <!-- BULK TRANSFER BANNER -->
-            <div id="bulkTransferBanner" style="display:none; background:#4f46e5; color:white; padding:12px 18px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(79,70,229,0.3);">
+            <div id="bulkTransferBanner" style="display:none; background:#be185d; color:white; padding:12px 18px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(190,24,93,0.3);">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <div style="font-size:1.5rem;">🔄</div>
                     <div>
@@ -436,8 +436,8 @@
                     <span style="font-size:1.5rem;">🗑</span> Eliminar
                 </button>
                 <button class="btn-primary" id="btnTransferClient" onclick="openTransferPopoverSingle()" 
-                    style="display:none; grid-column: span 2; height: 50px; padding: 0; background:#4f46e5; border:none; border-radius:16px; color:#fff; font-weight:800; transition:all 0.2s; align-items:center; justify-content:center; gap:8px; font-size:1.05rem;"
-                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(79,70,229,0.35)';"
+                    style="display:none; grid-column: span 2; height: 50px; padding: 0; background:#be185d; border:none; border-radius:16px; color:#fff; font-weight:800; transition:all 0.2s; align-items:center; justify-content:center; gap:8px; font-size:1.05rem;"
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(190,24,93,0.35)';"
                     onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
                     <span style="font-size:1.25rem;">🔄</span> Transferir Cliente
                 </button>
@@ -540,7 +540,7 @@
             </div>
             <div style="display:flex; gap:8px;">
                 <button onclick="exitBulkTransferMode()" style="background:var(--bg); border:1px solid var(--border); color:var(--text-muted); font-weight:700; padding:10px 14px; border-radius:12px; cursor:pointer; font-size:0.85rem;">Cancelar</button>
-                <button onclick="openTransferPopoverBulk()" style="background:#4f46e5; border:none; color:white; font-weight:800; padding:10px 16px; border-radius:12px; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(79,70,229,0.35);">
+                <button onclick="openTransferPopoverBulk()" style="background:#be185d; border:none; color:white; font-weight:800; padding:10px 16px; border-radius:12px; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(190,24,93,0.35);">
                     <span>🔄</span> Transferir a...
                 </button>
             </div>
@@ -666,6 +666,21 @@
             <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.85rem;">Cargando vendedores...</div>
         </div>
         <button onclick="closePopovers()" style="width:100%; padding:14px; border-radius:12px; border:none; background:var(--bg); color:var(--text-main); font-weight:800; cursor:pointer; font-size:0.9rem;">Cancelar</button>
+    </div>
+
+    <!-- SUPERADMIN SELLER SWITCHER POPOVER -->
+    <div id="popoverSwitchSeller" onclick="event.stopPropagation()" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:24px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: calc(100% - 40px); max-width: 400px; padding:24px; animation: popInCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); left: 50%; top: 50%; transform: translate(-50%, -50%);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div>
+                <h3 style="margin:0; font-size:1.2rem; font-weight:800; color:var(--text-main);">👥 Cambiar Vendedor</h3>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Ver CRM como otro vendedor</div>
+            </div>
+            <button onclick="closePopovers()" style="background:var(--bg); border:none; width:32px; height:32px; border-radius:50%; font-size:1rem; cursor:pointer; color:var(--text-muted);">✕</button>
+        </div>
+        <div id="switchSellersList" style="max-height:50vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:2px; margin-bottom:16px;">
+            <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.85rem;">Cargando vendedores...</div>
+        </div>
+        <button onclick="closePopovers()" style="width:100%; padding:14px; border-radius:12px; border:none; background:var(--bg); color:var(--text-main); font-weight:800; cursor:pointer; font-size:0.9rem;">Cerrar</button>
     </div>
 
     <!-- MANAGE TAGS MODAL (New) -->
@@ -1068,9 +1083,20 @@
 
             window.storeAuthUser = storeAuth || authUser;
             const targetUsername = (authUser?.name || authUser?.username || storeAuth?.username || storeAuth?.name || '').trim();
+            const isSuperUser = (authUser?.role === 'superadmin' || storeAuth?.role === 'superadmin' || ['jorge', 'marcela'].includes(targetUsername.toLowerCase()));
 
             async function initCrmSession() {
                 const isNumericId = activeSeller && Number.isInteger(Number(activeSeller.id)) && Number(activeSeller.id) > 0;
+
+                if (isSuperUser && activeSeller && isNumericId) {
+                    currentSellerId = Number(activeSeller.id);
+                    window.currentSellerId = currentSellerId;
+                    currentSellerName = activeSeller.name;
+                    document.getElementById('sellerNameLabel').innerText = currentSellerName;
+                    startCrm();
+                    return;
+                }
+
                 const matchesUser = !targetUsername || !activeSeller || (activeSeller.name && activeSeller.name.toLowerCase() === targetUsername.toLowerCase());
 
                 if (activeSeller && isNumericId && matchesUser) {
@@ -1088,7 +1114,10 @@
                         const allSellers = await res.json();
                         if (Array.isArray(allSellers) && allSellers.length > 0) {
                             let matched = null;
-                            if (targetUsername) {
+                            if (isSuperUser && activeSeller) {
+                                matched = allSellers.find(s => s.id === Number(activeSeller.id) || (s.name && s.name.toLowerCase() === (activeSeller.name || '').toLowerCase()));
+                            }
+                            if (!matched && targetUsername) {
                                 matched = allSellers.find(s => s.name && s.name.toLowerCase() === targetUsername.toLowerCase());
                             }
                             if (!matched && activeSeller && activeSeller.name) {
@@ -1102,7 +1131,7 @@
                                 window.currentSellerId = currentSellerId;
                                 currentSellerName = matched.name;
                                 localStorage.setItem('storeActiveSeller', JSON.stringify(matched));
-                                if (window.storeAuthUser) {
+                                if (!isSuperUser && window.storeAuthUser) {
                                     localStorage.setItem('storeAuthUser', JSON.stringify({ ...window.storeAuthUser, username: matched.name }));
                                 }
                                 document.getElementById('sellerNameLabel').innerText = currentSellerName;
@@ -1394,13 +1423,13 @@
 
             const transferCheckboxHtml = window.isTransferMode ? `
                 <div style="margin-right:12px; display:flex; align-items:center; flex-shrink:0;">
-                    <div style="width:22px; height:22px; border-radius:6px; border:2px solid ${isTransferSelected ? '#4f46e5' : 'var(--border)'}; background:${isTransferSelected ? '#4f46e5' : 'transparent'}; display:flex; align-items:center; justify-content:center; color:white; font-size:13px; font-weight:900;">
+                    <div style="width:22px; height:22px; border-radius:6px; border:2px solid ${isTransferSelected ? '#be185d' : 'var(--border)'}; background:${isTransferSelected ? '#be185d' : 'transparent'}; display:flex; align-items:center; justify-content:center; color:white; font-size:13px; font-weight:900;">
                         ${isTransferSelected ? '✓' : ''}
                     </div>
                 </div>
             ` : '';
             const cardBgStyle = window.isTransferMode && isTransferSelected
-                ? 'background:rgba(79, 70, 229, 0.08); border: 1.5px solid #4f46e5;'
+                ? 'background:rgba(190, 24, 93, 0.08); border: 1.5px solid #be185d;'
                 : 'background: var(--surface); border: 1.5px solid transparent;';
 
             // STANDARD LAYOUT (List / Stage Clients)
@@ -4319,7 +4348,7 @@
                 saveNoteFromPopover();
             }
 
-            const pops = ['popoverCreateTag', 'popoverTagAssign', 'popoverNote', 'popoverOverlay', 'locationPopover', 'contactPopover', 'copyPopover', 'statusPopover', 'popoverWhatsApp', 'popoverLocations', 'popoverTransferSeller'];
+            const pops = ['popoverCreateTag', 'popoverTagAssign', 'popoverNote', 'popoverOverlay', 'locationPopover', 'contactPopover', 'copyPopover', 'statusPopover', 'popoverWhatsApp', 'popoverLocations', 'popoverTransferSeller', 'popoverSwitchSeller'];
             pops.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.style.display = 'none';
@@ -4783,6 +4812,35 @@
             if (btnBulk) btnBulk.style.display = isSuper ? 'inline-flex' : 'none';
             const btnSingle = document.getElementById('btnTransferClient');
             if (btnSingle) btnSingle.style.display = isSuper ? 'flex' : 'none';
+
+            const nameLabel = document.getElementById('sellerNameLabel');
+            if (nameLabel) {
+                if (isSuper) {
+                    nameLabel.innerHTML = `${currentSellerName || 'Vendedor'} <span style="color:#be185d; font-size:0.75rem; font-weight:800; margin-left:2px;">▼</span>`;
+                    nameLabel.style.cursor = 'pointer';
+                    nameLabel.style.display = 'inline-flex';
+                    nameLabel.style.alignItems = 'center';
+                    nameLabel.style.gap = '4px';
+                    nameLabel.style.background = '#fdf2f8';
+                    nameLabel.style.border = '1px solid #fbcfe8';
+                    nameLabel.style.color = '#be185d';
+                    nameLabel.style.padding = '4px 10px';
+                    nameLabel.style.borderRadius = '12px';
+                    nameLabel.style.fontWeight = '700';
+                    nameLabel.title = 'Cambiar de vendedor (Superadmin)';
+                    nameLabel.onclick = openSwitchSellerPopover;
+                } else {
+                    nameLabel.innerText = currentSellerName || '';
+                    nameLabel.style.cursor = 'default';
+                    nameLabel.style.display = 'inline';
+                    nameLabel.style.background = 'transparent';
+                    nameLabel.style.border = 'none';
+                    nameLabel.style.color = 'var(--primary-dark)';
+                    nameLabel.style.padding = '0';
+                    nameLabel.title = '';
+                    nameLabel.onclick = null;
+                }
+            }
         }
 
         function startBulkTransferMode() {
@@ -4898,7 +4956,7 @@
                     return `
                         <div onclick="confirmAndExecuteTransfer(${s.id}, '${escapedName}')"
                              style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:var(--bg); cursor:pointer; font-weight:700; font-size:0.95rem; color:var(--text-main); border:1px solid var(--border); transition:all 0.15s;"
-                             onmouseover="this.style.background='rgba(79,70,229,0.08)'; this.style.borderColor='#4f46e5'"
+                             onmouseover="this.style.background='rgba(190,24,93,0.08)'; this.style.borderColor='#be185d'"
                              onmouseout="this.style.background='var(--bg)'; this.style.borderColor='var(--border)'">
                             <span style="font-size:1.3rem;">👤</span>
                             <div style="flex:1;">
@@ -4976,6 +5034,76 @@
             } catch(err) {
                 console.error('Error executing transfer:', err);
                 alert(`Error al transferir: ${err.message}`);
+            }
+        }
+
+        // ── SUPERADMIN SELLER SWITCHER ───────────────────────────────────────
+        async function openSwitchSellerPopover() {
+            if (!isSuperAdmin()) return;
+            const pop = document.getElementById('popoverSwitchSeller');
+            const overlay = document.getElementById('popoverOverlay');
+            const listEl = document.getElementById('switchSellersList');
+
+            if (overlay) overlay.style.display = 'block';
+            if (pop) pop.style.display = 'block';
+            if (listEl) listEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.85rem;">Cargando vendedores...</div>';
+
+            try {
+                const res = await fetch('/api/sellers');
+                const sellers = await res.json();
+                if (!Array.isArray(sellers) || sellers.length === 0) {
+                    listEl.innerHTML = '<div style="text-align:center; padding:15px; color:var(--danger);">No se encontraron vendedores</div>';
+                    return;
+                }
+
+                listEl.innerHTML = sellers.map(s => {
+                    const isCurrent = Number(s.id) === Number(currentSellerId);
+                    const escapedName = (s.name || '').replace(/'/g, "\\'");
+                    return `
+                        <div onclick="switchActiveSeller(${s.id}, '${escapedName}')"
+                             style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:${isCurrent ? '#fdf2f8' : 'var(--bg)'}; cursor:pointer; font-weight:700; font-size:0.95rem; color:${isCurrent ? '#be185d' : 'var(--text-main)'}; border:1px solid ${isCurrent ? '#be185d' : 'var(--border)'}; transition:all 0.15s;"
+                             onmouseover="this.style.background='#fdf2f8'; this.style.borderColor='#be185d'"
+                             onmouseout="this.style.background='${isCurrent ? '#fdf2f8' : 'var(--bg)'}'; this.style.borderColor='${isCurrent ? '#be185d' : 'var(--border)'}'">
+                            <span style="font-size:1.3rem;">👤</span>
+                            <div style="flex:1;">
+                                <div>${s.name}</div>
+                                ${isCurrent ? '<div style="font-size:0.75rem; color:#be185d; font-weight:700;">Activo ahora</div>' : ''}
+                            </div>
+                            <span style="font-size:1.1rem; color:${isCurrent ? '#be185d' : 'var(--text-muted)'}; font-weight:800;">${isCurrent ? '✓' : '➔'}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) {
+                console.error('Error loading sellers for switch:', e);
+                listEl.innerHTML = '<div style="text-align:center; padding:15px; color:var(--danger);">Error al cargar vendedores</div>';
+            }
+        }
+
+        async function switchActiveSeller(targetId, targetName) {
+            targetId = Number(targetId);
+            if (targetId === currentSellerId) {
+                closePopovers();
+                return;
+            }
+            closePopovers();
+            if (window.isTransferMode) exitBulkTransferMode();
+
+            currentSellerId = targetId;
+            window.currentSellerId = targetId;
+            currentSellerName = targetName;
+            try {
+                localStorage.setItem('storeActiveSeller', JSON.stringify({ id: targetId, name: targetName }));
+                localStorage.removeItem(CACHE_PREFIX + 'dashboard_' + targetId);
+                localStorage.removeItem(CACHE_PREFIX + 'directory_' + targetId);
+            } catch(e){}
+
+            updateSuperAdminUI();
+            showToast(`Cambiado a ${targetName}`);
+
+            if (currentScreen === 'dashSearch') {
+                loadFullDirectoryInline();
+            } else {
+                loadDashboard();
             }
         }
 
