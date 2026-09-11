@@ -129,184 +129,139 @@ const TILE_TYPES = {
 // Barajas de cartas
 const SMALL_DEALS = [
 	{
-		title: 'Máquina Expendedora Sweet Lab',
+		title: 'Máquina de Dulces y Snacks 🍬',
 		type: 'business',
-		desc: 'Instalas una máquina automática de postres y snacks en una torre corporativa con alto flujo.',
-		cost: 3500000,
-		downPayment: 3500000,
-		cashFlow: 450000,
-		roi: '154% anual',
-		category: 'Negocio Automatizado'
+		desc: 'Una máquina automática que vende postres solita en un centro comercial.',
+		cost: 2500000,
+		downPayment: 2500000,
+		cashFlow: 380000,
+		category: 'Negocio Automático'
 	},
 	{
-		title: 'Acciones de Sweet Tech Colombia',
-		type: 'stock',
-		ticker: 'SWT',
-		desc: 'Acciones de una empresa tecnológica colombiana a $25.000 c/u. Compras 80 acciones con dividendos.',
+		title: 'Tienda Online de Tortas y Postres 🍰',
+		type: 'business',
+		desc: 'Una página web que recibe pedidos de postres a domicilio todos los días.',
 		cost: 2000000,
 		downPayment: 2000000,
-		shares: 80,
-		pricePerShare: 25000,
-		cashFlow: 120000,
-		roi: '72% anual',
+		cashFlow: 320000,
+		category: 'Emprendimiento'
+	},
+	{
+		title: 'Acciones Sweet Lab Colombia 📈',
+		type: 'stock',
+		ticker: 'SWT',
+		desc: 'Compras una partecita de una empresa y recibes ganancias cada mes.',
+		cost: 1500000,
+		downPayment: 1500000,
+		cashFlow: 220000,
 		category: 'Acciones'
 	},
 	{
-		title: 'Tienda Online de Galletas y Postres',
-		type: 'business',
-		desc: 'Creas una tienda digital automatizada de regalos y tortas artesanales con mensajería.',
-		cost: 2200000,
-		downPayment: 2200000,
-		cashFlow: 340000,
-		roi: '185% anual',
-		category: 'Emprendimiento Digital'
-	},
-	{
-		title: 'CDT Digital de Alto Rendimiento',
+		title: 'Ahorro con Intereses Seguros 🏦',
 		type: 'fund',
-		desc: 'Inversión en renta fija que genera intereses mensuales asegurados.',
-		cost: 4000000,
-		downPayment: 4000000,
-		cashFlow: 380000,
-		roi: '114% anual',
-		category: 'Fondo de Inversión'
+		desc: 'Dinero guardado en el banco que te genera una ganancia fija mensual.',
+		cost: 3000000,
+		downPayment: 3000000,
+		cashFlow: 350000,
+		category: 'Ahorro Seguro'
 	},
 	{
-		title: 'Monedas de Oro y Joyería Fina',
+		title: 'Monedas de Oro de Colección 🪙',
 		type: 'precious_metal',
-		desc: 'Compras 2 monedas de oro raras a precio de ganga para venderlas en El Mercado con alta plusvalía.',
+		desc: 'Monedas de oro fino para guardar y vender más caras cuando suba El Mercado.',
 		cost: 1800000,
 		downPayment: 1800000,
 		cashFlow: 0,
-		category: 'Coleccionable'
+		category: 'Oro y Ahorro'
 	},
 	{
-		title: 'Club de Suscriptores de Recetas Gourmet',
+		title: 'Carrito de Helados y Café 🍦',
 		type: 'business',
-		desc: 'Comunidad digital de repostería donde miembros pagan suscripción mensual recurrente.',
-		cost: 2500000,
-		downPayment: 2500000,
-		cashFlow: 390000,
-		roi: '187% anual',
-		category: 'Negocio Digital'
-	},
-	{
-		title: 'Carrito Móvil de Postres y Café',
-		type: 'business',
-		desc: 'Puesto portátil en una plazoleta comercial operado por un colaborador.',
-		cost: 4200000,
-		downPayment: 4200000,
-		cashFlow: 580000,
-		roi: '165% anual',
-		category: 'Punto de Venta'
-	},
-	{
-		title: 'Estación de Café y Snacks Sweet Lab',
-		type: 'business',
-		desc: 'Instalas una pequeña estación de café de especialidad y galletas en un coworking.',
+		desc: 'Un carrito móvil que atiende en el parque y te entrega ganancias todos los meses.',
 		cost: 3200000,
 		downPayment: 3200000,
-		cashFlow: 420000,
-		roi: '157% anual',
-		category: 'Negocio Automatizado'
+		cashFlow: 450000,
+		category: 'Negocio Local'
 	},
 	{
-		title: 'Participación en Lote de Paneles Solares',
-		type: 'fund',
-		desc: 'Inversión comunitaria en energía solar que vende excedentes y reparte utilidades.',
-		cost: 4500000,
-		downPayment: 4500000,
-		cashFlow: 520000,
-		roi: '138% anual',
-		category: 'Energía Renovable'
-	},
-	{
-		title: 'Software SaaS para Restaurantes Locales',
+		title: 'Club de Recetas Gourmet ⭐',
 		type: 'business',
-		desc: 'App de menú digital y comandas que cobra suscripciones mensuales a 12 restaurantes.',
-		cost: 2800000,
-		downPayment: 2800000,
-		cashFlow: 490000,
-		roi: '210% anual',
-		category: 'Tecnología'
+		desc: 'Personas que pagan una cuota mensual por recibir recetas y postres sorpresa.',
+		cost: 1800000,
+		downPayment: 1800000,
+		cashFlow: 290000,
+		category: 'Club Digital'
+	},
+	{
+		title: 'Apartaestudio para Alquilar 🏠',
+		type: 'property',
+		propertyType: 'apartaestudio',
+		desc: 'Un apartamento pequeño que alquilas a un estudiante y te paga arriendo fijo.',
+		cost: 4000000,
+		downPayment: 4000000,
+		cashFlow: 520000,
+		category: 'Propiedad Raíz'
 	}
 ];
 
 const DOODADS = [
 	{
-		title: 'Último Smartphone de Gama Alta',
-		desc: 'Compraste el teléfono de última generación para estrenar con tus amigos.',
-		cost: 3800000,
-		lesson: '¿Era una necesidad o un deseo? Gastar en pasivos antes de tener activos retrasa tu libertad.'
+		title: 'Nuevo Teléfono Inteligente 📱',
+		desc: 'Compraste un celular nuevo de moda para estrenar con amigos.',
+		cost: 1500000
 	},
 	{
-		title: 'Cena Gourmet y Rumba de Cumpleaños',
-		desc: 'Invitaste a cenar a tus amigos en un restaurante elegante sin presupuestarlo.',
-		cost: 450000,
-		lesson: 'Disfrutar la vida es genial, pero tener un presupuesto asignado para ocio evita sobresaltos.'
+		title: 'Salida de Helados y Cine en Familia 🍨',
+		desc: 'Invitaste a todos a comer postres gigantes y ver una película.',
+		cost: 350000
 	},
 	{
-		title: 'Reparación Imprevista del Carro o Moto',
-		desc: 'Falla mecánica imprevista en frenos y suspensión que debiste arreglar de urgencia.',
-		cost: 750000,
-		lesson: '¡Para esto sirve el Fondo de Emergencia! Evita endeudarte ante imprevistos del día a día.'
+		title: 'Mantenimiento del Carro o Moto 🚗',
+		desc: 'Tuviste que arreglarle una llanta y hacer mantenimiento de urgencia.',
+		cost: 650000
 	},
 	{
-		title: 'Televisor Gigante 4K en Oferta',
-		desc: 'Una pantalla gigante de 75 pulgadas comprada en jornada de descuentos.',
-		cost: 1950000,
-		lesson: 'Un televisor es un pasivo: saca dinero de tu bolsillo y se deprecia con los meses.'
+		title: 'Televisor Gigante en Promoción 📺',
+		desc: 'Viste una pantalla enorme en descuento y decidiste comprarla hoy.',
+		cost: 1800000
 	},
 	{
-		title: 'Compras por Impulso en el Centro Comercial',
-		desc: 'Ropa de marca, tenis y accesorios comprados sin planificar.',
-		cost: 650000,
-		lesson: 'Los gastos hormiga y compras impulsivas reducen tu capacidad de crear capital de inversión.'
+		title: 'Muchos Cafés y Dulces en la Calle ☕',
+		desc: 'Compras pequeñas diarias de café y snacks acumuladas en la semana.',
+		cost: 250000
 	},
 	{
-		title: 'Suscripciones y Domicilios Acumulados',
-		desc: 'Plataformas de streaming, apps y domicilios frecuentes que olvidaste cancelar.',
-		cost: 280000,
-		lesson: 'Revisar periódicamente tus gastos fijos elimina fugas silenciosas de dinero.'
+		title: 'Zapatos y Ropa de Moda 👟',
+		desc: 'Compraste unos tenis nuevos que te gustaron en el centro comercial.',
+		cost: 550000
 	}
 ];
 
 const MARKET_EVENTS = [
 	{
-		title: '¡Auge en Bienes Raíces!',
-		desc: 'Un fondo de inversión busca apartaestudios en la ciudad. Ofrecen pagar $200.000.000 COP por cada uno. Quien tenga uno puede venderlo hoy y ganar $70.000.000 COP netos de plusvalía.',
+		title: '¡Comprador para tu Apartaestudio! 🏠',
+		desc: 'Un fondo busca apartamentos pequeños y te paga una gran ganancia en efectivo.',
 		appliesTo: 'apartaestudio',
-		salePrice: 200000000,
-		netGain: 70000000,
-		actionText: 'Vender Apartaestudio con Ganancia de +$70.000.000'
+		salePrice: 15000000,
+		netGain: 11000000
 	},
 	{
-		title: '¡Boom Tecnológico: Sweet Tech!',
-		desc: 'Sweet Tech anuncia utilidades récord en Colombia. Sus acciones suben a $65.000 COP c/u (adquiridas a $25.000). Quien tenga acciones puede liquidarlas con ganancia de +$3.200.000 COP.',
+		title: '¡Suben las Acciones de Sweet Lab! 📈',
+		desc: 'La empresa crece mucho en Colombia y puedes vender tus acciones por el triple.',
 		appliesTo: 'stock_SWT',
-		newPrice: 65000,
-		netGain: 3200000,
-		actionText: 'Vender Acciones a $65.000 c/u (Ganancia: +$3.200.000)'
+		salePrice: 4500000,
+		netGain: 3000000
 	},
 	{
-		title: 'Comprador para Apartamento en la Playa',
-		desc: 'Una cadena hotelera compra condominios turísticos pagando una plusvalía neta de $60.000.000 COP al propietario.',
-		appliesTo: 'condo_playa',
-		salePrice: 300000000,
-		netGain: 60000000,
-		actionText: 'Vender Apartamento Turístico (Ganancia: +$60.000.000)'
-	},
-	{
-		title: 'Subasta de Oro y Joyería Fina',
-		desc: 'Compradores pagan $4.500.000 COP por lote de monedas de oro (adquiridas a $1.800.000).',
+		title: '¡Subasta de Oro de Colección! 🪙',
+		desc: 'Coleccionistas pagan una fortuna por monedas de oro fino hoy.',
 		appliesTo: 'precious_metal',
 		salePrice: 4500000,
-		netGain: 2700000,
-		actionText: 'Vender Oro por $4.500.000 (Ganancia: +$2.700.000)'
+		netGain: 2700000
 	},
 	{
-		title: 'Mercado Estable y Seguro',
-		desc: 'La economía se mantiene equilibrada este mes. Excelente momento para acumular ahorros y preparar tu siguiente inversión.',
+		title: 'Mercado Estable y Tranquilo 🌤️',
+		desc: 'La economía está en calma. ¡Sigue comprando negocios en las casillas verdes!',
 		appliesTo: null
 	}
 ];
@@ -714,36 +669,97 @@ function startGame() {
 	centerPerspective();
 }
 
+const MEADOW_PROPS = [
+	{ icon: '🌳', label: 'Árbol Frondoso' },
+	{ icon: '🌲', label: 'Pino Verde' },
+	{ icon: '🌸', label: 'Flores Silvestres' },
+	{ icon: '🏡', label: 'Cabaña' },
+	{ icon: '🌿', label: 'Pradera' },
+	{ icon: '🌻', label: 'Girasoles' },
+	{ icon: '🌳', label: 'Arboleda' },
+	{ icon: '🌷', label: 'Jardín Florido' }
+];
+
+const BEACH_PROPS = [
+	{ icon: '🌴', label: 'Palmera Tropical' },
+	{ icon: '🏖️', label: 'Playa Dorada' },
+	{ icon: '🌊', label: 'Olas del Mar' },
+	{ icon: '⛵', label: 'Velero en el Océano' },
+	{ icon: '🥥', label: 'Cocos' },
+	{ icon: '⛱️', label: 'Sombrilla' },
+	{ icon: '🌴', label: 'Palma Costera' },
+	{ icon: '🏄', label: 'Surf' }
+];
+
 /**
- * Si son 2 jugadores, crea 2 columnas exactamente en paralelo lado a lado.
- * Si es 1 o más de 2, crea 1 columna principal compartida.
+ * Genera el camino 3D y la escenografía que lo rodea:
+ * - A la izquierda: Praderas verdes, árboles y flores
+ * - Al centro: Las pistas de los jugadores
+ * - A la derecha: Playa dorada, palmeras y mar turquesa
  */
 function setupRoad3DScene() {
 	const scene = document.getElementById('road-3d-scene-container');
 	if (!scene) return;
 	scene.innerHTML = '';
 
-	const isParallelTwo = gameState.players.length === 2;
+	const tileCount = Math.max(30, gameState.generatedTiles.length || 60);
 
+	// 1. Escenografía Izquierda: Campos Verdes, Árboles y Colinas
+	const colMeadow = document.createElement('div');
+	colMeadow.className = 'scenery-column';
+	const trackMeadow = document.createElement('div');
+	trackMeadow.className = 'scenery-3d-track scenery-strip-left';
+	trackMeadow.id = 'scenery-lane-left';
+	for (let i = 0; i < tileCount; i++) {
+		const prop = MEADOW_PROPS[i % MEADOW_PROPS.length];
+		const item = document.createElement('div');
+		item.className = 'scenery-item-3d';
+		item.innerHTML = `
+			<div class="scenery-ground-patch meadow"></div>
+			<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
+		`;
+		trackMeadow.appendChild(item);
+	}
+	colMeadow.appendChild(trackMeadow);
+	scene.appendChild(colMeadow);
+
+	// 2. Caminos de los Jugadores
+	const isParallelTwo = gameState.players.length === 2;
 	if (isParallelTwo) {
-		// Camino Jugador 1 (Izquierda)
 		const col0 = document.createElement('div');
 		col0.className = 'parallel-road-column';
 		col0.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
 		scene.appendChild(col0);
 
-		// Camino Jugador 2 (Derecha)
 		const col1 = document.createElement('div');
 		col1.className = 'parallel-road-column';
 		col1.innerHTML = `<div class="road-3d-track" id="road-lane-track-1"></div>`;
 		scene.appendChild(col1);
 	} else {
-		// Columna única
 		const col = document.createElement('div');
 		col.className = 'parallel-road-column';
 		col.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
 		scene.appendChild(col);
 	}
+
+	// 3. Escenografía Derecha: Playa Soleada, Palmeras, Sombrillas y Mar
+	const colBeach = document.createElement('div');
+	colBeach.className = 'scenery-column';
+	const trackBeach = document.createElement('div');
+	trackBeach.className = 'scenery-3d-track scenery-strip-right';
+	trackBeach.id = 'scenery-lane-right';
+	for (let i = 0; i < tileCount; i++) {
+		const prop = BEACH_PROPS[i % BEACH_PROPS.length];
+		const item = document.createElement('div');
+		item.className = 'scenery-item-3d';
+		item.innerHTML = `
+			<div class="scenery-ground-patch sand"></div>
+			<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
+		`;
+		trackBeach.appendChild(item);
+	}
+	colBeach.appendChild(trackBeach);
+	scene.appendChild(colBeach);
 }
 
 function updatePawnsOnRoad() {
@@ -788,39 +804,34 @@ function updateHUDAndHeaders() {
 
 	gameState.players.forEach((p, idx) => {
 		const fin = getPlayerFinancials(p);
-		const isTurn = idx === gameState.currentPlayerIndex;
+		const isMyTurn = idx === gameState.currentPlayerIndex;
 
 		const card = document.createElement('div');
-		card.className = `road-player-stat-header ${isTurn ? 'is-current-turn' : ''}`;
-		card.style.borderTop = `4px solid ${p.color}`;
+		card.className = `player-stat-header-card ${isMyTurn ? 'active-player-header' : ''}`;
+		card.style.borderTopColor = p.color;
 
 		card.innerHTML = `
-			<div class="stat-header-pawn" style="background:${p.bg}; border-color:${p.color};">
-				${p.avatar}
-			</div>
-			<div class="stat-header-info">
-				<div class="stat-header-title-row">
-					<span class="stat-header-name" style="color:${p.color};">${p.name}</span>
-					${isTurn ? `<span class="stat-header-turn-badge">En Turno 🎲</span>` : ''}
+			<div class="stat-header-player-title">
+				<div class="avatar-circle" style="background:${p.bg};">${p.avatar}</div>
+				<div>
+					<div class="player-name">${p.name}</div>
+					<div class="player-role">${p.profession}</div>
 				</div>
-				<div class="stat-header-financial-numbers">
-					<div class="fin-item">
-						<span class="lbl">Efectivo</span>
-						<span class="val green">${formatCOP(p.cash)}</span>
-					</div>
-					<div class="fin-item">
-						<span class="lbl">Flujo/Mes</span>
-						<span class="val ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
-					</div>
-					<div class="fin-item">
-						<span class="lbl">Libertad</span>
-						<span class="val blue">${fin.freedomProgress}%</span>
-					</div>
+				${isMyTurn ? '<span class="stat-header-turn-badge">En Turno</span>' : ''}
+			</div>
+
+			<div class="stat-header-financial-numbers">
+				<div class="fin-item">
+					<span class="lbl">Efectivo</span>
+					<span class="val ${p.cash >= 0 ? 'green' : 'red'}">${formatCOP(p.cash)}</span>
+				</div>
+				<div class="fin-item">
+					<span class="lbl">Flujo/Mes</span>
+					<span class="val blue">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
 				</div>
 			</div>
 		`;
 
-		// Al hacer click en el header, abre su balance
 		card.addEventListener('click', () => {
 			gameState.selectedDrawerPlayerIndex = idx;
 			openBalanceDrawer();
@@ -858,6 +869,7 @@ function updateHUDAndHeaders() {
 /**
  * Centra la perspectiva hacia el horizonte.
  * Toma en cuenta el avance de la ficha + el cameraViewOffset si el usuario está explorando adelante.
+ * Sincroniza tanto los caminos como la escenografía 3D (árboles y playa).
  */
 function centerPerspective() {
 	const current = gameState.players[gameState.currentPlayerIndex];
@@ -867,9 +879,13 @@ function centerPerspective() {
 
 	const track0 = document.getElementById('road-lane-track-0');
 	const track1 = document.getElementById('road-lane-track-1');
+	const sceneryLeft = document.getElementById('scenery-lane-left');
+	const sceneryRight = document.getElementById('scenery-lane-right');
 
 	if (track0) track0.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
 	if (track1) track1.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
+	if (sceneryLeft) sceneryLeft.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
+	if (sceneryRight) sceneryRight.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
 }
 
 // ==========================================
@@ -1019,18 +1035,15 @@ function collectPayday(player, isLanding) {
 		showModal({
 			headerClass: 'payday',
 			icon: '💰',
-			title: '¡DÍA DE PAGO MENSUAL!',
-			subtitle: 'Has cobrado tu Flujo de Caja Neto',
-			desc: `Recibes tu sueldo e ingresos pasivos menos tus gastos fijos del mes.`,
+			title: '¡DÍA DE PAGO!',
+			subtitle: '¡Llegó tu dinero del mes!',
+			desc: `Recibes tu sueldo mensual y las ganancias de todos tus negocios juntos.`,
 			stats: [
-				{ label: 'Sueldo Fijo', value: formatCOP(player.salary) },
-				{ label: 'Ingresos Pasivos', value: `+${formatCOP(fin.passiveIncome)}`, color: 'green' },
-				{ label: 'Gastos Mensuales', value: `-${formatCOP(fin.totalExpenses)}`, color: 'red' },
-				{ label: 'Flujo Neto Cobrado', value: `${formatCOP(fin.monthlyCashFlow)} COP`, color: 'green' },
-				{ label: 'Nuevo Saldo en Efectivo', value: `${formatCOP(player.cash)} COP`, color: 'green' }
+				{ label: '💵 Ganancia que cobras hoy:', value: `+${formatCOP(fin.monthlyCashFlow)} COP`, color: 'green' },
+				{ label: '🏦 Tu dinero total en el bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
 			],
 			buttons: [
-				{ text: 'Continuar ➔', action: () => { closeModal(() => endTurn()); } }
+				{ text: '¡Cobrar y Continuar! ➔', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 	}
@@ -1046,20 +1059,19 @@ function presentDeal(player, deal) {
 	const canAfford = player.cash >= deal.downPayment;
 
 	const stats = [
-		{ label: 'Costo Total', value: `${formatCOP(deal.cost)} COP` },
-		{ label: 'Inversión / Cuota Inicial', value: `${formatCOP(deal.downPayment)} COP` },
-		{ label: 'Flujo Pasivo Mensual', value: `+${formatCOP(deal.cashFlow)}/mes`, color: 'green' },
-		{ label: 'Tu Efectivo Actual', value: `${formatCOP(player.cash)} COP`, color: canAfford ? 'green' : 'red' }
+		{ label: '💰 Pagas hoy (Inversión):', value: `${formatCOP(deal.downPayment)} COP` }
 	];
 
-	if (deal.roi) {
-		stats.push({ label: 'Retorno Estimado (ROI)', value: deal.roi, color: 'green' });
+	if (deal.cashFlow > 0) {
+		stats.push({ label: '📈 Ganancia extra cada mes:', value: `+${formatCOP(deal.cashFlow)} COP / mes`, color: 'green' });
+	} else {
+		stats.push({ label: '✨ Plusvalía esperada:', value: '¡Véndelo en El Mercado con gran ganancia!', color: 'green' });
 	}
 
 	const buttons = [];
 	if (canAfford) {
 		buttons.push({
-			text: `Comprar Inversión (${formatCOP(deal.downPayment)})`,
+			text: `¡Comprar Negocio! 🚀 (${formatCOP(deal.downPayment)})`,
 			class: 'primary',
 			action: () => {
 				player.cash -= deal.downPayment;
@@ -1069,18 +1081,18 @@ function presentDeal(player, deal) {
 				showModal({
 					headerClass: 'opportunity',
 					icon: '🎉',
-					title: '¡FELICITACIONES POR TU ACTIVO!',
+					title: '¡FELICITACIONES!',
 					subtitle: deal.title,
-					desc: `Has incorporado este activo a tu balance. A partir de ahora sumas <strong>+${formatCOP(deal.cashFlow)} COP/mes</strong> en cada Día de Pago.`,
+					desc: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> cada mes en tu Día de Pago.`,
 					buttons: [
-						{ text: '¡Excelente!', action: () => { closeModal(() => endTurn()); } }
+						{ text: '¡Continuar Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
 					]
 				});
 			}
 		});
 	} else {
 		buttons.push({
-			text: 'Pedir Préstamo Bancario 🏦',
+			text: 'Pedir Préstamo al Banco 🏦',
 			class: 'primary',
 			action: () => {
 				showLoanModal(() => presentDeal(player, deal));
@@ -1089,7 +1101,7 @@ function presentDeal(player, deal) {
 	}
 
 	buttons.push({
-		text: 'Rechazar Oportunidad',
+		text: 'Dejar Pasar ➔',
 		class: 'secondary',
 		action: () => { closeModal(() => endTurn()); }
 	});
@@ -1098,7 +1110,7 @@ function presentDeal(player, deal) {
 		headerClass: 'opportunity',
 		icon: '💼',
 		title: deal.title,
-		subtitle: deal.category || 'Inversión',
+		subtitle: deal.category || 'Oportunidad',
 		desc: deal.desc,
 		stats: stats,
 		buttons: buttons
@@ -1115,15 +1127,15 @@ function showDoodadModal(player) {
 	showModal({
 		headerClass: 'doodad',
 		icon: '🛍️',
-		title: '¡CAPRICHO INESPERADO!',
+		title: '¡GASTO IMPREVISTO!',
 		subtitle: doodad.title,
-		desc: `${doodad.desc}<br><br><em style="color:#64748b;">Lección: "${doodad.lesson}"</em>`,
+		desc: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Cuidar los gastos pequeños te ayuda a tener más dinero para comprar negocios.</small>`,
 		stats: [
-			{ label: 'Gasto Ocurrido', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
-			{ label: 'Efectivo Restante', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
+			{ label: '💸 Dinero pagado hoy:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
+			{ label: '🏦 Te queda en efectivo:', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
 		],
 		buttons: [
-			{ text: 'Aceptar y Aprender', action: () => { closeModal(() => endTurn()); } }
+			{ text: 'Entendido y Continuar ➔', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
@@ -1136,21 +1148,20 @@ function showMarketModal(player) {
 		showModal({
 			headerClass: 'market',
 			icon: '📈',
-			title: event.title,
+			title: 'Noticias del Mercado 🌤️',
 			subtitle: 'El Mercado',
-			desc: event.desc,
+			desc: 'La economía está tranquila este mes. ¡Sigue comprando negocios en las casillas verdes!',
 			buttons: [
-				{ text: 'Continuar', action: () => { closeModal(() => endTurn()); } }
+				{ text: 'Continuar ➔', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 		return;
 	}
 
 	const eligibleIndex = player.assets.findIndex(a => {
-		if (event.appliesTo === 'apartaestudio' && a.propertyType === 'apartaestudio') return true;
-		if (event.appliesTo === 'condo_playa' && a.propertyType === 'condo_playa') return true;
-		if (event.appliesTo === 'stock_SWT' && a.ticker === 'SWT') return true;
-		if (event.appliesTo === 'precious_metal' && a.type === 'precious_metal') return true;
+		if (event.appliesTo === 'apartaestudio' && (a.category === 'Propiedad Raíz' || a.title?.includes('Apartaestudio') || a.propertyType === 'apartaestudio')) return true;
+		if (event.appliesTo === 'stock_SWT' && (a.category === 'Acciones' || a.ticker === 'SWT')) return true;
+		if (event.appliesTo === 'precious_metal' && (a.category === 'Oro y Ahorro' || a.type === 'precious_metal' || a.title?.includes('Oro'))) return true;
 		return false;
 	});
 
@@ -1159,10 +1170,10 @@ function showMarketModal(player) {
 			headerClass: 'market',
 			icon: '📈',
 			title: event.title,
-			subtitle: 'Oportunidad de Mercado',
-			desc: `${event.desc}<br><br><em>No tienes este activo en este momento. ¡Asegúrate de invertir en las casillas verdes para vender cuando haya auge!</em>`,
+			subtitle: 'Oportunidad de Venta',
+			desc: `Un comprador está buscando negocios o propiedades, pero tú aún no tienes este activo.<br><br><em>¡Asegúrate de comprar en las casillas verdes para vender cuando haya auge!</em>`,
 			buttons: [
-				{ text: 'Entendido', action: () => { closeModal(() => endTurn()); } }
+				{ text: '¡Entendido! ➔', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 		return;
@@ -1173,15 +1184,15 @@ function showMarketModal(player) {
 		headerClass: 'market',
 		icon: '💰',
 		title: event.title,
-		subtitle: `¡Tienes un comprador para: ${asset.title}!`,
-		desc: `${event.desc}<br><br>¿Deseas vender tu activo hoy y capitalizar tus ganancias?`,
+		subtitle: `¡Alguien quiere comprarte: ${asset.title}!`,
+		desc: `Hay un comprador interesado en comprar tu negocio hoy mismo. ¿Quieres venderlo y recibir una buena suma de dinero?`,
 		stats: [
-			{ label: 'Precio de Venta Ofrecido', value: `${formatCOP(event.salePrice)} COP`, color: 'green' },
-			{ label: 'Ganancia Neta en Efectivo', value: `+${formatCOP(event.netGain)} COP`, color: 'green' }
+			{ label: '💰 Te pagan en efectivo:', value: `${formatCOP(event.salePrice)} COP`, color: 'green' },
+			{ label: '✨ Tu ganancia libre:', value: `+${formatCOP(event.netGain)} COP`, color: 'green' }
 		],
 		buttons: [
 			{
-				text: '¡Vender y Cobrar Plusvalía!',
+				text: '¡Vender y Recibir Dinero! 💰',
 				class: 'primary',
 				action: () => {
 					player.assets.splice(eligibleIndex, 1);
@@ -1193,13 +1204,13 @@ function showMarketModal(player) {
 						icon: '🎉',
 						title: '¡VENTA EXITOSA!',
 						subtitle: `Ganancia: +${formatCOP(event.netGain)} COP`,
-						desc: `Has liquidado tu inversión. Tienes una gran suma en efectivo para adquirir negocios mayores.`,
-						buttons: [{ text: 'Continuar', action: () => { closeModal(() => endTurn()); } }]
+						desc: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)} COP</strong> en efectivo para invertir en cosas mayores.`,
+						buttons: [{ text: 'Continuar ➔', action: () => { closeModal(() => endTurn()); } }]
 					});
 				}
 			},
 			{
-				text: 'Conservar el Activo',
+				text: 'Conservar mi Negocio ➔',
 				class: 'secondary',
 				action: () => { closeModal(() => endTurn()); }
 			}
@@ -1215,16 +1226,16 @@ function showCharityModal(player) {
 	showModal({
 		headerClass: 'charity',
 		icon: '🎁',
-		title: '¡CARIDAD Y GENEROSIDAD!',
-		subtitle: 'La Ley de la Siembra y la Cosecha',
-		desc: `Donar el <strong>10% de tu sueldo mensual (${formatCOP(donation)} COP)</strong> te permite recibir una bonificación inmediata de flujo de efectivo.`,
+		title: '¡BUENA ACCIÓN Y CARIDAD!',
+		subtitle: 'Ayudar a los Demás',
+		desc: `Donas un 10% de tu sueldo (<strong>${formatCOP(donation)} COP</strong>) a una causa noble. Por tu generosidad, recibes una bonificación inmediata de agradecimiento.`,
 		stats: [
-			{ label: 'Donación Requerida', value: `${formatCOP(donation)} COP` },
-			{ label: 'Tu Efectivo', value: `${formatCOP(player.cash)} COP` }
+			{ label: 'Donación que aportas:', value: `${formatCOP(donation)} COP` },
+			{ label: '🎁 Regalo que recibes de vuelta:', value: `+${formatCOP(Math.round(donation * 1.5))} COP`, color: 'green' }
 		],
 		buttons: [
 			{
-				text: `Donar ${formatCOP(donation)}`,
+				text: `¡Donar con Alegría! 🎁 (${formatCOP(donation)})`,
 				class: 'primary',
 				action: () => {
 					if (!canAfford) {
@@ -1239,7 +1250,7 @@ function showCharityModal(player) {
 				}
 			},
 			{
-				text: 'No donar esta vez',
+				text: 'Esta vez no ➔',
 				class: 'secondary',
 				action: () => { closeModal(() => endTurn()); }
 			}
@@ -1258,15 +1269,15 @@ function showCrisisModal(player) {
 	showModal({
 		headerClass: 'crisis',
 		icon: '🚨',
-		title: '¡DESPIDO / CESANTÍA!',
-		subtitle: 'Pérdida Temporal de Turno',
-		desc: `La empresa pasa por una reestructuración. Cubres tus gastos fijos del mes (${formatCOP(cost)} COP) con tus ahorros y pierdes tu próximo turno buscando nuevas oportunidades.`,
+		title: '¡PAUSA TEMPORAL!',
+		subtitle: 'Pérdida de un Turno',
+		desc: `Tomas un descanso este mes para buscar nuevos clientes y reorganizarte.`,
 		stats: [
-			{ label: 'Gastos Cubiertos', value: `-${formatCOP(cost)} COP`, color: 'red' },
-			{ label: 'Efectivo Restante', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
+			{ label: '💸 Gastos del mes cubiertos:', value: `-${formatCOP(cost)} COP`, color: 'red' },
+			{ label: '🏦 Efectivo que te queda:', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
 		],
 		buttons: [
-			{ text: 'Afrontar la Situación', action: () => { closeModal(() => endTurn()); } }
+			{ text: '¡Seguimos Adelante! ➔', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
@@ -1283,17 +1294,17 @@ function showLoanModal(callbackAfterLoan) {
 	showModal({
 		headerClass: 'opportunity',
 		icon: '🏦',
-		title: 'BANCO SWEET LAB',
-		subtitle: 'Solicitud de Crédito de Inversión',
-		desc: `Pide préstamos en múltiplos de <strong>$1.000.000 COP</strong> con una tasa preferencial del 3% mensual ($30.000 COP/mes de intereses que se suman a tus gastos fijos).`,
+		title: 'BANCO SWEET LAB 🏦',
+		subtitle: 'Préstamo de Inversión',
+		desc: `Pide dinero prestado al banco para comprar un negocio que te dé ganancias. Pagas un pequeño interés mensual de $30.000 COP por cada millón prestado.`,
 		stats: [
-			{ label: 'Préstamo Disponible', value: '+$1.000.000 COP', color: 'green' },
-			{ label: 'Interés Mensual', value: '+$30.000 COP/mes', color: 'red' },
-			{ label: 'Tu Deuda Actual', value: formatCOP(player.totalDebt) }
+			{ label: '💵 Dinero que te entregan hoy:', value: '+$1.000.000 COP', color: 'green' },
+			{ label: 'Interés mensual que pagarás:', value: '$30.000 COP / mes', color: 'red' },
+			{ label: 'Tu deuda bancaria total:', value: formatCOP(player.totalDebt) }
 		],
 		buttons: [
 			{
-				text: 'Pedir $1.000.000 COP',
+				text: 'Pedir $1.000.000 COP al Banco',
 				class: 'primary',
 				action: () => {
 					player.cash += loanBlock;
@@ -1306,7 +1317,7 @@ function showLoanModal(callbackAfterLoan) {
 				}
 			},
 			{
-				text: 'Pedir $5.000.000 COP',
+				text: 'Pedir $5.000.000 COP al Banco',
 				class: 'primary',
 				action: () => {
 					const block5 = loanBlock * 5;
@@ -1320,7 +1331,7 @@ function showLoanModal(callbackAfterLoan) {
 				}
 			},
 			{
-				text: 'Cancelar',
+				text: 'Cancelar ➔',
 				class: 'secondary',
 				action: () => {
 					if (callbackAfterLoan) callbackAfterLoan();
@@ -1633,7 +1644,8 @@ function showModal({ headerClass, icon, title, subtitle, desc, stats = [], butto
 		sounds.genieMagic();
 
 		// Animar elevación, expansión a la mitad de la pantalla y volteo 3D a 180°
-		const animDuration = '0.75s cubic-bezier(0.25, 1, 0.3, 1)';
+		// 0.5s más pausada (1.25s) para una experiencia fluida y fácil de contemplar
+		const animDuration = '1.25s cubic-bezier(0.22, 1, 0.36, 1)';
 		wrapper.style.transition = `transform ${animDuration}, width ${animDuration}, height ${animDuration}`;
 		flipper.style.transition = `transform ${animDuration}`;
 
@@ -1645,7 +1657,7 @@ function showModal({ headerClass, icon, title, subtitle, desc, stats = [], butto
 
 		setTimeout(() => {
 			wrapper.style.pointerEvents = 'auto';
-		}, 750);
+		}, 1250);
 	} else {
 		// Modo de respaldo
 		overlay.classList.add('active');
@@ -1682,7 +1694,8 @@ function closeModal(callback) {
 		const startX = rect.left + rect.width / 2 - startW / 2;
 		const startY = rect.top + rect.height / 2 - startH / 2;
 
-		const returnDuration = '0.65s cubic-bezier(0.25, 1, 0.3, 1)';
+		// Animar de regreso 0.5s más pausada (1.15s)
+		const returnDuration = '1.15s cubic-bezier(0.22, 1, 0.36, 1)';
 		wrapper.style.transition = `transform ${returnDuration}, width ${returnDuration}, height ${returnDuration}`;
 		flipper.style.transition = `transform ${returnDuration}`;
 
@@ -1711,7 +1724,7 @@ function closeModal(callback) {
 				gameState.pendingEndTurn = false;
 				endTurn();
 			}
-		}, 650);
+		}, 1150);
 	} else {
 		overlay.classList.remove('active');
 		wrapper.style.display = 'none';
