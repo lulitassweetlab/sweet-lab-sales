@@ -410,8 +410,35 @@ const TILE_TYPES = {
 		icon: '⏸️',
 		sub: 'Descansas 1 turno',
 		badge: 'Pausa'
+	},
+	housing: {
+		type: 'housing',
+		styleClass: 'tile-color-housing',
+		name: 'MEJORA VIVIENDA',
+		icon: '🏡',
+		sub: 'Mejora tu hogar',
+		badge: 'Mejora Hogar'
 	}
 };
+
+// Escala de Mejoras de Vivienda (Alquiler progresivo calibrado a solicitud)
+const HOUSING_LEVELS = [
+	{ level: 0, title: 'Habitación Básica', rent: 500000, icon: '🛏️', desc: 'Habitación sencilla independiente o compartida para iniciar tu carrera.' },
+	{ level: 1, title: 'Habitación Mejor', rent: 600000, icon: '🚪', desc: 'Habitación con ventana exterior, mejor iluminación y espacio más cómodo.' },
+	{ level: 2, title: 'Súper Habitación', rent: 700000, icon: '🛋️', desc: 'Habitación amplia con baño privado y clóset espacioso.' },
+	{ level: 3, title: 'Habitación de Lujo', rent: 1000000, icon: '⭐', desc: 'Habitación premium en sector exclusivo, acabados modernos y servicios incluidos.' },
+	{ level: 4, title: 'Apartaestudio', rent: 1300000, icon: '🏢', desc: 'Espacio totalmente independiente con cocina americana y baño privado.' },
+	{ level: 5, title: 'Apartaestudio Mejor', rent: 1400000, icon: '🏙️', desc: 'Apartaestudio con balcón, excelente ventilación y zona de ropas.' },
+	{ level: 6, title: 'Súper Apartaestudio', rent: 1500000, icon: '✨', desc: 'Apartaestudio contemporáneo en edificio inteligente con gimnasio.' },
+	{ level: 7, title: 'Apartamento 2 Habitaciones', rent: 1700000, icon: '🏠', desc: 'Apartamento de dos cuartos, sala comedor y cocina integral.' },
+	{ level: 8, title: 'Apartamento 2 Habitaciones Mejor', rent: 1800000, icon: '🏡', desc: 'Apartamento de 2 habitaciones remodelado en conjunto cerrado con parqueadero.' },
+	{ level: 9, title: 'Súper Apartamento 2 Habitaciones', rent: 1900000, icon: '🌟', desc: 'Apartamento de 2 alcobas con acabados de lujo, terraza y vigilancia 24h.' },
+	{ level: 10, title: 'Apartamento 3 Habitaciones', rent: 2000000, icon: '🏘️', desc: 'Apartamento familiar amplio de 3 habitaciones, sala de televisión y estudio.' },
+	{ level: 11, title: 'Apartamento 3 Habitaciones Mejor', rent: 2200000, icon: '🏰', desc: 'Apartamento de 3 alcobas en estrato alto con club house, piscina y canchas.' },
+	{ level: 12, title: 'Súper Apartamento 3 Habitaciones', rent: 2400000, icon: '💎', desc: 'Exclusivo apartamento de 3 alcobas con vista panorámica y ascensor privado.' },
+	{ level: 13, title: 'Penthouse Exclusivo', rent: 2800000, icon: '👑', desc: 'Penthouse de doble altura con terraza privada BBQ y jacuzzi.' },
+	{ level: 14, title: 'Casa Campestre Familiar', rent: 3200000, icon: '🌳', desc: 'Residencia campestre privada rodeada de naturaleza y amplios jardines.' }
+];
 
 // Barajas de cartas adaptadas al capital inicial ($500.000 COP) y salarios 2026
 // Utilidades mensuales calibradas a solicitud del usuario:
@@ -1699,6 +1726,13 @@ function pickTileForIndex(index) {
 		return { ...TILE_TYPES.payday, id: index, badge: `Mes ${monthNum}` };
 	}
 
+	// Casilla de Mejora de Vivienda: aparece cada 5 salarios (5 * 24 = 120 casillas)
+	// Ejemplo: en la casilla 126 (después de 5 salarios: Mes 5 en casilla 120), casilla 246 (Mes 10), etc.
+	if (index >= 120 && index % 120 === 6) {
+		const cycleNum = Math.floor(index / 120);
+		return { ...TILE_TYPES.housing, id: index, badge: `Hogar #${cycleNum}` };
+	}
+
 	const cycle = index % 24;
 	let typeKey = 'opportunity';
 
@@ -1951,6 +1985,9 @@ function startGame() {
 			bg: avatar.bg,
 			profession: 'Sin empleo',
 			salary: 0,
+			housingLevel: 0,
+			rentExpense: 500000,
+			otherExpenses: 0,
 			fixedExpenses: 0, // Flujo neto mensual inicia en exactamente 0
 			debtExpenses: 0,
 			totalDebt: 0,
@@ -2347,6 +2384,9 @@ function savePlayerFinancialSnapshot(player, reason = 'Transacción') {
 		salary: player.salary,
 		passiveIncome: fin.passiveIncome,
 		fixedExpenses: player.fixedExpenses,
+		rentExpense: player.rentExpense || 500000,
+		otherExpenses: player.otherExpenses || 0,
+		housingLevel: player.housingLevel || 0,
 		debtExpenses: player.debtExpenses,
 		totalExpenses: fin.totalExpenses,
 		monthlyCashFlow: fin.monthlyCashFlow,
@@ -2356,9 +2396,36 @@ function savePlayerFinancialSnapshot(player, reason = 'Transacción') {
 	};
 }
 
+/**
+ * Muestra el botón para que el usuario confirme y cierre el modal manualmente,
+ * garantizando que el modal y el balance NO se cierren solos.
+ */
+function showModalContinueButton(onContinue) {
+	const footerEl = document.getElementById('modal-footer');
+	if (!footerEl) {
+		if (onContinue) onContinue();
+		return;
+	}
+	footerEl.innerHTML = '';
+	const contBtn = document.createElement('button');
+	contBtn.className = 'cf-dialog-btn primary btn-continue-pulse';
+	contBtn.style.width = '100%';
+	contBtn.style.padding = '14px 20px';
+	contBtn.style.fontSize = '1.05rem';
+	contBtn.style.fontWeight = '900';
+	contBtn.style.borderRadius = '14px';
+	contBtn.style.background = 'linear-gradient(135deg, #16a34a, #15803d)';
+	contBtn.style.boxShadow = '0 6px 20px rgba(22, 163, 74, 0.4)';
+	contBtn.innerHTML = '¡Balance Actualizado! Continuar Turno ➔';
+	contBtn.addEventListener('click', () => {
+		if (onContinue) onContinue();
+	});
+	footerEl.appendChild(contBtn);
+}
+
 function animateTransactionNumbersToBalance({
 	amount,
-	category = 'cash', // 'cash' | 'flow' | 'salary' | 'debt'
+	category = 'cash', // 'cash' | 'flow' | 'salary' | 'debt' | 'expense'
 	sourceEl = null,
 	label = '',
 	onComplete = null
@@ -2378,6 +2445,8 @@ function animateTransactionNumbersToBalance({
 		targetEl = document.getElementById('side-bal-salary') || document.getElementById('side-bal-flow');
 	} else if (category === 'debt') {
 		targetEl = document.getElementById('side-bal-total-debt') || document.getElementById('side-bal-cash');
+	} else if (category === 'expense') {
+		targetEl = document.getElementById('side-bal-rent-exp') || document.getElementById('side-bal-total-exp');
 	}
 
 	// Posición de inicio (origen del número volador)
@@ -2428,6 +2497,9 @@ function animateTransactionNumbersToBalance({
 	} else if (category === 'debt') {
 		chip.classList.add(isPositive ? 'flying-chip-loss' : 'flying-chip-gain');
 		chip.innerHTML = `${sign}${formattedVal} 💳`;
+	} else if (category === 'expense') {
+		chip.classList.add(isPositive ? 'flying-chip-loss' : 'flying-chip-gain');
+		chip.innerHTML = `${isPositive ? '+' : '-'}${formattedVal}/m 🏡`;
 	} else {
 		chip.classList.add(isPositive ? 'flying-chip-gain' : 'flying-chip-loss');
 		chip.innerHTML = `${sign}${formattedVal} ${isPositive ? '💵' : '💸'}`;
@@ -2450,9 +2522,9 @@ function animateTransactionNumbersToBalance({
 		chip.style.opacity = '1';
 		chip.style.transform = 'translate(-50%, -50%) scale(1.15)';
 
-		// Fase 2: Viajar parabólicamente hacia el balance
+		// Fase 2: Viajar pausadamente hacia el balance (1 segundo más de duración: 1550ms)
 		setTimeout(() => {
-			const flyDuration = 550;
+			const flyDuration = 1550;
 			chip.style.transition = `left ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), top ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${flyDuration}ms ease`;
 			chip.style.left = `${endX}px`;
 			chip.style.top = `${endY}px`;
@@ -2514,6 +2586,7 @@ function toggleSideBalanceComparison(player) {
 	const flowDiff = fin.monthlyCashFlow - prev.monthlyCashFlow;
 	const salDiff = player.salary - prev.salary;
 	const debtDiff = player.totalDebt - prev.totalDebt;
+	const rentDiff = (player.rentExpense || 500000) - (prev.rentExpense || 500000);
 	const assetsDiff = player.assets.length - prev.assetsCount;
 
 	compContent.innerHTML = `
@@ -2552,6 +2625,14 @@ function toggleSideBalanceComparison(player) {
 					<td style="font-weight:900;">${formatCOP(player.salary)}</td>
 					<td style="font-weight:900; color:${salDiff > 0 ? '#16a34a' : '#64748b'};">
 						${salDiff > 0 ? `+${formatCOP(salDiff)}` : 'Sin cambio'}
+					</td>
+				</tr>
+				<tr>
+					<td>🏡 Alquiler</td>
+					<td style="color:#64748b;">${formatCOP(prev.rentExpense || 500000)}/m</td>
+					<td style="font-weight:900; color:#dc2626;">${formatCOP(player.rentExpense || 500000)}/m</td>
+					<td style="font-weight:900; color:${rentDiff > 0 ? '#dc2626' : (rentDiff < 0 ? '#16a34a' : '#64748b')};">
+						${rentDiff !== 0 ? (rentDiff > 0 ? `+${formatCOP(rentDiff)}` : `${formatCOP(rentDiff)}`) : 'Sin cambio'}
 					</td>
 				</tr>
 				<tr>
@@ -2603,7 +2684,10 @@ function handleLanding(player, tile) {
 			player.hasJob = true;
 			player.profession = job.title;
 			player.salary = job.salary;
-			player.fixedExpenses = job.salary; // Flujo neto mensual = 0 COP al inicio
+			player.housingLevel = player.housingLevel || 0;
+			player.rentExpense = HOUSING_LEVELS[player.housingLevel]?.rent || 500000;
+			player.otherExpenses = Math.max(0, job.salary - player.rentExpense);
+			player.fixedExpenses = player.otherExpenses + player.rentExpense; // Flujo neto mensual = 0 COP al inicio
 			player.salariesCollected = 0;
 			player.jobTier = 1;
 
@@ -2619,7 +2703,8 @@ function handleLanding(player, tile) {
 				stats: [
 					{ label: 'Empleo obtenido:', value: job.title },
 					{ label: 'Casilla alcanzada:', value: `#${tile.globalIndex}` },
-					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' }
+					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' },
+					{ label: 'Alquiler vivienda:', value: `-${formatCOP(player.rentExpense)} COP / mes`, color: 'red' }
 				],
 				buttons: [
 					{
@@ -2634,7 +2719,9 @@ function handleLanding(player, tile) {
 								sourceEl: btnEl,
 								label: job.title,
 								onComplete: () => {
-									closeModal(() => endTurn());
+									showModalContinueButton(() => {
+										closeModal(() => endTurn());
+									});
 								}
 							});
 						}
@@ -2692,9 +2779,91 @@ function handleLanding(player, tile) {
 		case 'crisis':
 			showCrisisModal(player);
 			break;
+		case 'housing':
+			showHousingModal(player);
+			break;
 		default:
 			endTurn();
 	}
+}
+
+/**
+ * 1.5. Mejora de Vivienda (Aparece cada 5 salarios = 120 casillas)
+ * El jugador escala peldaño a peldaño en su vivienda pagando un alquiler mayor acorde a su estilo de vida.
+ */
+function showHousingModal(player) {
+	const currentLevel = player.housingLevel || 0;
+	const currentHousing = HOUSING_LEVELS[currentLevel] || HOUSING_LEVELS[0];
+	const isMaxLevel = currentLevel >= HOUSING_LEVELS.length - 1;
+
+	if (isMaxLevel) {
+		showModal({
+			typeName: '🏡 ¡VIVIENDA DE ENSUEÑO!',
+			headerClass: 'housing',
+			icon: currentHousing.icon,
+			title: currentHousing.title,
+			detailedInfo: `¡Increíble, <strong>${player.name}</strong>! Ya vives en el nivel máximo de vivienda: <strong>${currentHousing.title}</strong>.<br><em>${currentHousing.desc}</em><br><br>Disfrutas del mayor confort pagando tu alquiler de <strong>${formatCOP(currentHousing.rent)} COP/mes</strong> sin necesidad de mudarte más.`,
+			stats: [
+				{ label: 'Vivienda actual:', value: currentHousing.title },
+				{ label: 'Alquiler actual:', value: `${formatCOP(currentHousing.rent)} COP/mes`, color: 'red' }
+			],
+			buttons: [
+				{
+					text: 'Disfrutar mi Hogar ➔',
+					class: 'primary',
+					action: () => {
+						closeModal(() => endTurn());
+					}
+				}
+			]
+		});
+		return;
+	}
+
+	const nextLevel = currentLevel + 1;
+	const nextHousing = HOUSING_LEVELS[nextLevel];
+	const rentDiff = nextHousing.rent - currentHousing.rent;
+
+	showModal({
+		typeName: '🏡 ¡MEJORA DE VIVIENDA!',
+		headerClass: 'housing',
+		icon: nextHousing.icon,
+		title: nextHousing.title,
+		detailedInfo: `¡Enhorabuena, <strong>${player.name}</strong>! Has encontrado una excelente oportunidad de mudanza y mejoras tu calidad de vida.<br><br>Pagas alquiler de vivienda, pasando de <strong>${currentHousing.title}</strong> a <strong>${nextHousing.title}</strong>.<br><em>${nextHousing.desc}</em>`,
+		stats: [
+			{ label: 'Vivienda anterior:', value: `${currentHousing.title} (${formatCOP(currentHousing.rent)}/mes)` },
+			{ label: 'Nueva vivienda:', value: nextHousing.title },
+			{ label: 'Nuevo alquiler mensual:', value: `${formatCOP(nextHousing.rent)} COP / mes`, color: 'red' },
+			{ label: 'Aumento en alquiler:', value: `+${formatCOP(rentDiff)} COP / mes`, color: 'red' }
+		],
+		buttons: [
+			{
+				text: `¡Mudarme a ${nextHousing.title}! 🔑`,
+				class: 'primary',
+				action: () => {
+					savePlayerFinancialSnapshot(player, `Mudanza: ${nextHousing.title}`);
+					player.housingLevel = nextLevel;
+					player.rentExpense = nextHousing.rent;
+					player.fixedExpenses = (player.otherExpenses || 0) + player.rentExpense;
+					sounds.cash();
+					updateHUDAndHeaders();
+
+					const btnEl = document.querySelector('#modal-footer button');
+					animateTransactionNumbersToBalance({
+						amount: rentDiff,
+						category: 'expense',
+						sourceEl: btnEl,
+						label: nextHousing.title,
+						onComplete: () => {
+							showModalContinueButton(() => {
+								closeModal(() => endTurn());
+							});
+						}
+					});
+				}
+			}
+		]
+	});
 }
 
 /**
@@ -2793,7 +2962,9 @@ function collectPayday(player, isLanding) {
 								sourceEl: btnEl,
 								label: 'Aumento 5%',
 								onComplete: () => {
-									closeModal();
+									showModalContinueButton(() => {
+										closeModal();
+									});
 								}
 							});
 						}
@@ -2836,7 +3007,9 @@ function collectPayday(player, isLanding) {
 								sourceEl: btnEl,
 								label: 'Ascenso 10%',
 								onComplete: () => {
-									closeModal();
+									showModalContinueButton(() => {
+										closeModal();
+									});
 								}
 							});
 						}
@@ -2874,7 +3047,9 @@ function collectPayday(player, isLanding) {
 								sourceEl: btnEl,
 								label: 'Cobro de Mes',
 								onComplete: () => {
-									closeModal(() => endTurn());
+									showModalContinueButton(() => {
+										closeModal(() => endTurn());
+									});
 								}
 							});
 						} else {
@@ -3008,7 +3183,9 @@ function showPromotionModal(player) {
 							sourceEl: btnEl,
 							label: 'Bono Sorpresa',
 							onComplete: () => {
-								closeModal(() => endTurn());
+								showModalContinueButton(() => {
+									closeModal(() => endTurn());
+								});
 							}
 						});
 					}, 220);
@@ -3184,7 +3361,9 @@ function showDoodadModal(player) {
 						sourceEl: btnEl,
 						label: doodad.title,
 						onComplete: () => {
-							closeModal(() => endTurn());
+							showModalContinueButton(() => {
+								closeModal(() => endTurn());
+							});
 						}
 					});
 				}
@@ -3332,7 +3511,9 @@ function showCharityModal(player) {
 						sourceEl: btnEl,
 						label: 'Recompensa Donación',
 						onComplete: () => {
-							closeModal(() => endTurn());
+							showModalContinueButton(() => {
+								closeModal(() => endTurn());
+							});
 						}
 					});
 				}
@@ -3408,7 +3589,7 @@ function showLoanModal(callbackAfterLoan) {
 						label: 'Préstamo',
 						onComplete: () => {
 							if (callbackAfterLoan) callbackAfterLoan();
-							else closeModal(() => endTurn());
+							else showModalContinueButton(() => closeModal(() => endTurn()));
 						}
 					});
 				}
@@ -3433,7 +3614,7 @@ function showLoanModal(callbackAfterLoan) {
 						label: 'Préstamo',
 						onComplete: () => {
 							if (callbackAfterLoan) callbackAfterLoan();
-							else closeModal(() => endTurn());
+							else showModalContinueButton(() => closeModal(() => endTurn()));
 						}
 					});
 				}
@@ -3493,7 +3674,9 @@ function showPayDebtModal() {
 						sourceEl: btnEl,
 						label: 'Pago Deuda',
 						onComplete: () => {
-							closeModal();
+							showModalContinueButton(() => {
+								closeModal();
+							});
 						}
 					});
 				}
@@ -3561,7 +3744,12 @@ function updateDrawerFinancials(playerIndex) {
 
 	document.getElementById('drawer-salary').textContent = formatCOP(p.salary);
 	document.getElementById('drawer-passive').textContent = formatCOP(fin.passiveIncome);
-	document.getElementById('drawer-fixed-exp').textContent = formatCOP(p.fixedExpenses);
+	const drawerRentEl = document.getElementById('drawer-rent-exp');
+	const drawerOtherEl = document.getElementById('drawer-other-exp');
+	const drawerFixedEl = document.getElementById('drawer-fixed-exp');
+	if (drawerRentEl) drawerRentEl.textContent = formatCOP(p.rentExpense || 500000);
+	if (drawerOtherEl) drawerOtherEl.textContent = formatCOP(p.otherExpenses || 0);
+	if (drawerFixedEl) drawerFixedEl.textContent = formatCOP(p.fixedExpenses);
 	document.getElementById('drawer-debt-exp').textContent = formatCOP(p.debtExpenses);
 
 	const assetsList = document.getElementById('drawer-assets-list');
@@ -3764,9 +3952,13 @@ function renderModalSideBalance() {
 	if (totalIncomeEl) totalIncomeEl.textContent = formatCOP(fin.totalIncome);
 
 	// 2. SALIDAS / GASTOS
+	const rentExpEl = document.getElementById('side-bal-rent-exp');
+	const otherExpEl = document.getElementById('side-bal-other-exp');
 	const fixedExpEl = document.getElementById('side-bal-fixed-exp');
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
+	if (rentExpEl) rentExpEl.textContent = `-${formatCOP(player.rentExpense || 500000)}`;
+	if (otherExpEl) otherExpEl.textContent = `-${formatCOP(player.otherExpenses || 0)}`;
 	if (fixedExpEl) fixedExpEl.textContent = `-${formatCOP(player.fixedExpenses)}`;
 	if (debtExpEl) debtExpEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
 	if (totalExpEl) totalExpEl.textContent = `-${formatCOP(fin.totalExpenses)}`;

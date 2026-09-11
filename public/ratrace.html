@@ -572,6 +572,10 @@
 			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 120' width='100%25' height='100%25'%3E%3Cdefs%3E%3ClinearGradient id='zg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23faf5ff'/%3E%3Cstop offset='60%25' stop-color='%23f3e8ff'/%3E%3Cstop offset='100%25' stop-color='%23e9d5ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='240' height='120' fill='url(%23zg)'/%3E%3Cg transform='translate(25, 30)' opacity='0.5'%3E%3Cpath d='M25,0 C12,0 2,10 2,24 C2,37 12,48 25,48 C28,48 32,47 35,45 C23,43 14,32 14,20 C14,10 20,2 29,0 C28,0 26,0 25,0 Z' fill='%237e22ce'/%3E%3C/g%3E%3Cpolygon points='65,22 67,26 71,27 67,29 65,33 63,29 59,27 63,26' fill='%239333ea' opacity='0.4'/%3E%3Cpolygon points='75,50 76,52 79,53 76,55 75,58 73,55 70,53 73,52' fill='%239333ea' opacity='0.3'/%3E%3Cg transform='translate(175, 40)' opacity='0.5'%3E%3Crect x='4' y='14' width='26' height='24' rx='4' fill='%237e22ce'/%3E%3Cpath d='M30,18 C36,18 36,30 30,30' fill='none' stroke='%237e22ce' stroke-width='3'/%3E%3Cpath d='M10,8 Q12,3 10,0' fill='none' stroke='%23a855f7' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M17,8 Q19,3 17,0' fill='none' stroke='%23a855f7' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M24,8 Q26,3 24,0' fill='none' stroke='%23a855f7' stroke-width='2' stroke-linecap='round'/%3E%3C/g%3E%3Cellipse cx='120' cy='60' rx='40' ry='20' fill='%23a855f7' opacity='0.08'/%3E%3C/svg%3E");
 		}
 
+		.tile-bg-housing {
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 120' width='100%25' height='100%25'%3E%3Cdefs%3E%3ClinearGradient id='hg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23fff7ed'/%3E%3Cstop offset='60%25' stop-color='%23ffedd5'/%3E%3Cstop offset='100%25' stop-color='%23fed7aa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='240' height='120' fill='url(%23hg)'/%3E%3Cg transform='translate(20, 26)' opacity='0.55'%3E%3Cpolygon points='25,4 48,22 2,22' fill='%23ea580c'/%3E%3Crect x='8' y='22' width='34' height='28' rx='2' fill='%23f97316'/%3E%3Crect x='20' y='32' width='10' height='18' rx='1' fill='%23fff7ed'/%3E%3Crect x='12' y='26' width='6' height='6' rx='1' fill='%23ffedd5'/%3E%3Crect x='32' y='26' width='6' height='6' rx='1' fill='%23ffedd5'/%3E%3C/g%3E%3Cg transform='translate(170, 26)' opacity='0.55'%3E%3Cpolygon points='30,2 56,22 4,22' fill='%23ea580c'/%3E%3Crect x='10' y='22' width='40' height='32' rx='2' fill='%23f97316'/%3E%3Crect x='24' y='34' width='12' height='20' rx='1' fill='%23fff7ed'/%3E%3Ccircle cx='50' cy='18' r='5' fill='%23ea580c'/%3E%3C/g%3E%3Ccircle cx='85' cy='35' r='8' fill='%23f97316' opacity='0.25'/%3E%3Ccircle cx='155' cy='85' r='6' fill='%23f97316' opacity='0.25'/%3E%3Cpath d='M75,90 C80,82 90,82 95,90' fill='none' stroke='%23ea580c' stroke-width='2' opacity='0.3'/%3E%3C/svg%3E");
+		}
+
 		.tile-header-row {
 			position: relative;
 			z-index: 4;
@@ -716,6 +720,20 @@
 		}
 		.tile-color-promotion .tile-main-name { color: #b45309; }
 		.tile-color-promotion .tile-sub-badge { background: #fde68a; color: #92400e; }
+
+		.tile-color-housing {
+			border-color: #f97316;
+		}
+		.tile-color-housing .tile-main-name { color: #c2410c; }
+		.tile-color-housing .tile-sub-badge { background: #ffedd5; color: #c2410c; }
+
+		@keyframes continuePulse {
+			0%, 100% { transform: scale(1); box-shadow: 0 4px 18px rgba(22, 163, 74, 0.35); }
+			50% { transform: scale(1.025); box-shadow: 0 6px 24px rgba(22, 163, 74, 0.55); }
+		}
+		.btn-continue-pulse {
+			animation: continuePulse 1.8s infinite ease-in-out;
+		}
 
 		/* Casilla Vacía / Paso Libre (Casilla 1) */
 		.tile-bg-nothing {
@@ -2117,8 +2135,16 @@
 						<span id="drawer-passive" style="font-weight:800; color:#16a34a;">$0</span>
 					</div>
 					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0; border-top:1px dashed var(--border-color); margin-top:4px;">
-						<span style="color:var(--text-muted);">Gastos del Mes:</span>
-						<span id="drawer-fixed-exp" style="font-weight:800; color:#dc2626;">$400.000</span>
+						<span style="color:var(--text-muted);">Alquiler Vivienda:</span>
+						<span id="drawer-rent-exp" style="font-weight:800; color:#dc2626;">$500.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Otros Gastos:</span>
+						<span id="drawer-other-exp" style="font-weight:800; color:#dc2626;">$0</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Gastos Totales Mes:</span>
+						<span id="drawer-fixed-exp" style="font-weight:800; color:#dc2626;">$500.000</span>
 					</div>
 					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
 						<span style="color:var(--text-muted);">Cuota de Préstamo:</span>
@@ -2250,12 +2276,16 @@
 				<div class="k-quadrant k-expenses">
 					<div class="k-q-head">
 						<span class="k-q-title">2. SALIDAS</span>
-						<span id="side-bal-total-exp" class="k-q-total red">-$400.000</span>
+						<span id="side-bal-total-exp" class="k-q-total red">-$500.000</span>
 					</div>
 					<div class="k-q-body">
 						<div class="k-item">
-							<span class="lbl">Fijos:</span>
-							<span id="side-bal-fixed-exp" class="val">-$400.000</span>
+							<span class="lbl">Alquiler:</span>
+							<span id="side-bal-rent-exp" class="val red">-$500.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Otros gastos:</span>
+							<span id="side-bal-other-exp" class="val">-$0</span>
 						</div>
 						<div class="k-item">
 							<span class="lbl">Deudas:</span>
