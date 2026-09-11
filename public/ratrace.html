@@ -11,23 +11,23 @@
 	<link rel="stylesheet" href="/styles.css" />
 	<style>
 		:root {
-			/* Paleta Luminosa: Blanco y 1% Gris */
-			--bg-main: #f8fafc;        /* 1% gris muy suave */
-			--bg-card: #ffffff;        /* Blanco puro */
-			--bg-subtle: #f1f5f9;      /* Gris tenue para cajas internas */
-			--border-color: #e2e8f0;   /* Borde fino */
+			/* Paleta Minimalista Blanca y 1% Gris */
+			--bg-main: #f8fafc;
+			--bg-card: #ffffff;
+			--bg-subtle: #f1f5f9;
+			--border-color: #e2e8f0;
 			--border-focus: #cbd5e1;
-			--text-main: #0f172a;      /* Texto oscuro legible */
-			--text-muted: #64748b;     /* Texto secundario */
+			--text-main: #0f172a;
+			--text-muted: #64748b;
 			--text-light: #94a3b8;
 
-			/* Colores Oficiales de Casillas CashFlow */
-			--tile-payday: #facc15;      /* Amarillo Oro - Día de Pago */
-			--tile-opp: #16a34a;         /* Verde - Oportunidades */
-			--tile-doodad: #db2777;      /* Rosa Magenta - Caprichos */
-			--tile-market: #2563eb;      /* Azul Real - El Mercado */
-			--tile-charity: #ea580c;     /* Naranja - Caridad */
-			--tile-crisis: #7e22ce;      /* Morado - Despido */
+			/* Colores Oficiales CashFlow */
+			--tile-payday: #facc15;
+			--tile-opp: #16a34a;
+			--tile-doodad: #db2777;
+			--tile-market: #2563eb;
+			--tile-charity: #ea580c;
+			--tile-crisis: #7e22ce;
 		}
 
 		* {
@@ -39,71 +39,69 @@
 			margin: 0;
 			padding: 0;
 			width: 100%;
-			min-height: 100vh;
+			height: 100%;
 			font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 			background: var(--bg-main);
 			color: var(--text-main);
 			overflow-x: hidden;
 		}
 
-		/* Barra Superior Limpia y Blanca */
+		/* Barra Superior Minimalista */
 		.cf-header {
-			background: rgba(255, 255, 255, 0.98);
-			backdrop-filter: blur(12px);
-			border-bottom: 1.5px solid var(--border-color);
-			padding: 10px 24px;
+			background: rgba(255, 255, 255, 0.96);
+			backdrop-filter: blur(10px);
+			border-bottom: 1px solid var(--border-color);
+			padding: 8px 20px;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			position: sticky;
 			top: 0;
 			z-index: 200;
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 		}
 
 		.cf-brand {
 			display: flex;
 			align-items: center;
-			gap: 12px;
+			gap: 10px;
 		}
 
 		.cf-brand img {
-			height: 38px;
+			height: 32px;
 			width: auto;
-			border-radius: 8px;
-			border: 1px solid var(--border-color);
+			border-radius: 6px;
 		}
 
 		.cf-brand-titles h1 {
 			margin: 0;
 			font-family: 'Outfit', sans-serif;
-			font-size: 1.3rem;
+			font-size: 1.15rem;
 			font-weight: 900;
 			color: var(--text-main);
 			display: flex;
 			align-items: center;
-			gap: 8px;
+			gap: 6px;
 		}
 
 		.cf-brand-titles span {
-			font-size: 0.75rem;
+			font-size: 0.7rem;
 			color: var(--text-muted);
 			font-weight: 700;
 			text-transform: uppercase;
-			letter-spacing: 1px;
+			letter-spacing: 0.5px;
 		}
 
 		.cf-actions {
 			display: flex;
 			align-items: center;
-			gap: 10px;
+			gap: 8px;
 		}
 
 		.cf-btn {
 			border: none;
 			border-radius: 10px;
-			padding: 8px 16px;
-			font-size: 0.85rem;
+			padding: 7px 14px;
+			font-size: 0.8rem;
 			font-weight: 800;
 			cursor: pointer;
 			transition: all 0.2s ease;
@@ -115,193 +113,633 @@
 
 		.cf-btn:hover {
 			transform: translateY(-1px);
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+			box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 		}
 
 		.cf-btn-gold {
 			background: linear-gradient(135deg, #facc15, #f59e0b);
 			color: #713f12;
-			box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
 		}
 
 		.cf-btn-secondary {
 			background: var(--bg-card);
 			color: var(--text-main);
-			border: 1.5px solid var(--border-color);
+			border: 1px solid var(--border-color);
 		}
 
-		/* HUD Flotante Fijo: Tirada de Dados y Turno */
-		.cf-hud-bar {
-			background: rgba(255, 255, 255, 0.98);
-			border-bottom: 2px solid var(--border-color);
-			padding: 10px 24px;
+		/* HUD Minimalista Superior */
+		.minimal-hud {
+			background: rgba(255, 255, 255, 0.92);
+			backdrop-filter: blur(8px);
+			border-bottom: 1px solid var(--border-color);
+			padding: 8px 24px;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			flex-wrap: wrap;
-			gap: 16px;
-			box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+			gap: 12px;
 			position: sticky;
-			top: 60px;
+			top: 50px;
 			z-index: 150;
 		}
 
-		.hud-player-turn {
+		.hud-player-summary {
 			display: flex;
 			align-items: center;
-			gap: 12px;
+			gap: 10px;
 		}
 
-		.hud-player-avatar {
-			width: 44px;
-			height: 44px;
+		.hud-pawn-bubble {
+			width: 40px;
+			height: 40px;
 			border-radius: 50%;
 			background: var(--bg-subtle);
-			border: 2.5px solid #3b82f6;
+			border: 2px solid #3b82f6;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 1.5rem;
+			font-size: 1.4rem;
 			box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 		}
 
-		.hud-player-info h3 {
+		.hud-name-box h3 {
 			margin: 0;
-			font-size: 1.15rem;
-			font-weight: 900;
-			color: var(--text-main);
 			font-family: 'Outfit', sans-serif;
+			font-size: 1.05rem;
+			font-weight: 900;
 		}
 
-		.hud-player-info span {
-			font-size: 0.8rem;
+		.hud-name-box span {
+			font-size: 0.75rem;
 			color: var(--text-muted);
 			font-weight: 600;
 		}
 
-		.hud-dice-controls {
+		/* Pastillas Financieras Esenciales */
+		.hud-quick-stats {
 			display: flex;
 			align-items: center;
 			gap: 12px;
 		}
 
-		.hud-dice {
-			width: 50px;
-			height: 50px;
+		.stat-pill {
+			background: var(--bg-subtle);
+			border: 1px solid var(--border-color);
+			border-radius: 12px;
+			padding: 5px 14px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.stat-pill .label {
+			font-size: 0.65rem;
+			color: var(--text-muted);
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+
+		.stat-pill .val {
+			font-family: 'Outfit', sans-serif;
+			font-size: 0.95rem;
+			font-weight: 900;
+		}
+
+		.stat-pill .val.green { color: #16a34a; }
+		.stat-pill .val.blue { color: #2563eb; }
+
+		/* Mini barra de libertad */
+		.freedom-pill-bar {
+			display: flex;
+			flex-direction: column;
+			gap: 3px;
+			min-width: 140px;
+		}
+
+		.freedom-pill-header {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.68rem;
+			font-weight: 800;
+			font-family: 'Outfit', sans-serif;
+			color: var(--text-muted);
+		}
+
+		.freedom-bar-track {
+			height: 8px;
+			background: #e2e8f0;
+			border-radius: 4px;
+			overflow: hidden;
+		}
+
+		.freedom-bar-fill {
+			height: 100%;
+			background: linear-gradient(90deg, #3b82f6, #16a34a);
+			border-radius: 4px;
+			transition: width 0.4s ease;
+		}
+
+		.btn-open-balance {
+			background: #ffffff;
+			border: 1.5px solid #16a34a;
+			color: #15803d;
+			border-radius: 12px;
+			padding: 6px 14px;
+			font-size: 0.82rem;
+			font-weight: 800;
+			font-family: 'Outfit', sans-serif;
+			cursor: pointer;
+			transition: all 0.2s;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.btn-open-balance:hover {
+			background: #f0fdf4;
+			transform: translateY(-1px);
+		}
+
+		/* ====================================================
+		   PERSPECTIVA DEL CAMINO HACIA ADELANTE (HACIA EL FONDO)
+		   ==================================================== */
+		.stage-perspective-viewport {
+			position: relative;
+			width: 100%;
+			height: calc(100vh - 210px);
+			min-height: 460px;
+			max-height: 600px;
+			margin: 0 auto;
+			overflow: hidden;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: flex-end;
+			background: radial-gradient(circle at 50% 15%, #ffffff 0%, #f1f5f9 100%);
+		}
+
+		/* Gradiente de horizonte al fondo (suaviza la lejanía) */
+		.horizon-line {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 90px;
+			background: linear-gradient(to bottom, #ffffff 40%, rgba(248, 250, 252, 0) 100%);
+			z-index: 50;
+			pointer-events: none;
+		}
+
+		/* Contenedor con Perspectiva 3D */
+		.road-3d-scene {
+			position: absolute;
+			bottom: 0;
+			width: 100%;
+			max-width: 500px;
+			height: 100%;
+			perspective: 750px;
+			perspective-origin: 50% 85%;
+			display: flex;
+			justify-content: center;
+			align-items: flex-end;
+		}
+
+		/* La Cinta / Camino que Avanza Hacia el Fondo */
+		.road-3d-track {
+			width: 250px;
+			display: flex;
+			flex-direction: column-reverse; /* El inicio abajo y el futuro arriba en el horizonte */
+			align-items: center;
+			gap: 16px;
+			padding-bottom: 24px;
+			transform-origin: 50% 100%;
+			transform: rotateX(24deg);
+			transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+		}
+
+		/* Casilla Individual Minimalista en Fila */
+		.tile-lane-card {
+			width: 230px;
+			height: 110px;
 			background: #ffffff;
 			border: 2px solid var(--border-color);
-			border-radius: 12px;
+			border-radius: 20px;
+			padding: 10px 14px;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+			position: relative;
+			flex-shrink: 0;
+		}
+
+		.tile-lane-card.active-step {
+			border-color: #16a34a !important;
+			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3), 0 14px 32px rgba(22, 163, 74, 0.2) !important;
+			transform: scale(1.06);
+			z-index: 25;
+		}
+
+		.tile-header-row {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.tile-badge-num {
+			font-size: 0.7rem;
+			font-weight: 900;
+			font-family: 'Outfit', sans-serif;
+			padding: 2px 7px;
+			border-radius: 6px;
+			background: var(--bg-subtle);
+			color: var(--text-muted);
+		}
+
+		.tile-body-row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.tile-icon-bubble {
+			font-size: 2rem;
+			line-height: 1;
+		}
+
+		.tile-title-box {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.tile-title-box .name {
+			font-family: 'Outfit', sans-serif;
+			font-weight: 900;
+			font-size: 0.95rem;
+			letter-spacing: 0.3px;
+		}
+
+		.tile-title-box .desc {
+			font-size: 0.72rem;
+			font-weight: 600;
+			color: var(--text-muted);
+		}
+
+		/* Fichas de los Jugadores sobre la Casilla */
+		.tile-pawns-slot {
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 4px;
+			min-height: 24px;
+		}
+
+		.mini-pawn {
+			width: 26px;
+			height: 26px;
+			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 2rem;
-			font-weight: 900;
-			color: var(--text-main);
-			box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+			font-size: 0.95rem;
+			border: 2px solid #ffffff;
+			box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+			transition: all 0.25s ease;
 		}
 
-		.hud-dice.rolling {
-			animation: dice-shake 0.5s infinite ease-in-out;
+		/* Clases temáticas de casillas */
+		.tile-color-payday {
+			border-color: #facc15;
+			background: linear-gradient(135deg, #ffffff 65%, #fef9c3 100%);
+		}
+		.tile-color-payday .name { color: #854d0e; }
+		.tile-color-payday .tile-badge-num { background: #fef08a; color: #854d0e; }
+
+		.tile-color-opportunity {
+			border-color: #16a34a;
+			background: linear-gradient(135deg, #ffffff 65%, #dcfce7 100%);
+		}
+		.tile-color-opportunity .name { color: #15803d; }
+		.tile-color-opportunity .tile-badge-num { background: #bbf7d0; color: #15803d; }
+
+		.tile-color-doodad {
+			border-color: #db2777;
+			background: linear-gradient(135deg, #ffffff 65%, #fce7f3 100%);
+		}
+		.tile-color-doodad .name { color: #be185d; }
+		.tile-color-doodad .tile-badge-num { background: #fbcfe8; color: #be185d; }
+
+		.tile-color-market {
+			border-color: #2563eb;
+			background: linear-gradient(135deg, #ffffff 65%, #dbeafe 100%);
+		}
+		.tile-color-market .name { color: #1d4ed8; }
+		.tile-color-market .tile-badge-num { background: #bfdbfe; color: #1d4ed8; }
+
+		.tile-color-charity {
+			border-color: #ea580c;
+			background: linear-gradient(135deg, #ffffff 65%, #ffedd5 100%);
+		}
+		.tile-color-charity .name { color: #c2410c; }
+		.tile-color-charity .tile-badge-num { background: #fed7aa; color: #c2410c; }
+
+		.tile-color-crisis {
+			border-color: #7e22ce;
+			background: linear-gradient(135deg, #ffffff 65%, #f3e8ff 100%);
+		}
+		.tile-color-crisis .name { color: #6b21a8; }
+		.tile-color-crisis .tile-badge-num { background: #e9d5ff; color: #6b21a8; }
+
+		/* ====================================================
+		   DADOS GRANDES Y PROTAGONISTAS (ÁREA DE CONTROL INFERIOR)
+		   ==================================================== */
+		.bottom-control-dock {
+			position: fixed;
+			bottom: 18px;
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 100;
+			display: flex;
+			align-items: center;
+			gap: 18px;
+			background: rgba(255, 255, 255, 0.95);
+			backdrop-filter: blur(14px);
+			border: 1.5px solid var(--border-color);
+			padding: 10px 24px;
+			border-radius: 30px;
+			box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
 		}
 
-		@keyframes dice-shake {
-			0% { transform: rotate(0deg) scale(0.9); }
-			25% { transform: rotate(90deg) scale(1.1); }
-			50% { transform: rotate(180deg) scale(0.9); }
-			75% { transform: rotate(270deg) scale(1.1); }
-			100% { transform: rotate(360deg) scale(1); }
+		/* DADO FÍSICO 3D GRANDE CON PUNTOS (PIPS) */
+		.dice-3d-box {
+			width: 76px;
+			height: 76px;
+			background: linear-gradient(145deg, #ffffff, #eef2f6);
+			border: 2px solid #cbd5e1;
+			border-radius: 18px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			box-shadow: 0 8px 18px rgba(0,0,0,0.1), inset 0 2px 4px #ffffff, inset 0 -3px 6px rgba(0,0,0,0.06);
+			position: relative;
+			transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 		}
 
-		.btn-throw-dice {
+		.dice-3d-box.rolling {
+			animation: dice-tumble 0.6s infinite ease-in-out;
+		}
+
+		@keyframes dice-tumble {
+			0% { transform: rotate(0deg) scale(0.92); }
+			25% { transform: rotate(20deg) scale(1.1) translateY(-6px); }
+			50% { transform: rotate(-15deg) scale(0.95); }
+			75% { transform: rotate(10deg) scale(1.08) translateY(-4px); }
+			100% { transform: rotate(0deg) scale(1); }
+		}
+
+		/* Puntos del dado estilo Casino */
+		.dice-face-grid {
+			width: 52px;
+			height: 52px;
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			grid-template-rows: repeat(3, 1fr);
+			padding: 4px;
+		}
+
+		.pip {
+			width: 10px;
+			height: 10px;
+			background: #0f172a;
+			border-radius: 50%;
+			align-self: center;
+			justify-self: center;
+			box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.25);
+			visibility: hidden;
+		}
+
+		.dice-face-grid.face-1 .pip-5 { visibility: visible; background: #dc2626; width: 12px; height: 12px; }
+
+		.dice-face-grid.face-2 .pip-1,
+		.dice-face-grid.face-2 .pip-9 { visibility: visible; }
+
+		.dice-face-grid.face-3 .pip-1,
+		.dice-face-grid.face-3 .pip-5,
+		.dice-face-grid.face-3 .pip-9 { visibility: visible; }
+
+		.dice-face-grid.face-4 .pip-1,
+		.dice-face-grid.face-4 .pip-3,
+		.dice-face-grid.face-4 .pip-7,
+		.dice-face-grid.face-4 .pip-9 { visibility: visible; }
+
+		.dice-face-grid.face-5 .pip-1,
+		.dice-face-grid.face-5 .pip-3,
+		.dice-face-grid.face-5 .pip-5,
+		.dice-face-grid.face-5 .pip-7,
+		.dice-face-grid.face-5 .pip-9 { visibility: visible; }
+
+		.dice-face-grid.face-6 .pip-1,
+		.dice-face-grid.face-6 .pip-3,
+		.dice-face-grid.face-6 .pip-4,
+		.dice-face-grid.face-6 .pip-6,
+		.dice-face-grid.face-6 .pip-7,
+		.dice-face-grid.face-6 .pip-9 { visibility: visible; }
+
+		/* Botón de Tirada Grande */
+		.btn-throw-big {
 			background: linear-gradient(135deg, #16a34a, #15803d);
 			color: white;
 			border: none;
-			padding: 11px 24px;
-			border-radius: 12px;
-			font-size: 1.05rem;
+			padding: 14px 28px;
+			border-radius: 20px;
+			font-size: 1.15rem;
 			font-weight: 900;
-			cursor: pointer;
 			font-family: 'Outfit', sans-serif;
-			box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);
+			cursor: pointer;
+			box-shadow: 0 6px 20px rgba(22, 163, 74, 0.3);
 			transition: all 0.2s;
 			letter-spacing: 0.5px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
 		}
 
-		.btn-throw-dice:disabled {
+		.btn-throw-big:disabled {
 			opacity: 0.35;
 			cursor: not-allowed;
 			transform: none !important;
 		}
 
-		.btn-throw-dice:not(:disabled):hover {
-			transform: translateY(-2px) scale(1.02);
-			box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
+		.btn-throw-big:not(:disabled):hover {
+			transform: translateY(-2px) scale(1.03);
+			box-shadow: 0 8px 25px rgba(22, 163, 74, 0.4);
 		}
 
-		.hud-message-log {
-			flex: 1;
-			min-width: 220px;
-			background: var(--bg-subtle);
-			padding: 9px 16px;
-			border-radius: 10px;
-			border: 1px solid var(--border-color);
-			font-size: 0.85rem;
+		/* Pill Flotante de Estado Minimalista */
+		.floating-turn-pill {
+			position: fixed;
+			top: 105px;
+			left: 50%;
+			transform: translateX(-50%);
+			background: rgba(15, 23, 42, 0.88);
+			backdrop-filter: blur(8px);
+			color: white;
+			padding: 6px 18px;
+			border-radius: 20px;
+			font-size: 0.82rem;
+			font-weight: 700;
+			z-index: 120;
+			pointer-events: none;
+			box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+			transition: opacity 0.3s;
+		}
+
+		/* ====================================================
+		   DRAWER LATERAL PARA EL BALANCE FINANCIERO COMPLETO
+		   (Sale solo cuando el usuario lo pide)
+		   ==================================================== */
+		.cf-drawer-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100vw;
+			height: 100vh;
+			background: rgba(15, 23, 42, 0.4);
+			backdrop-filter: blur(4px);
+			z-index: 1000;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.3s ease;
+		}
+
+		.cf-drawer-overlay.open {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.cf-drawer-content {
+			position: absolute;
+			top: 0;
+			right: 0;
+			width: 100%;
+			max-width: 440px;
+			height: 100%;
+			background: #ffffff;
+			box-shadow: -10px 0 35px rgba(0,0,0,0.12);
+			display: flex;
+			flex-direction: column;
+			transform: translateX(100%);
+			transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+		}
+
+		.cf-drawer-overlay.open .cf-drawer-content {
+			transform: translateX(0);
+		}
+
+		.drawer-header {
+			padding: 18px 22px;
+			border-bottom: 1.5px solid var(--border-color);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.drawer-header h2 {
+			margin: 0;
+			font-family: 'Outfit', sans-serif;
+			font-size: 1.25rem;
+			font-weight: 900;
 			color: var(--text-main);
-			text-align: center;
-			font-weight: 600;
 		}
 
-		/* Contenedor Principal */
-		.cf-container {
-			max-width: 1500px;
-			margin: 0 auto;
-			padding: 16px 20px 40px;
+		.btn-close-drawer {
+			background: var(--bg-subtle);
+			border: none;
+			width: 32px;
+			height: 32px;
+			border-radius: 50%;
+			cursor: pointer;
+			font-weight: 900;
+			color: var(--text-muted);
+		}
+
+		.drawer-body {
+			flex: 1;
+			overflow-y: auto;
+			padding: 20px 22px;
+			display: flex;
+			flex-direction: column;
+			gap: 16px;
+		}
+
+		/* Pestañas de jugadores en el balance */
+		.drawer-player-tabs {
+			display: flex;
+			gap: 6px;
+			background: var(--bg-subtle);
+			padding: 4px;
+			border-radius: 12px;
+		}
+
+		.drawer-tab {
+			flex: 1;
+			background: transparent;
+			border: none;
+			padding: 8px;
+			border-radius: 8px;
+			font-size: 0.8rem;
+			font-weight: 800;
+			cursor: pointer;
+			font-family: 'Outfit', sans-serif;
+			color: var(--text-muted);
+			transition: all 0.2s;
+		}
+
+		.drawer-tab.active {
+			background: #ffffff;
+			color: var(--text-main);
+			box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 		}
 
 		/* Pantalla de Configuración Inicial */
 		#setup-screen {
-			max-width: 580px;
+			max-width: 540px;
 			margin: 30px auto;
 			background: var(--bg-card);
 			border: 1.5px solid var(--border-color);
 			border-radius: 24px;
-			padding: 35px;
+			padding: 30px;
 			box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 		}
 
 		.setup-header {
 			text-align: center;
-			margin-bottom: 25px;
+			margin-bottom: 22px;
 		}
 
 		.setup-header h2 {
-			margin: 0 0 8px 0;
+			margin: 0 0 6px 0;
 			font-family: 'Outfit', sans-serif;
-			font-size: 2.1rem;
+			font-size: 2rem;
 			font-weight: 900;
 			color: var(--text-main);
-		}
-
-		.setup-header p {
-			margin: 0;
-			color: var(--text-muted);
-			font-size: 0.95rem;
 		}
 
 		.setup-count-grid {
 			display: grid;
 			grid-template-columns: repeat(4, 1fr);
-			gap: 12px;
-			margin-top: 10px;
+			gap: 10px;
+			margin-top: 8px;
 		}
 
 		.setup-count-btn {
 			background: var(--bg-subtle);
 			border: 2px solid var(--border-color);
 			color: var(--text-main);
-			padding: 14px;
+			padding: 12px;
 			border-radius: 12px;
-			font-size: 1.15rem;
+			font-size: 1.1rem;
 			font-weight: 900;
 			cursor: pointer;
 			transition: all 0.2s;
@@ -312,29 +750,27 @@
 			background: #16a34a;
 			border-color: #15803d;
 			color: white;
-			box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
 		}
 
 		.player-input-row {
 			background: var(--bg-subtle);
 			border: 1px solid var(--border-color);
-			padding: 12px 16px;
-			border-radius: 14px;
+			padding: 10px 14px;
+			border-radius: 12px;
 			display: flex;
 			align-items: center;
-			gap: 14px;
-			margin-bottom: 12px;
+			gap: 12px;
+			margin-bottom: 10px;
 		}
 
 		.player-badge-preview {
-			width: 44px;
-			height: 44px;
+			width: 40px;
+			height: 40px;
 			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 1.4rem;
-			box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+			font-size: 1.3rem;
 		}
 
 		.player-name-field {
@@ -342,23 +778,18 @@
 			border: 1.5px solid var(--border-color);
 			border-radius: 10px;
 			color: var(--text-main);
-			padding: 10px 14px;
-			font-size: 1rem;
+			padding: 9px 12px;
+			font-size: 0.95rem;
 			flex: 1;
 			outline: none;
-			font-family: 'DM Sans', sans-serif;
-		}
-
-		.player-name-field:focus {
-			border-color: #16a34a;
 		}
 
 		.btn-start-game {
 			width: 100%;
-			padding: 16px;
-			font-size: 1.2rem;
+			padding: 15px;
+			font-size: 1.15rem;
 			font-weight: 900;
-			margin-top: 25px;
+			margin-top: 20px;
 			border-radius: 14px;
 			background: linear-gradient(135deg, #16a34a, #15803d);
 			color: white;
@@ -366,452 +797,6 @@
 			cursor: pointer;
 			font-family: 'Outfit', sans-serif;
 			box-shadow: 0 6px 20px rgba(22, 163, 74, 0.3);
-			transition: all 0.2s;
-			letter-spacing: 0.5px;
-		}
-
-		.btn-start-game:hover {
-			transform: scale(1.02);
-		}
-
-		/* SECCIÓN DEL CAMINO HACIA ADELANTE (PISTA LINEAL HORIZONTAL DE 1 SOLA CASILLA A LA VEZ) */
-		.road-section-wrapper {
-			background: var(--bg-card);
-			border: 1.5px solid var(--border-color);
-			border-radius: 20px;
-			padding: 16px 20px;
-			box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-			margin-bottom: 20px;
-		}
-
-		.road-section-header {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			margin-bottom: 12px;
-		}
-
-		.road-section-header h2 {
-			margin: 0;
-			font-family: 'Outfit', sans-serif;
-			font-size: 1.15rem;
-			font-weight: 900;
-			color: var(--text-main);
-			display: flex;
-			align-items: center;
-			gap: 8px;
-		}
-
-		.road-section-header span {
-			font-size: 0.8rem;
-			color: var(--text-muted);
-			font-weight: 600;
-		}
-
-		/* Contenedor con Scroll Horizontal Fluido */
-		.horizontal-road-track {
-			display: flex;
-			align-items: center;
-			gap: 12px;
-			overflow-x: auto;
-			overflow-y: hidden;
-			padding: 10px 4px 18px;
-			scroll-behavior: smooth;
-			-webkit-overflow-scrolling: touch;
-		}
-
-		/* Barra de scroll limpia */
-		.horizontal-road-track::-webkit-scrollbar {
-			height: 8px;
-		}
-		.horizontal-road-track::-webkit-scrollbar-track {
-			background: var(--bg-subtle);
-			border-radius: 4px;
-		}
-		.horizontal-road-track::-webkit-scrollbar-thumb {
-			background: #cbd5e1;
-			border-radius: 4px;
-		}
-
-		/* Conector con Flecha hacia Adelante (➔) */
-		.forward-arrow-connector {
-			font-size: 1.2rem;
-			color: #cbd5e1;
-			font-weight: 900;
-			flex-shrink: 0;
-			user-select: none;
-		}
-
-		/* Hito de Mes Intermedio */
-		.road-month-milestone {
-			min-width: 140px;
-			height: 190px;
-			background: linear-gradient(135deg, #ffffff 50%, #fef9c3 100%);
-			border: 2px dashed #f59e0b;
-			border-radius: 18px;
-			padding: 14px;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			text-align: center;
-			gap: 8px;
-			flex-shrink: 0;
-			box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
-		}
-
-		.road-month-milestone .icon { font-size: 2.2rem; }
-		.road-month-milestone .title { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 0.9rem; color: #b45309; }
-		.road-month-milestone .sub { font-size: 0.75rem; color: #713f12; font-weight: 600; }
-
-		/* Tarjeta de Casilla Individual (Menos ancha: 160px) */
-		.road-tile-card {
-			width: 160px;
-			min-width: 160px;
-			max-width: 160px;
-			height: 190px;
-			background: #ffffff;
-			border: 2px solid var(--border-color);
-			border-radius: 18px;
-			padding: 12px 10px;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: space-between;
-			text-align: center;
-			box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
-			transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-			cursor: pointer;
-			position: relative;
-			flex-shrink: 0;
-		}
-
-		.road-tile-card:hover {
-			transform: translateY(-4px);
-			box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-		}
-
-		.road-tile-badge {
-			position: absolute;
-			top: 8px;
-			left: 10px;
-			font-size: 0.68rem;
-			font-weight: 900;
-			color: var(--text-muted);
-			background: var(--bg-subtle);
-			padding: 2px 6px;
-			border-radius: 6px;
-			font-family: 'Outfit', sans-serif;
-		}
-
-		.road-tile-icon {
-			font-size: 2.2rem;
-			margin-top: 14px;
-			flex-shrink: 0;
-		}
-
-		.road-tile-texts {
-			display: flex;
-			flex-direction: column;
-			gap: 2px;
-		}
-
-		.road-tile-title {
-			font-family: 'Outfit', sans-serif;
-			font-size: 0.85rem;
-			font-weight: 900;
-			letter-spacing: 0.3px;
-			line-height: 1.15;
-		}
-
-		.road-tile-sub {
-			font-size: 0.7rem;
-			font-weight: 600;
-			color: var(--text-muted);
-		}
-
-		/* Colores de las casillas CashFlow */
-		.tile-color-payday {
-			border-color: #facc15;
-			background: linear-gradient(135deg, #ffffff 60%, #fef9c3 100%);
-		}
-		.tile-color-payday .road-tile-title { color: #854d0e; }
-		.tile-color-payday .road-tile-badge { background: #fef08a; color: #854d0e; }
-
-		.tile-color-opportunity {
-			border-color: #16a34a;
-			background: linear-gradient(135deg, #ffffff 60%, #dcfce7 100%);
-		}
-		.tile-color-opportunity .road-tile-title { color: #15803d; }
-		.tile-color-opportunity .road-tile-badge { background: #bbf7d0; color: #15803d; }
-
-		.tile-color-doodad {
-			border-color: #db2777;
-			background: linear-gradient(135deg, #ffffff 60%, #fce7f3 100%);
-		}
-		.tile-color-doodad .road-tile-title { color: #be185d; }
-		.tile-color-doodad .road-tile-badge { background: #fbcfe8; color: #be185d; }
-
-		.tile-color-market {
-			border-color: #2563eb;
-			background: linear-gradient(135deg, #ffffff 60%, #dbeafe 100%);
-		}
-		.tile-color-market .road-tile-title { color: #1d4ed8; }
-		.tile-color-market .road-tile-badge { background: #bfdbfe; color: #1d4ed8; }
-
-		.tile-color-charity {
-			border-color: #ea580c;
-			background: linear-gradient(135deg, #ffffff 60%, #ffedd5 100%);
-		}
-		.tile-color-charity .road-tile-title { color: #c2410c; }
-		.tile-color-charity .road-tile-badge { background: #fed7aa; color: #c2410c; }
-
-		.tile-color-crisis {
-			border-color: #7e22ce;
-			background: linear-gradient(135deg, #ffffff 60%, #f3e8ff 100%);
-		}
-		.tile-color-crisis .road-tile-title { color: #6b21a8; }
-		.tile-color-crisis .road-tile-badge { background: #e9d5ff; color: #6b21a8; }
-
-		/* Casilla activa resaltada */
-		.road-tile-card.active-step {
-			box-shadow: 0 0 0 3px #16a34a, 0 10px 25px rgba(22, 163, 74, 0.25) !important;
-			border-color: #16a34a !important;
-			transform: scale(1.05) translateY(-4px);
-			z-index: 20;
-		}
-
-		/* Fichas de los Jugadores */
-		.road-tile-pawns {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 4px;
-			min-height: 28px;
-			width: 100%;
-		}
-
-		.cf-pawn {
-			width: 28px;
-			height: 28px;
-			border-radius: 50%;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			font-size: 1rem;
-			box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-			border: 2px solid white;
-			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-		}
-
-		/* SECCIÓN DEL ESTADO FINANCIERO (GRID RESPONSIVE ABAJO DEL CAMINO) */
-		.financial-dashboard {
-			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-			gap: 16px;
-		}
-
-		/* Pestañas de Jugadores */
-		.cf-player-tabs-bar {
-			grid-column: 1 / -1;
-			display: flex;
-			gap: 8px;
-			background: var(--bg-card);
-			padding: 8px;
-			border-radius: 16px;
-			border: 1.5px solid var(--border-color);
-		}
-
-		.cf-tab {
-			flex: 1;
-			background: var(--bg-subtle);
-			border: 1.5px solid var(--border-color);
-			border-radius: 12px;
-			padding: 10px 8px;
-			color: var(--text-main);
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 8px;
-			cursor: pointer;
-			font-size: 0.85rem;
-			font-weight: 800;
-			font-family: 'Outfit', sans-serif;
-			transition: all 0.2s;
-		}
-
-		.cf-tab.active {
-			background: #ffffff;
-			border-color: #16a34a;
-			color: #15803d;
-			box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
-		}
-
-		.cf-tab.is-turn::after {
-			content: '🎲';
-			font-size: 0.85rem;
-		}
-
-		/* Tarjetas del Dashboard Financiero */
-		.dash-card {
-			background: var(--bg-card);
-			border: 1.5px solid var(--border-color);
-			border-radius: 18px;
-			padding: 18px;
-			box-shadow: 0 3px 12px rgba(0,0,0,0.02);
-			display: flex;
-			flex-direction: column;
-			gap: 14px;
-		}
-
-		.dash-card-header {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			border-bottom: 1.5px solid var(--border-color);
-			padding-bottom: 10px;
-		}
-
-		.dash-card-header h3 {
-			margin: 0;
-			font-family: 'Outfit', sans-serif;
-			font-size: 1.05rem;
-			font-weight: 900;
-			color: var(--text-main);
-		}
-
-		/* Medidor de Libertad Financiera */
-		.freedom-gauge {
-			background: var(--bg-subtle);
-			border: 1.5px solid var(--border-color);
-			border-radius: 14px;
-			padding: 12px 14px;
-		}
-
-		.gauge-title-row {
-			display: flex;
-			justify-content: space-between;
-			font-family: 'Outfit', sans-serif;
-			font-size: 0.85rem;
-			font-weight: 900;
-			color: var(--text-main);
-			margin-bottom: 8px;
-		}
-
-		.gauge-bar-outer {
-			height: 12px;
-			background: #e2e8f0;
-			border-radius: 6px;
-			overflow: hidden;
-		}
-
-		.gauge-bar-fill {
-			height: 100%;
-			background: linear-gradient(90deg, #3b82f6, #16a34a);
-			border-radius: 6px;
-			transition: width 0.4s ease;
-		}
-
-		.gauge-formula {
-			font-size: 0.75rem;
-			color: var(--text-muted);
-			margin-top: 8px;
-			line-height: 1.3;
-		}
-
-		/* Caja de Flujo de Caja Mensual */
-		.cf-cashflow-banner {
-			background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
-			border: 2px solid #facc15;
-			border-radius: 14px;
-			padding: 12px 16px;
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			box-shadow: 0 4px 12px rgba(245, 158, 11, 0.12);
-		}
-
-		.cf-cashflow-banner .label {
-			font-family: 'Outfit', sans-serif;
-			font-weight: 900;
-			font-size: 0.85rem;
-			color: #854d0e;
-		}
-
-		.cf-cashflow-banner .amount {
-			font-family: 'Outfit', sans-serif;
-			font-size: 1.35rem;
-			font-weight: 900;
-			color: #15803d;
-		}
-
-		/* Desglose de Ingresos y Gastos */
-		.cf-accounting-grid {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
-			gap: 10px;
-		}
-
-		.cf-accounting-col {
-			background: var(--bg-subtle);
-			border: 1px solid var(--border-color);
-			border-radius: 12px;
-			padding: 10px;
-		}
-
-		.accounting-col-title {
-			font-family: 'Outfit', sans-serif;
-			font-size: 0.75rem;
-			font-weight: 900;
-			text-transform: uppercase;
-			margin-bottom: 6px;
-			display: flex;
-			justify-content: space-between;
-		}
-
-		.accounting-col-title.green { color: #16a34a; }
-		.accounting-col-title.red { color: #dc2626; }
-
-		.accounting-item {
-			display: flex;
-			justify-content: space-between;
-			font-size: 0.78rem;
-			padding: 3px 0;
-			border-bottom: 1px dashed var(--border-color);
-		}
-
-		.accounting-item .name { color: var(--text-muted); }
-		.accounting-item .val { font-weight: 800; font-family: 'Outfit', sans-serif; color: var(--text-main); }
-
-		/* Lista de Activos */
-		.cf-assets-list {
-			display: flex;
-			flex-direction: column;
-			gap: 6px;
-			max-height: 130px;
-			overflow-y: auto;
-		}
-
-		.cf-asset-entry {
-			background: var(--bg-subtle);
-			border: 1px solid var(--border-color);
-			border-radius: 8px;
-			padding: 6px 10px;
-			font-size: 0.75rem;
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-		}
-
-		.cf-asset-name { font-weight: 800; color: #2563eb; }
-		.cf-asset-gain { font-weight: 900; color: #16a34a; font-family: 'Outfit', sans-serif; }
-
-		/* Acciones de Préstamos */
-		.cf-debt-actions {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
-			gap: 10px;
-			margin-top: 4px;
 		}
 
 		/* MODALES DE EVENTOS */
@@ -843,7 +828,7 @@
 			border: 2px solid var(--border-color);
 			border-radius: 24px;
 			width: 100%;
-			max-width: 500px;
+			max-width: 480px;
 			box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
 			overflow: hidden;
 			transform: translateY(20px) scale(0.95);
@@ -855,7 +840,7 @@
 		}
 
 		.card-header-cf {
-			padding: 22px;
+			padding: 20px;
 			text-align: center;
 			color: white;
 		}
@@ -867,20 +852,19 @@
 		.card-header-cf.charity { background: linear-gradient(135deg, #ea580c, #c2410c); }
 		.card-header-cf.crisis { background: linear-gradient(135deg, #7e22ce, #6b21a8); }
 
-		.card-header-cf .icon { font-size: 2.8rem; margin-bottom: 6px; }
-		.card-header-cf h3 { margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 900; }
-		.card-header-cf .subtitle { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; font-weight: 700; }
+		.card-header-cf .icon { font-size: 2.6rem; margin-bottom: 4px; }
+		.card-header-cf h3 { margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 900; }
+		.card-header-cf .subtitle { font-size: 0.8rem; opacity: 0.9; margin-top: 2px; font-weight: 700; }
 
 		.card-body-cf {
-			padding: 24px;
+			padding: 22px;
 			color: var(--text-main);
 		}
 
 		.card-desc-cf {
-			font-size: 1.05rem;
+			font-size: 1rem;
 			line-height: 1.45;
-			margin-bottom: 20px;
-			color: var(--text-main);
+			margin-bottom: 16px;
 			text-align: center;
 		}
 
@@ -888,17 +872,17 @@
 			background: var(--bg-subtle);
 			border: 1px solid var(--border-color);
 			border-radius: 14px;
-			padding: 14px;
+			padding: 12px;
 			display: flex;
 			flex-direction: column;
-			gap: 10px;
-			margin-bottom: 20px;
+			gap: 8px;
+			margin-bottom: 16px;
 		}
 
 		.card-stat-line {
 			display: flex;
 			justify-content: space-between;
-			font-size: 0.95rem;
+			font-size: 0.9rem;
 		}
 
 		.card-stat-line .lbl { color: var(--text-muted); font-weight: 600; }
@@ -907,17 +891,17 @@
 		.card-stat-line .val.red { color: #dc2626; }
 
 		.card-footer-cf {
-			padding: 0 24px 24px;
+			padding: 0 22px 22px;
 			display: flex;
-			gap: 12px;
+			gap: 10px;
 		}
 
 		.cf-dialog-btn {
 			flex: 1;
-			padding: 14px;
-			font-size: 1rem;
+			padding: 12px;
+			font-size: 0.95rem;
 			font-weight: 900;
-			border-radius: 14px;
+			border-radius: 12px;
 			border: none;
 			cursor: pointer;
 			font-family: 'Outfit', sans-serif;
@@ -927,7 +911,6 @@
 		.cf-dialog-btn.primary {
 			background: linear-gradient(135deg, #16a34a, #15803d);
 			color: white;
-			box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);
 		}
 
 		.cf-dialog-btn.secondary {
@@ -941,53 +924,78 @@
 </head>
 
 <body>
-	<!-- Barra Superior Limpia -->
+	<!-- Barra Superior Minimalista -->
 	<header class="cf-header">
 		<div class="cf-brand">
 			<img src="/logo.png" alt="Sweet Lab" />
 			<div class="cf-brand-titles">
 				<h1>🐭 CASHFLOW</h1>
-				<span>La Carrera de la Rata • Sweet Lab</span>
+				<span>Carrera de la Rata</span>
 			</div>
 		</div>
 		<div class="cf-actions">
-			<button id="btn-rules" class="cf-btn cf-btn-secondary">📖 ¿Cómo Jugar?</button>
-			<button id="btn-new-game" class="cf-btn cf-btn-gold">🔄 Nueva Partida</button>
-			<button id="btn-exit" class="cf-btn cf-btn-secondary">⬅ Volver</button>
+			<button id="btn-rules" class="cf-btn cf-btn-secondary">📖 Reglas</button>
+			<button id="btn-new-game" class="cf-btn cf-btn-gold">🔄 Reiniciar</button>
+			<button id="btn-exit" class="cf-btn cf-btn-secondary">⬅ Salir</button>
 		</div>
 	</header>
 
-	<!-- HUD Flotante Fijo -->
-	<div id="game-hud" class="cf-hud-bar hidden">
-		<div class="hud-player-turn">
-			<div id="hud-avatar" class="hud-player-avatar">🐭</div>
-			<div class="hud-player-info">
+	<!-- HUD Minimalista en Partida (Solo lo Esencial) -->
+	<div id="game-hud" class="minimal-hud hidden">
+		<div class="hud-player-summary">
+			<div id="hud-avatar" class="hud-pawn-bubble">🐭</div>
+			<div class="hud-name-box">
 				<h3 id="hud-name">Turno de Jorge</h3>
 				<span id="hud-profession">Chef de Repostería</span>
 			</div>
 		</div>
 
-		<div class="hud-dice-controls">
-			<div id="hud-dice-val" class="hud-dice">🎲</div>
-			<button id="btn-roll-dice" class="btn-throw-dice">Tirar Dado 🎲</button>
-		</div>
+		<!-- Pastillas Esenciales de Finanzas -->
+		<div class="hud-quick-stats">
+			<div class="stat-pill">
+				<span class="label">Efectivo</span>
+				<span id="hud-cash-val" class="val green">$1.400.000 COP</span>
+			</div>
 
-		<div id="hud-status-log" class="hud-message-log">
-			¡Lanza el dado para avanzar hacia adelante por el camino!
+			<div class="stat-pill">
+				<span class="label">Flujo Mensual</span>
+				<span id="hud-cashflow-val" class="val green">+$1.000.000</span>
+			</div>
+
+			<div class="freedom-pill-bar">
+				<div class="freedom-pill-header">
+					<span>Libertad</span>
+					<span id="hud-freedom-pct">0%</span>
+				</div>
+				<div class="freedom-bar-track">
+					<div id="hud-freedom-bar" class="freedom-bar-fill" style="width: 0%;"></div>
+				</div>
+			</div>
+
+			<button id="btn-toggle-balance" class="btn-open-balance">
+				📋 Ver Balance
+			</button>
 		</div>
 	</div>
 
-	<main class="cf-container">
+	<!-- Pill Flotante de Estado de Turno -->
+	<div id="floating-status-pill" class="floating-turn-pill hidden">
+		¡Lanza el dado para avanzar hacia el frente!
+	</div>
+
+	<main style="max-width: 1200px; margin: 0 auto; padding: 10px 16px;">
 		<!-- 1. Pantalla de Configuración Inicial -->
 		<section id="setup-screen">
 			<div class="setup-header">
 				<h2>¡La Carrera de la Rata!</h2>
-				<p>Aprende a ahorrar, invertir y alcanzar tu Libertad Financiera en un camino lineal continuo hacia adelante.</p>
+				<p style="color:var(--text-muted); font-size:0.95rem; margin:0;">
+					Aprende a invertir y salir de la rutina financiera.
+				</p>
 			</div>
 
-			<div style="margin-bottom: 24px;">
-				<label style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">
-					¿Cuántos jugadores participarán? (1 a 4)
+			<div style="margin-bottom: 20px;">
+				<label style="font-weight: 800; font-size: 0.9rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">
+					¿Cuántos jugadores? (1 a 4)
 				</label>
 				<div class="setup-count-grid">
 					<button class="setup-count-btn" data-count="1">1</button>
@@ -997,148 +1005,126 @@
 				</div>
 			</div>
 
-			<div style="margin-bottom: 24px;">
-				<label style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">
-					Nombres y Personajes:
+			<div style="margin-bottom: 20px;">
+				<label style="font-weight: 800; font-size: 0.9rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">
+					Nombres y Fichas:
 				</label>
-				<div id="setup-players-container" style="margin-top: 10px;">
-					<!-- Filas generadas por JS -->
-				</div>
+				<div id="setup-players-container" style="margin-top: 8px;"></div>
 			</div>
 
 			<button id="btn-start-play" class="btn-start-game">🚀 ¡Comenzar Carrera!</button>
 		</section>
 
-		<!-- 2. Pantalla Principal de Juego -->
+		<!-- 2. Pantalla Principal de Juego (Minimalista con Perspectiva Frontal 3D) -->
 		<section id="game-screen" class="hidden">
-			<!-- Pista Lineal Horizontal Hacia Adelante (1 sola casilla a la vez, estrechas, hacia adelante ➔) -->
-			<div class="road-section-wrapper">
-				<div class="road-section-header">
-					<h2>🧀 PISTA DE AVANCE HACIA ADELANTE ➔</h2>
-					<span id="road-progress-indicator">Casilla #1 • Mes 1</span>
-				</div>
-
-				<div class="horizontal-road-track" id="horizontal-track">
-					<!-- Casillas lineales hacia adelante generadas dinámicamente -->
+			<!-- Pista con Sensación de Avanzar hacia el Horizonte (Hacia el Fondo / Arriba) -->
+			<div class="stage-perspective-viewport">
+				<div class="horizon-line"></div>
+				<div class="road-3d-scene">
+					<div class="road-3d-track" id="road-lane-track">
+						<!-- Casillas generadas en fila única hacia el fondo -->
+					</div>
 				</div>
 			</div>
 
-			<!-- Dashboard de Estado Financiero Oficial (Balance Sheet en COP) -->
-			<div class="financial-dashboard">
-				<!-- Selector de Pestañas de Jugadores -->
-				<div id="cf-player-tabs" class="cf-player-tabs-bar">
-					<!-- Pestañas generadas por JS -->
-				</div>
-
-				<!-- Tarjeta 1: Perfil y Libertad Financiera -->
-				<div class="dash-card">
-					<div class="dash-card-header">
-						<div>
-							<h3 id="sheet-name" style="color:var(--text-main);">🐭 Jorge</h3>
-							<div id="sheet-profession" style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">Chef de Repostería</div>
-						</div>
-						<div style="text-align:right;">
-							<div style="font-size:0.7rem; text-transform:uppercase; color:var(--text-muted); font-weight:800;">Efectivo en Mano</div>
-							<div id="sheet-cash-val" style="font-family:'Outfit',sans-serif; font-size:1.35rem; font-weight:900; color:#16a34a;">$1.400.000 COP</div>
-						</div>
-					</div>
-
-					<!-- Medidor de Libertad Financiera -->
-					<div class="freedom-gauge">
-						<div class="gauge-title-row">
-							<span>Progreso a Libertad Financiera</span>
-							<span id="freedom-percentage">0%</span>
-						</div>
-						<div class="gauge-bar-outer">
-							<div id="freedom-fill" class="gauge-bar-fill" style="width: 0%;"></div>
-						</div>
-						<div class="gauge-formula">
-							🎯 <strong>Meta:</strong> Ingresos Pasivos (<span id="freedom-passive" style="color:#16a34a; font-weight:800;">$0</span>) &gt; Gastos Totales (<span id="freedom-expenses" style="color:#dc2626; font-weight:800;">$1.800.000</span>).
-						</div>
+			<!-- ÁREA PROTAGONISTA: DADOS GRANDES Y CONTROL DE TIRO -->
+			<div class="bottom-control-dock">
+				<div id="hud-dice-3d" class="dice-3d-box" title="Dado">
+					<div class="dice-face-grid face-1" id="dice-pips-grid">
+						<div class="pip pip-1"></div><div class="pip pip-2"></div><div class="pip pip-3"></div>
+						<div class="pip pip-4"></div><div class="pip pip-5"></div><div class="pip pip-6"></div>
+						<div class="pip pip-7"></div><div class="pip pip-8"></div><div class="pip pip-9"></div>
 					</div>
 				</div>
 
-				<!-- Tarjeta 2: Flujo de Caja y Acciones de Deuda -->
-				<div class="dash-card">
-					<div class="dash-card-header">
-						<h3>💰 Flujo de Efectivo</h3>
-						<small style="color:var(--text-muted); font-weight:600;">Cobro mensual</small>
-					</div>
-
-					<div class="cf-cashflow-banner">
-						<div>
-							<div class="label">Flujo de Caja Mensual</div>
-							<small style="color:#854d0e; font-size:0.75rem; font-weight:700;">Cobras en cada Día de Pago</small>
-						</div>
-						<div id="sheet-cashflow-val" class="amount">+$1.000.000</div>
-					</div>
-
-					<div class="cf-debt-actions">
-						<button id="btn-request-loan" class="cf-btn cf-btn-secondary" style="font-size:0.8rem; justify-content:center;">
-							🏦 Préstamo Bancario
-						</button>
-						<button id="btn-pay-debt" class="cf-btn cf-btn-secondary" style="font-size:0.8rem; justify-content:center;">
-							💳 Pagar Préstamos
-						</button>
-					</div>
-				</div>
-
-				<!-- Tarjeta 3: Desglose de Ingresos y Gastos -->
-				<div class="dash-card">
-					<div class="dash-card-header">
-						<h3>📊 Ingresos y Gastos</h3>
-						<small style="color:var(--text-muted); font-weight:600;">Detalle mensual</small>
-					</div>
-
-					<div class="cf-accounting-grid">
-						<div class="cf-accounting-col">
-							<div class="accounting-col-title green">
-								<span>Ingresos</span>
-								<span id="sheet-total-income">$2.800.000</span>
-							</div>
-							<div class="accounting-item">
-								<span class="name">Sueldo:</span>
-								<span id="sheet-salary" class="val green">$2.800.000</span>
-							</div>
-							<div class="accounting-item">
-								<span class="name">Pasivos:</span>
-								<span id="sheet-passive" class="val green">$0</span>
-							</div>
-						</div>
-
-						<div class="cf-accounting-col">
-							<div class="accounting-col-title red">
-								<span>Gastos</span>
-								<span id="sheet-total-expenses">$1.800.000</span>
-							</div>
-							<div class="accounting-item">
-								<span class="name">Fijos:</span>
-								<span id="sheet-fixed-exp" class="val red">$1.800.000</span>
-							</div>
-							<div class="accounting-item">
-								<span class="name">Deudas:</span>
-								<span id="sheet-debt-exp" class="val red">$0</span>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Tarjeta 4: Activos Adquiridos -->
-				<div class="dash-card">
-					<div class="dash-card-header">
-						<h3>🏢 Tus Activos (Inversiones)</h3>
-						<small style="color:var(--text-muted); font-weight:600;">Flujo generado</small>
-					</div>
-
-					<div id="sheet-assets-list" class="cf-assets-list">
-						<div style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:10px;">
-							Aún no tienes activos. ¡Aprovecha las casillas de Oportunidad verde!
-						</div>
-					</div>
-				</div>
+				<button id="btn-roll-dice" class="btn-throw-big">
+					Lanzar Dado 🎲
+				</button>
 			</div>
 		</section>
 	</main>
+
+	<!-- DRAWER LATERAL: BALANCE Y ESTADO FINANCIERO COMPLETO (Bajo Demanda) -->
+	<div id="balance-drawer-overlay" class="cf-drawer-overlay">
+		<div class="cf-drawer-content">
+			<div class="drawer-header">
+				<h2>📋 Balance Financiero</h2>
+				<button id="btn-close-balance" class="btn-close-drawer">✕</button>
+			</div>
+
+			<div class="drawer-body">
+				<!-- Selector de Jugadores -->
+				<div id="drawer-players-tabs" class="drawer-player-tabs"></div>
+
+				<!-- Resumen de Libertad Financiera -->
+				<div style="background:var(--bg-subtle); border-radius:14px; padding:14px; border:1px solid var(--border-color);">
+					<div style="display:flex; justify-content:space-between; font-weight:800; margin-bottom:6px; font-family:'Outfit',sans-serif;">
+						<span>Libertad Financiera</span>
+						<span id="drawer-freedom-pct" style="color:#16a34a;">0%</span>
+					</div>
+					<div style="height:10px; background:#e2e8f0; border-radius:5px; overflow:hidden; margin-bottom:8px;">
+						<div id="drawer-freedom-fill" style="height:100%; width:0%; background:linear-gradient(90deg, #3b82f6, #16a34a); border-radius:5px;"></div>
+					</div>
+					<small style="color:var(--text-muted); font-size:0.75rem;">
+						Meta: Ingresos Pasivos &gt; Gastos Totales
+					</small>
+				</div>
+
+				<!-- Efectivo y Flujo de Caja -->
+				<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+					<div style="background:var(--bg-subtle); padding:12px; border-radius:12px; border:1px solid var(--border-color);">
+						<small style="color:var(--text-muted); font-weight:700; font-size:0.7rem; text-transform:uppercase;">Efectivo Disponible</small>
+						<div id="drawer-cash-val" style="font-family:'Outfit',sans-serif; font-size:1.15rem; font-weight:900; color:#16a34a; margin-top:2px;">$1.400.000</div>
+					</div>
+					<div style="background:var(--bg-subtle); padding:12px; border-radius:12px; border:1px solid var(--border-color);">
+						<small style="color:var(--text-muted); font-weight:700; font-size:0.7rem; text-transform:uppercase;">Flujo Mensual</small>
+						<div id="drawer-cashflow-val" style="font-family:'Outfit',sans-serif; font-size:1.15rem; font-weight:900; color:#15803d; margin-top:2px;">+$1.000.000</div>
+					</div>
+				</div>
+
+				<!-- Desglose Mensual -->
+				<div style="background:var(--bg-subtle); border-radius:14px; padding:14px; border:1px solid var(--border-color);">
+					<div style="font-family:'Outfit',sans-serif; font-weight:900; font-size:0.85rem; margin-bottom:8px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">
+						Desglose Mensual
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Sueldo Fijo:</span>
+						<span id="drawer-salary" style="font-weight:800;">$2.800.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Ingresos Pasivos:</span>
+						<span id="drawer-passive" style="font-weight:800; color:#16a34a;">$0</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0; border-top:1px dashed var(--border-color); margin-top:4px;">
+						<span style="color:var(--text-muted);">Gastos Fijos:</span>
+						<span id="drawer-fixed-exp" style="font-weight:800; color:#dc2626;">$1.800.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Intereses Préstamos:</span>
+						<span id="drawer-debt-exp" style="font-weight:800; color:#dc2626;">$0</span>
+					</div>
+				</div>
+
+				<!-- Activos Invertidos -->
+				<div>
+					<div style="font-family:'Outfit',sans-serif; font-weight:900; font-size:0.9rem; margin-bottom:8px;">
+						🏢 Activos Construidos
+					</div>
+					<div id="drawer-assets-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+				</div>
+
+				<!-- Acciones Bancarias -->
+				<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:auto; padding-top:10px;">
+					<button id="btn-drawer-loan" class="cf-btn cf-btn-secondary" style="justify-content:center; padding:10px;">
+						🏦 Pedir Préstamo
+					</button>
+					<button id="btn-drawer-pay-debt" class="cf-btn cf-btn-secondary" style="justify-content:center; padding:10px;">
+						💳 Pagar Deuda
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<!-- MODAL INTERACTIVO DE TARJETAS DE CASILLA -->
 	<div id="card-modal" class="cf-modal-overlay">
@@ -1152,41 +1138,34 @@
 				<div id="modal-desc" class="card-desc-cf">
 					Descripción del evento...
 				</div>
-				<div id="modal-stats" class="card-stats-box">
-					<!-- Generado dinámicamente -->
-				</div>
+				<div id="modal-stats" class="card-stats-box"></div>
 			</div>
-			<div id="modal-footer" class="card-footer-cf">
-				<!-- Botones dinámicos -->
-			</div>
+			<div id="modal-footer" class="card-footer-cf"></div>
 		</div>
 	</div>
 
 	<!-- MODAL DE REGLAS / GUÍA EDUCATIVA -->
 	<div id="rules-modal" class="cf-modal-overlay">
-		<div class="cf-card-modal" style="max-width: 580px;">
+		<div class="cf-card-modal" style="max-width: 540px;">
 			<div class="card-header-cf opportunity" style="background: linear-gradient(135deg, #16a34a, #15803d);">
 				<div class="icon">🎓</div>
 				<h3>Reglas de la Carrera de la Rata</h3>
 				<div class="subtitle">Aprende a Escapar hacia la Libertad Financiera</div>
 			</div>
-			<div class="card-body-cf" style="font-size: 0.95rem; line-height: 1.5; max-height: 420px; overflow-y: auto;">
+			<div class="card-body-cf" style="font-size: 0.95rem; line-height: 1.5; max-height: 400px; overflow-y: auto;">
 				<p><strong>1. ¿Cuál es el Objetivo?</strong><br>
-				Ganas el juego cuando tus <strong>Ingresos Pasivos</strong> (generados por negocios, propiedades o inversiones sin que tengas que trabajar por ellos) superan tus <strong>Gastos Totales Mensuales</strong>. En ese momento alcanzas la <strong>Libertad Financiera</strong> y escapas de la Carrera de la Rata.</p>
+				Ganas cuando tus <strong>Ingresos Pasivos</strong> (generados por negocios, inmuebles o inversiones) superan tus <strong>Gastos Totales Mensuales</strong>.</p>
 
-				<p><strong>2. ¿Cómo Funciona el Camino Hacia Adelante?</strong><br>
-				El camino va en una sola línea continua, una casilla delante de la otra hacia adelante (de izquierda a derecha ➔). Cada tirada te hace avanzar hacia la meta.</p>
+				<p><strong>2. Pista en Perspectiva Frontal:</strong><br>
+				Avanzas hacia adelante en la pista hacia el horizonte. Cada casilla te enfrenta a decisiones financieras reales.</p>
 
 				<p><strong>3. Casillas Oficiales:</strong><br>
-				• 💰 <strong style="color:#ca8a04;">Amarillo (Día de Pago):</strong> Cobras tu Flujo de Caja neto mensual (Ingresos - Gastos).<br>
-				• 🚀 <strong style="color:#16a34a;">Verde (Oportunidad):</strong> Compras activos que producen ingresos pasivos permanentes.<br>
-				• 🛍️ <strong style="color:#db2777;">Rosa (Capricho / Cosas):</strong> Gastos imprevistos o compras impulsivas.<br>
-				• 📈 <strong style="color:#2563eb;">Azul (El Mercado):</strong> Compradores que ofrecen comprar tus propiedades o acciones con gran ganancia.<br>
-				• 🎁 <strong style="color:#ea580c;">Naranja (Caridad):</strong> Donar el 10% de tu sueldo te permite tirar con 2 dados durante 3 turnos.<br>
-				• 🚨 <strong style="color:#7e22ce;">Morado (Despido / Crisis):</strong> Pierdes 1 turno y cubres tus gastos con tus ahorros de emergencia.</p>
-
-				<p><strong>4. Moneda de Juego:</strong><br>
-				Todas las cifras están en <strong>Pesos Colombianos (COP)</strong>, con base en el salario mínimo de $1.750.000.</p>
+				• 💰 <strong>Día de Pago:</strong> Cobras tu Flujo de Caja mensual neto.<br>
+				• 🚀 <strong>Oportunidad:</strong> Negocios y bienes raíces que generan flujo pasivo.<br>
+				• 🛍️ <strong>Capricho:</strong> Gastos imprevistos de estilo de vida.<br>
+				• 📈 <strong>El Mercado:</strong> Ofertas para liquidar tus propiedades con gran plusvalía.<br>
+				• 🎁 <strong>Caridad:</strong> Donar el 10% te permite tirar con 2 dados.<br>
+				• 🚨 <strong>Despido:</strong> Pierdes 1 turno cubriendo tus gastos fijos.</p>
 			</div>
 			<div class="card-footer-cf">
 				<button id="btn-close-rules" class="cf-dialog-btn primary">¡Entendido, a jugar!</button>
@@ -1198,24 +1177,22 @@
 	<div id="victory-modal" class="cf-modal-overlay">
 		<div class="cf-card-modal" style="text-align: center;">
 			<div class="card-header-cf" style="background: linear-gradient(135deg, #16a34a, #15803d); color: white;">
-				<div style="font-size: 4rem; margin-bottom: 5px;">🏆</div>
-				<h3 style="font-size: 1.9rem; margin: 0;">¡LIBERTAD FINANCIERA!</h3>
+				<div style="font-size: 3.5rem; margin-bottom: 5px;">🏆</div>
+				<h3 style="font-size: 1.8rem; margin: 0;">¡LIBERTAD FINANCIERA!</h3>
 				<div class="subtitle" style="color: #dcfce7; font-weight: 800;">¡Has Escapado de la Carrera de la Rata!</div>
 			</div>
 			<div class="card-body-cf">
-				<p id="victory-message" style="font-size: 1.15rem; line-height: 1.45; color: var(--text-main);">
-					¡Felicidades! Tus ingresos pasivos ahora cubren por completo tus gastos mensuales.
-				</p>
+				<p id="victory-message" style="font-size: 1.05rem; line-height: 1.45; color: var(--text-main);"></p>
 				<div id="victory-summary" class="card-stats-box"></div>
 			</div>
 			<div class="card-footer-cf">
 				<button id="btn-victory-restart" class="cf-dialog-btn primary">Jugar de Nuevo 🔄</button>
-				<button id="btn-victory-exit" class="cf-dialog-btn secondary">Volver al Menú Principal 🏠</button>
+				<button id="btn-victory-exit" class="cf-dialog-btn secondary">Volver al Menú 🏠</button>
 			</div>
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-11-forward-road"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-11-minimal-3d"></script>
 </body>
 
 </html>
