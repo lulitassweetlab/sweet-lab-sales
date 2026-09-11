@@ -1,7 +1,11 @@
 /**
  * RatRace - Carrera de la Rata (CashFlow)
  * Edición Sweet Lab Finanzas - Versión Colombia (Pesos Colombianos COP)
- * Modo Minimalista con Perspectiva Frontal 3D (Hacia el Horizonte) y Dados Grandes Realistas
+ * - 2 Dados Grandes 3D simultáneos
+ * - Fichas con nombre en la mitad, bien visible, sin '#'
+ * - Exploración hacia adelante/atrás sin mover la ficha (Botones ▲ / 🎯 / ▼)
+ * - Modo 2 jugadores en paralelo (caminos idénticos lado a lado)
+ * - Datos de efectivo y flujo mensual ubicados justo arriba de cada camino
  */
 
 // ==========================================
@@ -77,46 +81,52 @@ const TILE_TYPES = {
 		styleClass: 'tile-color-payday',
 		name: 'DÍA DE PAGO',
 		icon: '💰',
-		sub: '+Flujo de Caja'
+		sub: '+Flujo de Caja',
+		badge: 'Cobro Mensual'
 	},
 	opportunity: {
 		type: 'opportunity',
 		styleClass: 'tile-color-opportunity',
 		name: 'OPORTUNIDAD',
 		icon: '🚀',
-		sub: 'Comprar Activos'
+		sub: 'Comprar Activos',
+		badge: 'Inversión'
 	},
 	doodad: {
 		type: 'doodad',
 		styleClass: 'tile-color-doodad',
 		name: 'CAPRICHO',
 		icon: '🛍️',
-		sub: 'Gasto Imprevisto'
+		sub: 'Gasto Imprevisto',
+		badge: 'Gasto Pasivo'
 	},
 	market: {
 		type: 'market',
 		styleClass: 'tile-color-market',
 		name: 'EL MERCADO',
 		icon: '📈',
-		sub: 'Vender con Ganancia'
+		sub: 'Vender con Ganancia',
+		badge: 'Liquidación'
 	},
 	charity: {
 		type: 'charity',
 		styleClass: 'tile-color-charity',
 		name: 'CARIDAD',
 		icon: '🎁',
-		sub: 'Donar / 2 Dados'
+		sub: 'Donar / Impulso',
+		badge: 'Solidaridad'
 	},
 	crisis: {
 		type: 'crisis',
 		styleClass: 'tile-color-crisis',
 		name: 'DESPIDO',
 		icon: '🚨',
-		sub: 'Pérdida de Turno'
+		sub: 'Pérdida de Turno',
+		badge: 'Cesantía'
 	}
 };
 
-// Baraja de Oportunidades Pequeñas (COP)
+// Barajas de cartas
 const SMALL_DEALS = [
 	{
 		title: 'Máquina Expendedora Sweet Lab',
@@ -192,7 +202,6 @@ const SMALL_DEALS = [
 	}
 ];
 
-// Baraja de Oportunidades Grandes (COP - Bienes Raíces)
 const BIG_DEALS = [
 	{
 		title: 'Apartaestudio para Renta',
@@ -250,7 +259,6 @@ const BIG_DEALS = [
 	}
 ];
 
-// Baraja de Caprichos (Doodads / Cosas - COP)
 const DOODADS = [
 	{
 		title: 'Último Smartphone de Gama Alta',
@@ -290,7 +298,6 @@ const DOODADS = [
 	}
 ];
 
-// Baraja de Mercado (The Market - COP)
 const MARKET_EVENTS = [
 	{
 		title: '¡Auge en Bienes Raíces!',
@@ -340,7 +347,8 @@ const gameState = {
 	currentPlayerIndex: 0,
 	selectedDrawerPlayerIndex: 0,
 	isRolling: false,
-	generatedTiles: []
+	generatedTiles: [],
+	cameraViewOffset: 0 // Para explorar casillas siguientes/anteriores sin mover el ficho
 };
 
 // ==========================================
@@ -381,8 +389,8 @@ class SoundEffects {
 	}
 
 	roll() {
-		for (let i = 0; i < 6; i++) {
-			setTimeout(() => this.playTone(200 + Math.random() * 300, 0.08, 'triangle', 0.09), i * 65);
+		for (let i = 0; i < 7; i++) {
+			setTimeout(() => this.playTone(200 + Math.random() * 320, 0.08, 'triangle', 0.09), i * 60);
 		}
 	}
 
@@ -412,14 +420,12 @@ class SoundEffects {
 const sounds = new SoundEffects();
 
 // ==========================================
-// 5. GENERACIÓN DE LA PISTA HACIA EL HORIZONTE
+// 5. GENERACIÓN DE CASILLAS Y PISTAS PARALELAS
 // ==========================================
 
 function extendPerspectiveRoad(countToAdd = 25) {
-	const trackContainer = document.getElementById('road-lane-track');
-	if (!trackContainer) return;
-
 	const startIdx = gameState.generatedTiles.length;
+	const isParallelTwo = gameState.players.length === 2;
 
 	for (let i = 0; i < countToAdd; i++) {
 		const globalIndex = startIdx + i;
@@ -427,19 +433,27 @@ function extendPerspectiveRoad(countToAdd = 25) {
 		tileData.globalIndex = globalIndex;
 		gameState.generatedTiles.push(tileData);
 
-		const tileCard = createLaneTileDOM(tileData);
-		// Debido a column-reverse, appendChild lo coloca más arriba (hacia el horizonte en la perspectiva)
-		trackContainer.appendChild(tileCard);
+		if (isParallelTwo) {
+			// Añadir exactamente la misma casilla a ambos caminos paralelos
+			const track0 = document.getElementById('road-lane-track-0');
+			const track1 = document.getElementById('road-lane-track-1');
+			if (track0) track0.appendChild(createLaneTileDOM(tileData, 0));
+			if (track1) track1.appendChild(createLaneTileDOM(tileData, 1));
+		} else {
+			const singleTrack = document.getElementById('road-lane-track-0');
+			if (singleTrack) singleTrack.appendChild(createLaneTileDOM(tileData, 0));
+		}
 	}
 }
 
 function pickTileForIndex(index) {
 	if (index === 0) {
-		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • DÍA DE PAGO' };
+		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • DÍA DE PAGO', badge: 'Inicio' };
 	}
 
 	if (index % 6 === 0) {
-		return { ...TILE_TYPES.payday, id: index };
+		const monthNum = Math.floor(index / 6) + 1;
+		return { ...TILE_TYPES.payday, id: index, badge: `Mes ${monthNum}` };
 	}
 
 	const cycle = index % 12;
@@ -462,23 +476,26 @@ function pickTileForIndex(index) {
 	return { ...TILE_TYPES[typeKey], id: index };
 }
 
-function createLaneTileDOM(tile) {
+/**
+ * Crea el DOM de la casilla individual:
+ * - Sin '#'
+ * - Nombre centrado en la mitad, muy visible
+ */
+function createLaneTileDOM(tile, laneIndex = 0) {
 	const card = document.createElement('div');
-	card.id = `lane-tile-${tile.globalIndex}`;
+	card.id = `lane-tile-${laneIndex}-${tile.globalIndex}`;
 	card.className = `tile-lane-card ${tile.styleClass}`;
 
 	card.innerHTML = `
 		<div class="tile-header-row">
-			<span class="tile-badge-num">#${tile.globalIndex + 1}</span>
-			<div class="tile-pawns-slot" id="lane-pawns-${tile.globalIndex}"></div>
+			<span class="tile-sub-badge">${tile.badge || tile.sub}</span>
+			<div class="tile-pawns-slot" id="lane-pawns-${laneIndex}-${tile.globalIndex}"></div>
 		</div>
-		<div class="tile-body-row">
+		<div class="tile-center-content">
 			<div class="tile-icon-bubble">${tile.icon}</div>
-			<div class="tile-title-box">
-				<span class="name">${tile.name}</span>
-				<span class="desc">${tile.sub}</span>
-			</div>
+			<div class="tile-main-name">${tile.name}</div>
 		</div>
+		<div class="tile-footer-sub">${tile.sub}</div>
 	`;
 
 	return card;
@@ -534,7 +551,7 @@ function wireEventListeners() {
 
 	document.getElementById('btn-roll-dice')?.addEventListener('click', () => {
 		sounds.init();
-		rollDiceForward();
+		rollTwoDice();
 	});
 
 	document.getElementById('btn-exit')?.addEventListener('click', () => {
@@ -550,7 +567,7 @@ function wireEventListeners() {
 		}
 	});
 
-	// Drawer de Balance Financiero Completo
+	// Drawer de Balance
 	document.getElementById('btn-toggle-balance')?.addEventListener('click', () => {
 		openBalanceDrawer();
 	});
@@ -559,6 +576,23 @@ function wireEventListeners() {
 	});
 	document.getElementById('balance-drawer-overlay')?.addEventListener('click', (e) => {
 		if (e.target.id === 'balance-drawer-overlay') closeBalanceDrawer();
+	});
+
+	// Explorar casillas adelante y atrás sin mover fichas
+	document.getElementById('btn-look-forward')?.addEventListener('click', () => {
+		gameState.cameraViewOffset += 3;
+		centerPerspective();
+	});
+	document.getElementById('btn-look-backward')?.addEventListener('click', () => {
+		const currentPos = gameState.players[gameState.currentPlayerIndex]?.position || 0;
+		if (currentPos + gameState.cameraViewOffset > 0) {
+			gameState.cameraViewOffset -= 3;
+			centerPerspective();
+		}
+	});
+	document.getElementById('btn-look-reset')?.addEventListener('click', () => {
+		gameState.cameraViewOffset = 0;
+		centerPerspective();
 	});
 
 	// Reglas
@@ -601,7 +635,7 @@ function closeBalanceDrawer() {
 }
 
 // ==========================================
-// 7. INICIO DE PARTIDA
+// 7. INICIO DE PARTIDA Y CONFIGURACIÓN PARALELA
 // ==========================================
 
 function startGame() {
@@ -629,7 +663,6 @@ function startGame() {
 			cash: prof.savings,
 			position: 0,
 			assets: [],
-			hasTwoDice: 0,
 			skipTurns: 0
 		});
 	}
@@ -638,9 +671,10 @@ function startGame() {
 	gameState.currentPlayerIndex = 0;
 	gameState.isRolling = false;
 	gameState.generatedTiles = [];
+	gameState.cameraViewOffset = 0;
 
-	const trackContainer = document.getElementById('road-lane-track');
-	if (trackContainer) trackContainer.innerHTML = '';
+	// Configurar contenedor de pistas 3D (1 columna o 2 paralelas lado a lado)
+	setupRoad3DScene();
 
 	// Generar las primeras 25 casillas
 	extendPerspectiveRoad(25);
@@ -651,55 +685,139 @@ function startGame() {
 	document.getElementById('floating-status-pill').classList.remove('hidden');
 
 	updatePawnsOnRoad();
-	updateHUD();
-	centerPerspectiveOnTile(0);
+	updateHUDAndHeaders();
+	centerPerspective();
+}
+
+/**
+ * Si son 2 jugadores, crea 2 columnas exactamente en paralelo lado a lado.
+ * Si es 1 o más de 2, crea 1 columna principal compartida.
+ */
+function setupRoad3DScene() {
+	const scene = document.getElementById('road-3d-scene-container');
+	if (!scene) return;
+	scene.innerHTML = '';
+
+	const isParallelTwo = gameState.players.length === 2;
+
+	if (isParallelTwo) {
+		// Camino Jugador 1 (Izquierda)
+		const col0 = document.createElement('div');
+		col0.className = 'parallel-road-column';
+		col0.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
+		scene.appendChild(col0);
+
+		// Camino Jugador 2 (Derecha)
+		const col1 = document.createElement('div');
+		col1.className = 'parallel-road-column';
+		col1.innerHTML = `<div class="road-3d-track" id="road-lane-track-1"></div>`;
+		scene.appendChild(col1);
+	} else {
+		// Columna única
+		const col = document.createElement('div');
+		col.className = 'parallel-road-column';
+		col.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
+		scene.appendChild(col);
+	}
 }
 
 function updatePawnsOnRoad() {
+	const isParallelTwo = gameState.players.length === 2;
+
+	// Limpiar casillas
 	gameState.generatedTiles.forEach(tile => {
-		const pawnsContainer = document.getElementById(`lane-pawns-${tile.globalIndex}`);
-		if (pawnsContainer) pawnsContainer.innerHTML = '';
+		if (isParallelTwo) {
+			const slot0 = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
+			const slot1 = document.getElementById(`lane-pawns-1-${tile.globalIndex}`);
+			if (slot0) slot0.innerHTML = '';
+			if (slot1) slot1.innerHTML = '';
+		} else {
+			const slot = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
+			if (slot) slot.innerHTML = '';
+		}
 	});
 
-	gameState.players.forEach(p => {
-		const pawnsContainer = document.getElementById(`lane-pawns-${p.position}`);
-		if (pawnsContainer) {
+	// Colocar fichas
+	gameState.players.forEach((p, idx) => {
+		const laneIndex = isParallelTwo ? idx : 0;
+		const slot = document.getElementById(`lane-pawns-${laneIndex}-${p.position}`);
+		if (slot) {
 			const pawn = document.createElement('div');
 			pawn.className = 'mini-pawn';
 			pawn.style.background = p.color;
 			pawn.title = p.name;
 			pawn.innerHTML = p.avatar;
-			pawnsContainer.appendChild(pawn);
+			slot.appendChild(pawn);
 		}
 	});
 }
 
-function updateHUD() {
+/**
+ * Actualiza la barra superior con el encabezado financiero de cada jugador
+ * ubicado directamente arriba de su camino.
+ */
+function updateHUDAndHeaders() {
+	const container = document.getElementById('game-hud');
+	if (!container) return;
+	container.innerHTML = '';
+
+	gameState.players.forEach((p, idx) => {
+		const fin = getPlayerFinancials(p);
+		const isTurn = idx === gameState.currentPlayerIndex;
+
+		const card = document.createElement('div');
+		card.className = `road-player-stat-header ${isTurn ? 'is-current-turn' : ''}`;
+		card.style.borderTop = `4px solid ${p.color}`;
+
+		card.innerHTML = `
+			<div class="stat-header-pawn" style="background:${p.bg}; border-color:${p.color};">
+				${p.avatar}
+			</div>
+			<div class="stat-header-info">
+				<div class="stat-header-title-row">
+					<span class="stat-header-name" style="color:${p.color};">${p.name}</span>
+					${isTurn ? `<span class="stat-header-turn-badge">En Turno 🎲</span>` : ''}
+				</div>
+				<div class="stat-header-financial-numbers">
+					<div class="fin-item">
+						<span class="lbl">Efectivo</span>
+						<span class="val green">${formatCOP(p.cash)}</span>
+					</div>
+					<div class="fin-item">
+						<span class="lbl">Flujo/Mes</span>
+						<span class="val ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
+					</div>
+					<div class="fin-item">
+						<span class="lbl">Libertad</span>
+						<span class="val blue">${fin.freedomProgress}%</span>
+					</div>
+				</div>
+			</div>
+		`;
+
+		// Al hacer click en el header, abre su balance
+		card.addEventListener('click', () => {
+			gameState.selectedDrawerPlayerIndex = idx;
+			openBalanceDrawer();
+		});
+
+		container.appendChild(card);
+	});
+
+	// Actualizar pill flotante
 	const current = gameState.players[gameState.currentPlayerIndex];
-	const fin = getPlayerFinancials(current);
-
-	document.getElementById('hud-avatar').textContent = current.avatar;
-	const nameEl = document.getElementById('hud-name');
-	nameEl.textContent = `Turno de ${current.name}`;
-	nameEl.style.color = current.color;
-	document.getElementById('hud-profession').textContent = current.profession;
-
-	document.getElementById('hud-cash-val').textContent = `${formatCOP(current.cash)} COP`;
-	const cashflowEl = document.getElementById('hud-cashflow-val');
-	cashflowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/mes`;
-	cashflowEl.style.color = fin.monthlyCashFlow >= 0 ? '#16a34a' : '#dc2626';
-
-	document.getElementById('hud-freedom-pct').textContent = `${fin.freedomProgress}%`;
-	document.getElementById('hud-freedom-bar').style.width = `${fin.freedomProgress}%`;
+	const pill = document.getElementById('floating-status-pill');
+	const monthNum = Math.floor(current.position / 6) + 1;
+	pill.textContent = `Turno de ${current.name} • Casilla de ${current.profession} (Mes ${monthNum})`;
 
 	// Resaltar casilla activa
 	document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
-	const activeTile = document.getElementById(`lane-tile-${current.position}`);
+	const isParallelTwo = gameState.players.length === 2;
+	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
+	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
 	if (activeTile) activeTile.classList.add('active-step');
 
 	const btnRoll = document.getElementById('btn-roll-dice');
-	const pill = document.getElementById('floating-status-pill');
-
 	if (current.skipTurns > 0) {
 		btnRoll.disabled = true;
 		pill.textContent = `⚠️ ${current.name} en cesantía temporal. Pierde el turno.`;
@@ -707,77 +825,76 @@ function updateHUD() {
 			current.skipTurns--;
 			endTurn();
 		}, 2000);
-		return;
+	} else {
+		btnRoll.disabled = false;
 	}
-
-	btnRoll.disabled = false;
-	btnRoll.textContent = current.hasTwoDice > 0 ? 'Lanzar 2 Dados 🎲🎲' : 'Lanzar Dado 🎲';
-	const monthNum = Math.floor(current.position / 6) + 1;
-	pill.textContent = `${current.name} • Casilla #${current.position + 1} (Mes ${monthNum})`;
 }
 
 /**
- * Sensación de avanzar hacia el frente/horizonte:
- * En lugar de subir el scroll de la página, desplazamos la cinta de la pista (transform translateY)
- * haciendo que la casilla activa quede justo frente al jugador abajo, y las próximas se proyecten al fondo.
+ * Centra la perspectiva hacia el horizonte.
+ * Toma en cuenta el avance de la ficha + el cameraViewOffset si el usuario está explorando adelante.
  */
-function centerPerspectiveOnTile(tileIndex) {
-	const track = document.getElementById('road-lane-track');
-	if (!track) return;
-	// Cada casilla mide 110px + 16px gap = 126px
-	// Como la orientación es column-reverse (inicio abajo, horizonte arriba),
-	// avanzar significa desplazar el track hacia abajo para traer la nueva casilla a primer plano
+function centerPerspective() {
+	const current = gameState.players[gameState.currentPlayerIndex];
+	const targetTileIndex = Math.max(0, current.position + gameState.cameraViewOffset);
 	const stepHeight = 126;
-	const translateY = tileIndex * stepHeight;
-	track.style.transform = `rotateX(24deg) translateY(${translateY}px)`;
+	const translateY = targetTileIndex * stepHeight;
+
+	const track0 = document.getElementById('road-lane-track-0');
+	const track1 = document.getElementById('road-lane-track-1');
+
+	if (track0) track0.style.transform = `rotateX(24deg) translateY(${translateY}px)`;
+	if (track1) track1.style.transform = `rotateX(24deg) translateY(${translateY}px)`;
 }
 
 // ==========================================
-// 8. DADOS GRANDES Y REALISTAS CON PUNTOS
+// 8. DOS DADOS GRANDES Y REALISTAS
 // ==========================================
 
-function setDiceFace(faceNumber) {
-	const grid = document.getElementById('dice-pips-grid');
+function setDiceFace(diceNumber, faceValue) {
+	const grid = document.getElementById(`dice-pips-grid-${diceNumber}`);
 	if (!grid) return;
-	grid.className = `dice-face-grid face-${faceNumber}`;
+	grid.className = `dice-face-grid face-${faceValue}`;
 }
 
-function rollDiceForward() {
+function rollTwoDice() {
 	if (gameState.isRolling) return;
 	const player = gameState.players[gameState.currentPlayerIndex];
 	const btnRoll = document.getElementById('btn-roll-dice');
-	const diceBox = document.getElementById('hud-dice-3d');
+	const dice1 = document.getElementById('hud-dice-3d-1');
+	const dice2 = document.getElementById('hud-dice-3d-2');
 	const pill = document.getElementById('floating-status-pill');
 
 	gameState.isRolling = true;
+	gameState.cameraViewOffset = 0; // Regresar la cámara a la ficha al tirar
 	btnRoll.disabled = true;
-	diceBox.classList.add('rolling');
+	dice1?.classList.add('rolling');
+	dice2?.classList.add('rolling');
 	sounds.roll();
 
 	let rollCount = 0;
 	const interval = setInterval(() => {
-		const tempVal = Math.floor(Math.random() * 6) + 1;
-		setDiceFace(tempVal);
+		const temp1 = Math.floor(Math.random() * 6) + 1;
+		const temp2 = Math.floor(Math.random() * 6) + 1;
+		setDiceFace(1, temp1);
+		setDiceFace(2, temp2);
 		rollCount++;
 
 		if (rollCount > 9) {
 			clearInterval(interval);
-			diceBox.classList.remove('rolling');
+			dice1?.classList.remove('rolling');
+			dice2?.classList.remove('rolling');
 
 			const d1 = Math.floor(Math.random() * 6) + 1;
-			let totalSteps = d1;
-			setDiceFace(d1);
+			const d2 = Math.floor(Math.random() * 6) + 1;
+			const totalSteps = d1 + d2;
 
-			if (player.hasTwoDice > 0) {
-				const d2 = Math.floor(Math.random() * 6) + 1;
-				totalSteps = d1 + d2;
-				player.hasTwoDice--;
-				pill.textContent = `¡Tiraste ${d1} + ${d2} = ${totalSteps} pasos hacia adelante!`;
-			} else {
-				pill.textContent = `¡Sacaste un ${d1}! Avanzando...`;
-			}
+			setDiceFace(1, d1);
+			setDiceFace(2, d2);
 
-			// Iniciar movimiento paso a paso
+			pill.textContent = `¡${player.name} tiró ${d1} + ${d2} = ${totalSteps} pasos hacia adelante!`;
+
+			// Movimiento paso a paso
 			stepForwardOnRoad(player, totalSteps);
 		}
 	}, 65);
@@ -786,6 +903,8 @@ function rollDiceForward() {
 function stepForwardOnRoad(player, totalSteps) {
 	let stepsRemaining = totalSteps;
 	const pill = document.getElementById('floating-status-pill');
+	const isParallelTwo = gameState.players.length === 2;
+	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 
 	const stepInterval = setInterval(() => {
 		player.position++;
@@ -793,24 +912,24 @@ function stepForwardOnRoad(player, totalSteps) {
 
 		sounds.step();
 
-		// Cargar más casillas hacia el horizonte dinámicamente
+		// Cargar más casillas si se acerca al final
 		if (player.position >= gameState.generatedTiles.length - 8) {
 			extendPerspectiveRoad(20);
 		}
 
 		updatePawnsOnRoad();
 
-		// Resaltar casilla actual y deslizar perspectiva
+		// Resaltar casilla y deslizar cámara
 		document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
-		const tileEl = document.getElementById(`lane-tile-${player.position}`);
+		const tileEl = document.getElementById(`lane-tile-${laneIndex}-${player.position}`);
 		if (tileEl) tileEl.classList.add('active-step');
 
-		centerPerspectiveOnTile(player.position);
+		centerPerspective();
 
 		const currentTileData = gameState.generatedTiles[player.position];
 		pill.textContent = `${player.name} avanzando hacia el frente... (${totalSteps - stepsRemaining}/${totalSteps})`;
 
-		// Cobro al pasar por Día de Pago
+		// Cobro al pasar por Día de Pago durante el camino
 		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0) {
 			collectPayday(player, false);
 		}
@@ -820,7 +939,7 @@ function stepForwardOnRoad(player, totalSteps) {
 			gameState.isRolling = false;
 			handleLanding(player, currentTileData);
 		}
-	}, 240);
+	}, 230);
 }
 
 // ==========================================
@@ -829,7 +948,7 @@ function stepForwardOnRoad(player, totalSteps) {
 
 function handleLanding(player, tile) {
 	const pill = document.getElementById('floating-status-pill');
-	pill.textContent = `${player.name} cayó en: ${tile.name} ${tile.icon}`;
+	pill.textContent = `${player.name} llegó a: ${tile.name} ${tile.icon}`;
 
 	switch (tile.type) {
 		case 'payday':
@@ -860,7 +979,7 @@ function collectPayday(player, isLanding) {
 	const fin = getPlayerFinancials(player);
 	player.cash += fin.monthlyCashFlow;
 	sounds.cash();
-	updateHUD();
+	updateHUDAndHeaders();
 
 	if (isLanding) {
 		showModal({
@@ -938,7 +1057,7 @@ function presentDeal(player, deal) {
 				player.assets.push({ ...deal });
 				sounds.cash();
 				closeModal();
-				updateHUD();
+				updateHUDAndHeaders();
 				showModal({
 					headerClass: 'opportunity',
 					icon: '🎉',
@@ -984,7 +1103,7 @@ function showDoodadModal(player) {
 	const doodad = pickRandom(DOODADS);
 	player.cash -= doodad.cost;
 	sounds.loss();
-	updateHUD();
+	updateHUDAndHeaders();
 
 	showModal({
 		headerClass: 'doodad',
@@ -1062,7 +1181,7 @@ function showMarketModal(player) {
 					player.cash += event.salePrice;
 					sounds.cash();
 					closeModal();
-					updateHUD();
+					updateHUDAndHeaders();
 					showModal({
 						headerClass: 'market',
 						icon: '🎉',
@@ -1092,14 +1211,14 @@ function showCharityModal(player) {
 		icon: '🎁',
 		title: '¡CARIDAD Y GENEROSIDAD!',
 		subtitle: 'La Ley de la Siembra y la Cosecha',
-		desc: `Puedes donar el <strong>10% de tu sueldo mensual (${formatCOP(donation)} COP)</strong> a una causa comunitaria.<br><br>Recompensa: Podrás tirar con <strong>2 dados en tus próximos 3 turnos</strong> para avanzar al doble de velocidad.`,
+		desc: `Donar el <strong>10% de tu sueldo mensual (${formatCOP(donation)} COP)</strong> te permite recibir una bonificación inmediata de flujo de efectivo.`,
 		stats: [
 			{ label: 'Donación Requerida', value: `${formatCOP(donation)} COP` },
 			{ label: 'Tu Efectivo', value: `${formatCOP(player.cash)} COP` }
 		],
 		buttons: [
 			{
-				text: `Donar ${formatCOP(donation)} (2 Dados x 3 Turnos)`,
+				text: `Donar ${formatCOP(donation)}`,
 				class: 'primary',
 				action: () => {
 					if (!canAfford) {
@@ -1107,10 +1226,10 @@ function showCharityModal(player) {
 						return;
 					}
 					player.cash -= donation;
-					player.hasTwoDice = 3;
+					player.cash += Math.round(donation * 1.5);
 					sounds.cash();
 					closeModal();
-					updateHUD();
+					updateHUDAndHeaders();
 					endTurn();
 				}
 			},
@@ -1129,7 +1248,7 @@ function showCrisisModal(player) {
 	player.cash -= cost;
 	player.skipTurns = 1;
 	sounds.loss();
-	updateHUD();
+	updateHUDAndHeaders();
 
 	showModal({
 		headerClass: 'crisis',
@@ -1154,7 +1273,7 @@ function showCrisisModal(player) {
 function showLoanModal(callbackAfterLoan) {
 	const player = gameState.players[gameState.currentPlayerIndex];
 	const loanBlock = 1000000;
-	const interest = loanBlock * 0.03; // 3% mensual ($30.000)
+	const interest = loanBlock * 0.03;
 
 	showModal({
 		headerClass: 'opportunity',
@@ -1177,7 +1296,7 @@ function showLoanModal(callbackAfterLoan) {
 					player.debtExpenses += interest;
 					sounds.cash();
 					closeModal();
-					updateHUD();
+					updateHUDAndHeaders();
 					if (callbackAfterLoan) callbackAfterLoan();
 					else endTurn();
 				}
@@ -1192,7 +1311,7 @@ function showLoanModal(callbackAfterLoan) {
 					player.debtExpenses += (interest * 5);
 					sounds.cash();
 					closeModal();
-					updateHUD();
+					updateHUDAndHeaders();
 					if (callbackAfterLoan) callbackAfterLoan();
 					else endTurn();
 				}
@@ -1240,7 +1359,7 @@ function showPayDebtModal() {
 					player.debtExpenses -= (payAmount * 0.03);
 					sounds.cash();
 					closeModal();
-					updateHUD();
+					updateHUDAndHeaders();
 				}
 			},
 			{
@@ -1387,8 +1506,9 @@ function endTurn() {
 
 	gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
 	gameState.isRolling = false;
-	updateHUD();
-	centerPerspectiveOnTile(gameState.players[gameState.currentPlayerIndex].position);
+	gameState.cameraViewOffset = 0;
+	updateHUDAndHeaders();
+	centerPerspective();
 }
 
 // ==========================================
