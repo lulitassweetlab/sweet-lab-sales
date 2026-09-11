@@ -1904,11 +1904,16 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 		const startX = rect.left + rect.width / 2 - startW / 2;
 		const startY = rect.top + rect.height / 2 - startH / 2;
 
-		// Dimensiones destino en el centro de la pantalla (minimalista y proporcionada)
-		const targetW = Math.min(390, Math.floor(window.innerWidth * 0.92));
-		const targetH = Math.min(480, Math.floor(window.innerHeight * 0.88));
-		const targetX = Math.floor((window.innerWidth - targetW) / 2);
+		// Dimensiones destino en el centro de la pantalla (ampliada y proporcionada)
+		const targetW = Math.min(450, Math.floor(window.innerWidth * 0.92));
+		const targetH = Math.min(540, Math.floor(window.innerHeight * 0.88));
+		let targetX = Math.floor((window.innerWidth - targetW) / 2);
 		const targetY = Math.floor((window.innerHeight - targetH) / 2);
+
+		// En pantallas amplias (>= 1380px), desplazar hacia la izquierda para que no compita con el balance a la derecha
+		if (window.innerWidth >= 1380) {
+			targetX = Math.floor((window.innerWidth - targetW - 540) / 2);
+		}
 
 		// Posicionar la tarjeta voladora exactamente sobre la casilla del camino con su ángulo 3D (42deg)
 		wrapper.style.display = 'block';
