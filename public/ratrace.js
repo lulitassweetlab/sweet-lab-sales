@@ -440,6 +440,17 @@ const HOUSING_LEVELS = [
 	{ level: 14, title: 'Casa Campestre Familiar', rent: 3200000, icon: '🌳', desc: 'Residencia campestre privada rodeada de naturaleza y amplios jardines.' }
 ];
 
+// Gastos fijos obligatorios de inicio calibrados a solicitud del usuario (Total: $1.500.000 COP)
+const DEFAULT_FIXED_EXPENSES = {
+	rent: 500000,           // Arriendo (Habitación Básica inicial)
+	groceries: 450000,      // Mercado
+	utilities: 180000,      // Servicios públicos (agua, luz, gas)
+	transport: 160000,      // Transporte
+	internet: 80000,        // Internet fijo
+	phone: 40000,           // Plan datos
+	other: 90000            // Otros
+};
+
 // Barajas de cartas adaptadas al capital inicial ($500.000 COP) y salarios 2026
 // Utilidades mensuales calibradas a solicitud del usuario:
 // - Ocasiones regulares: 0.3%, 0.5%, 0.7%, 0.8%, 0.9%, 1%, 1.2%, 1.5%, 1.6%, 1.7%, 2%
@@ -1986,9 +1997,14 @@ function startGame() {
 			profession: 'Sin empleo',
 			salary: 0,
 			housingLevel: 0,
-			rentExpense: 500000,
-			otherExpenses: 0,
-			fixedExpenses: 0, // Flujo neto mensual inicia en exactamente 0
+			rentExpense: DEFAULT_FIXED_EXPENSES.rent,
+			groceriesExpense: DEFAULT_FIXED_EXPENSES.groceries,
+			utilitiesExpense: DEFAULT_FIXED_EXPENSES.utilities,
+			transportExpense: DEFAULT_FIXED_EXPENSES.transport,
+			internetExpense: DEFAULT_FIXED_EXPENSES.internet,
+			phoneExpense: DEFAULT_FIXED_EXPENSES.phone,
+			otherExpenses: DEFAULT_FIXED_EXPENSES.other,
+			fixedExpenses: DEFAULT_FIXED_EXPENSES.rent + DEFAULT_FIXED_EXPENSES.groceries + DEFAULT_FIXED_EXPENSES.utilities + DEFAULT_FIXED_EXPENSES.transport + DEFAULT_FIXED_EXPENSES.internet + DEFAULT_FIXED_EXPENSES.phone + DEFAULT_FIXED_EXPENSES.other,
 			debtExpenses: 0,
 			totalDebt: 0,
 			cash: 500000, // Efectivo inicial calibrado a escala salario actual (500.000 COP)
@@ -2384,8 +2400,13 @@ function savePlayerFinancialSnapshot(player, reason = 'Transacción') {
 		salary: player.salary,
 		passiveIncome: fin.passiveIncome,
 		fixedExpenses: player.fixedExpenses,
-		rentExpense: player.rentExpense || 500000,
-		otherExpenses: player.otherExpenses || 0,
+		rentExpense: player.rentExpense || DEFAULT_FIXED_EXPENSES.rent,
+		groceriesExpense: player.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries,
+		utilitiesExpense: player.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities,
+		transportExpense: player.transportExpense || DEFAULT_FIXED_EXPENSES.transport,
+		internetExpense: player.internetExpense || DEFAULT_FIXED_EXPENSES.internet,
+		phoneExpense: player.phoneExpense || DEFAULT_FIXED_EXPENSES.phone,
+		otherExpenses: player.otherExpenses || DEFAULT_FIXED_EXPENSES.other,
 		housingLevel: player.housingLevel || 0,
 		debtExpenses: player.debtExpenses,
 		totalExpenses: fin.totalExpenses,
@@ -2610,17 +2631,48 @@ function showPreviousBalanceState(player) {
 
 	// 2. Salidas / Gastos
 	const rentExpEl = document.getElementById('side-bal-rent-exp');
+	const groceriesExpEl = document.getElementById('side-bal-groceries-exp');
+	const utilitiesExpEl = document.getElementById('side-bal-utilities-exp');
+	const transportExpEl = document.getElementById('side-bal-transport-exp');
+	const internetExpEl = document.getElementById('side-bal-internet-exp');
+	const phoneExpEl = document.getElementById('side-bal-phone-exp');
 	const otherExpEl = document.getElementById('side-bal-other-exp');
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
-	const prevRent = prev.rentExpense || 500000;
-	const prevOther = prev.otherExpenses || 0;
+
+	const prevRent = prev.rentExpense || DEFAULT_FIXED_EXPENSES.rent;
+	const prevGroceries = prev.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries;
+	const prevUtilities = prev.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities;
+	const prevTransport = prev.transportExpense || DEFAULT_FIXED_EXPENSES.transport;
+	const prevInternet = prev.internetExpense || DEFAULT_FIXED_EXPENSES.internet;
+	const prevPhone = prev.phoneExpense || DEFAULT_FIXED_EXPENSES.phone;
+	const prevOther = prev.otherExpenses || DEFAULT_FIXED_EXPENSES.other;
 	const prevDebt = prev.debtExpenses || 0;
-	const prevTotalExp = prev.totalExpenses || (prevRent + prevOther + prevDebt);
+	const prevTotalExp = prev.totalExpenses || (prevRent + prevGroceries + prevUtilities + prevTransport + prevInternet + prevPhone + prevOther + prevDebt);
 
 	if (rentExpEl) {
 		rentExpEl.textContent = `-${formatCOP(prevRent)}`;
 		rentExpEl.classList.add('past-val-highlight');
+	}
+	if (groceriesExpEl) {
+		groceriesExpEl.textContent = `-${formatCOP(prevGroceries)}`;
+		groceriesExpEl.classList.add('past-val-highlight');
+	}
+	if (utilitiesExpEl) {
+		utilitiesExpEl.textContent = `-${formatCOP(prevUtilities)}`;
+		utilitiesExpEl.classList.add('past-val-highlight');
+	}
+	if (transportExpEl) {
+		transportExpEl.textContent = `-${formatCOP(prevTransport)}`;
+		transportExpEl.classList.add('past-val-highlight');
+	}
+	if (internetExpEl) {
+		internetExpEl.textContent = `-${formatCOP(prevInternet)}`;
+		internetExpEl.classList.add('past-val-highlight');
+	}
+	if (phoneExpEl) {
+		phoneExpEl.textContent = `-${formatCOP(prevPhone)}`;
+		phoneExpEl.classList.add('past-val-highlight');
 	}
 	if (otherExpEl) {
 		otherExpEl.textContent = `-${formatCOP(prevOther)}`;
@@ -2742,15 +2794,21 @@ function handleLanding(player, tile) {
 			player.profession = job.title;
 			player.salary = job.salary;
 			player.housingLevel = player.housingLevel || 0;
-			player.rentExpense = HOUSING_LEVELS[player.housingLevel]?.rent || 500000;
-			player.otherExpenses = Math.max(0, job.salary - player.rentExpense);
-			player.fixedExpenses = player.otherExpenses + player.rentExpense; // Flujo neto mensual = 0 COP al inicio
+			player.rentExpense = HOUSING_LEVELS[player.housingLevel]?.rent || DEFAULT_FIXED_EXPENSES.rent;
+			player.groceriesExpense = DEFAULT_FIXED_EXPENSES.groceries;
+			player.utilitiesExpense = DEFAULT_FIXED_EXPENSES.utilities;
+			player.transportExpense = DEFAULT_FIXED_EXPENSES.transport;
+			player.internetExpense = DEFAULT_FIXED_EXPENSES.internet;
+			player.phoneExpense = DEFAULT_FIXED_EXPENSES.phone;
+			player.otherExpenses = DEFAULT_FIXED_EXPENSES.other;
+			player.fixedExpenses = player.rentExpense + player.groceriesExpense + player.utilitiesExpense + player.transportExpense + player.internetExpense + player.phoneExpense + player.otherExpenses;
 			player.salariesCollected = 0;
 			player.jobTier = 1;
 
 			sounds.genieMagic();
 			updateHUDAndHeaders();
 
+			const netFlow = player.salary - player.fixedExpenses;
 			showModal({
 				typeName: '🎉 ¡CONTRATADO EN TU PRIMER EMPLEO!',
 				headerClass: 'job',
@@ -2761,7 +2819,8 @@ function handleLanding(player, tile) {
 					{ label: 'Empleo obtenido:', value: job.title },
 					{ label: 'Casilla alcanzada:', value: `#${tile.globalIndex}` },
 					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' },
-					{ label: 'Alquiler vivienda:', value: `-${formatCOP(player.rentExpense)} COP / mes`, color: 'red' }
+					{ label: 'Gastos fijos base:', value: `-${formatCOP(player.fixedExpenses)} COP / mes`, color: 'red' },
+					{ label: 'Plata libre al mes:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} COP / mes`, color: netFlow >= 0 ? 'green' : 'red' }
 				],
 				buttons: [
 					{
@@ -2901,7 +2960,7 @@ function showHousingModal(player) {
 					savePlayerFinancialSnapshot(player, `Mudanza: ${nextHousing.title}`);
 					player.housingLevel = nextLevel;
 					player.rentExpense = nextHousing.rent;
-					player.fixedExpenses = (player.otherExpenses || 0) + player.rentExpense;
+					player.fixedExpenses = player.rentExpense + (player.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries) + (player.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities) + (player.transportExpense || DEFAULT_FIXED_EXPENSES.transport) + (player.internetExpense || DEFAULT_FIXED_EXPENSES.internet) + (player.phoneExpense || DEFAULT_FIXED_EXPENSES.phone) + (player.otherExpenses || DEFAULT_FIXED_EXPENSES.other);
 					sounds.cash();
 					updateHUDAndHeaders();
 
@@ -3802,12 +3861,24 @@ function updateDrawerFinancials(playerIndex) {
 	document.getElementById('drawer-salary').textContent = formatCOP(p.salary);
 	document.getElementById('drawer-passive').textContent = formatCOP(fin.passiveIncome);
 	const drawerRentEl = document.getElementById('drawer-rent-exp');
+	const drawerGroceriesEl = document.getElementById('drawer-groceries-exp');
+	const drawerUtilitiesEl = document.getElementById('drawer-utilities-exp');
+	const drawerTransportEl = document.getElementById('drawer-transport-exp');
+	const drawerInternetEl = document.getElementById('drawer-internet-exp');
+	const drawerPhoneEl = document.getElementById('drawer-phone-exp');
 	const drawerOtherEl = document.getElementById('drawer-other-exp');
 	const drawerFixedEl = document.getElementById('drawer-fixed-exp');
-	if (drawerRentEl) drawerRentEl.textContent = formatCOP(p.rentExpense || 500000);
-	if (drawerOtherEl) drawerOtherEl.textContent = formatCOP(p.otherExpenses || 0);
-	if (drawerFixedEl) drawerFixedEl.textContent = formatCOP(p.fixedExpenses);
-	document.getElementById('drawer-debt-exp').textContent = formatCOP(p.debtExpenses);
+	const drawerDebtEl = document.getElementById('drawer-debt-exp');
+
+	if (drawerRentEl) drawerRentEl.textContent = formatCOP(p.rentExpense || DEFAULT_FIXED_EXPENSES.rent);
+	if (drawerGroceriesEl) drawerGroceriesEl.textContent = formatCOP(p.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries);
+	if (drawerUtilitiesEl) drawerUtilitiesEl.textContent = formatCOP(p.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities);
+	if (drawerTransportEl) drawerTransportEl.textContent = formatCOP(p.transportExpense || DEFAULT_FIXED_EXPENSES.transport);
+	if (drawerInternetEl) drawerInternetEl.textContent = formatCOP(p.internetExpense || DEFAULT_FIXED_EXPENSES.internet);
+	if (drawerPhoneEl) drawerPhoneEl.textContent = formatCOP(p.phoneExpense || DEFAULT_FIXED_EXPENSES.phone);
+	if (drawerOtherEl) drawerOtherEl.textContent = formatCOP(p.otherExpenses || DEFAULT_FIXED_EXPENSES.other);
+	if (drawerFixedEl) drawerFixedEl.textContent = formatCOP(p.fixedExpenses || 1500000);
+	if (drawerDebtEl) drawerDebtEl.textContent = formatCOP(p.debtExpenses || 0);
 
 	const assetsList = document.getElementById('drawer-assets-list');
 	if (assetsList) {
@@ -3863,6 +3934,11 @@ function showPreviousDrawerState(player) {
 	const salaryEl = document.getElementById('drawer-salary');
 	const passiveEl = document.getElementById('drawer-passive');
 	const rentEl = document.getElementById('drawer-rent-exp');
+	const groceriesEl = document.getElementById('drawer-groceries-exp');
+	const utilitiesEl = document.getElementById('drawer-utilities-exp');
+	const transportEl = document.getElementById('drawer-transport-exp');
+	const internetEl = document.getElementById('drawer-internet-exp');
+	const phoneEl = document.getElementById('drawer-phone-exp');
 	const otherEl = document.getElementById('drawer-other-exp');
 	const fixedEl = document.getElementById('drawer-fixed-exp');
 	const debtEl = document.getElementById('drawer-debt-exp');
@@ -3885,19 +3961,39 @@ function showPreviousDrawerState(player) {
 		passiveEl.classList.add('past-val-highlight');
 	}
 	if (rentEl) {
-		rentEl.textContent = formatCOP(prev.rentExpense || 500000);
+		rentEl.textContent = formatCOP(prev.rentExpense || DEFAULT_FIXED_EXPENSES.rent);
 		rentEl.classList.add('past-val-highlight');
 	}
+	if (groceriesEl) {
+		groceriesEl.textContent = formatCOP(prev.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries);
+		groceriesEl.classList.add('past-val-highlight');
+	}
+	if (utilitiesEl) {
+		utilitiesEl.textContent = formatCOP(prev.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities);
+		utilitiesEl.classList.add('past-val-highlight');
+	}
+	if (transportEl) {
+		transportEl.textContent = formatCOP(prev.transportExpense || DEFAULT_FIXED_EXPENSES.transport);
+		transportEl.classList.add('past-val-highlight');
+	}
+	if (internetEl) {
+		internetEl.textContent = formatCOP(prev.internetExpense || DEFAULT_FIXED_EXPENSES.internet);
+		internetEl.classList.add('past-val-highlight');
+	}
+	if (phoneEl) {
+		phoneEl.textContent = formatCOP(prev.phoneExpense || DEFAULT_FIXED_EXPENSES.phone);
+		phoneEl.classList.add('past-val-highlight');
+	}
 	if (otherEl) {
-		otherEl.textContent = formatCOP(prev.otherExpenses || 0);
+		otherEl.textContent = formatCOP(prev.otherExpenses || DEFAULT_FIXED_EXPENSES.other);
 		otherEl.classList.add('past-val-highlight');
 	}
 	if (fixedEl) {
-		fixedEl.textContent = formatCOP(prev.fixedExpenses);
+		fixedEl.textContent = formatCOP(prev.fixedExpenses || 1500000);
 		fixedEl.classList.add('past-val-highlight');
 	}
 	if (debtEl) {
-		debtEl.textContent = formatCOP(prev.debtExpenses);
+		debtEl.textContent = formatCOP(prev.debtExpenses || 0);
 		debtEl.classList.add('past-val-highlight');
 	}
 }
@@ -4038,13 +4134,21 @@ function renderModalSideBalance() {
 
 	// 2. SALIDAS / GASTOS
 	const rentExpEl = document.getElementById('side-bal-rent-exp');
+	const groceriesExpEl = document.getElementById('side-bal-groceries-exp');
+	const utilitiesExpEl = document.getElementById('side-bal-utilities-exp');
+	const transportExpEl = document.getElementById('side-bal-transport-exp');
+	const internetExpEl = document.getElementById('side-bal-internet-exp');
+	const phoneExpEl = document.getElementById('side-bal-phone-exp');
 	const otherExpEl = document.getElementById('side-bal-other-exp');
-	const fixedExpEl = document.getElementById('side-bal-fixed-exp');
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
-	if (rentExpEl) rentExpEl.textContent = `-${formatCOP(player.rentExpense || 500000)}`;
-	if (otherExpEl) otherExpEl.textContent = `-${formatCOP(player.otherExpenses || 0)}`;
-	if (fixedExpEl) fixedExpEl.textContent = `-${formatCOP(player.fixedExpenses)}`;
+	if (rentExpEl) rentExpEl.textContent = `-${formatCOP(player.rentExpense ?? DEFAULT_FIXED_EXPENSES.rent)}`;
+	if (groceriesExpEl) groceriesExpEl.textContent = `-${formatCOP(player.groceriesExpense ?? DEFAULT_FIXED_EXPENSES.groceries)}`;
+	if (utilitiesExpEl) utilitiesExpEl.textContent = `-${formatCOP(player.utilitiesExpense ?? DEFAULT_FIXED_EXPENSES.utilities)}`;
+	if (transportExpEl) transportExpEl.textContent = `-${formatCOP(player.transportExpense ?? DEFAULT_FIXED_EXPENSES.transport)}`;
+	if (internetExpEl) internetExpEl.textContent = `-${formatCOP(player.internetExpense ?? DEFAULT_FIXED_EXPENSES.internet)}`;
+	if (phoneExpEl) phoneExpEl.textContent = `-${formatCOP(player.phoneExpense ?? DEFAULT_FIXED_EXPENSES.phone)}`;
+	if (otherExpEl) otherExpEl.textContent = `-${formatCOP(player.otherExpenses ?? DEFAULT_FIXED_EXPENSES.other)}`;
 	if (debtExpEl) debtExpEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
 	if (totalExpEl) totalExpEl.textContent = `-${formatCOP(fin.totalExpenses)}`;
 

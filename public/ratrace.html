@@ -1735,6 +1735,21 @@
 			overflow-y: auto;
 		}
 
+		.k-expenses .k-scroll-list {
+			max-height: 160px;
+			overflow-y: auto;
+			padding-right: 4px;
+		}
+
+		.k-expenses .k-item .lbl {
+			max-width: 175px;
+			font-size: 0.94rem;
+		}
+
+		.k-expenses .k-item .val {
+			font-size: 0.98rem;
+		}
+
 		.k-empty {
 			color: #94a3b8;
 			font-style: italic;
@@ -2153,16 +2168,36 @@
 						<span id="drawer-passive" style="font-weight:800; color:#16a34a;">$0</span>
 					</div>
 					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0; border-top:1px dashed var(--border-color); margin-top:4px;">
-						<span style="color:var(--text-muted);">Alquiler Vivienda:</span>
+						<span style="color:var(--text-muted);">Arriendo:</span>
 						<span id="drawer-rent-exp" style="font-weight:800; color:#dc2626;">$500.000</span>
 					</div>
 					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
-						<span style="color:var(--text-muted);">Otros Gastos:</span>
-						<span id="drawer-other-exp" style="font-weight:800; color:#dc2626;">$0</span>
+						<span style="color:var(--text-muted);">Mercado:</span>
+						<span id="drawer-groceries-exp" style="font-weight:800; color:#dc2626;">$450.000</span>
 					</div>
 					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
-						<span style="color:var(--text-muted);">Gastos Totales Mes:</span>
-						<span id="drawer-fixed-exp" style="font-weight:800; color:#dc2626;">$500.000</span>
+						<span style="color:var(--text-muted);">Servicios públicos:</span>
+						<span id="drawer-utilities-exp" style="font-weight:800; color:#dc2626;">$180.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Transporte:</span>
+						<span id="drawer-transport-exp" style="font-weight:800; color:#dc2626;">$160.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Internet fijo:</span>
+						<span id="drawer-internet-exp" style="font-weight:800; color:#dc2626;">$80.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Plan datos:</span>
+						<span id="drawer-phone-exp" style="font-weight:800; color:#dc2626;">$40.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
+						<span style="color:var(--text-muted);">Otros:</span>
+						<span id="drawer-other-exp" style="font-weight:800; color:#dc2626;">$90.000</span>
+					</div>
+					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0; border-top:1px dashed var(--border-color); margin-top:4px;">
+						<span style="color:var(--text-muted); font-weight:800;">Gastos Totales Mes:</span>
+						<span id="drawer-fixed-exp" style="font-weight:900; color:#dc2626;">$1.500.000</span>
 					</div>
 					<div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:3px 0;">
 						<span style="color:var(--text-muted);">Cuota de Préstamo:</span>
@@ -2284,16 +2319,36 @@
 				<div class="k-quadrant k-expenses">
 					<div class="k-q-head">
 						<span class="k-q-title">2. SALIDAS</span>
-						<span id="side-bal-total-exp" class="k-q-total red">-$500.000</span>
+						<span id="side-bal-total-exp" class="k-q-total red">-$1.500.000</span>
 					</div>
-					<div class="k-q-body">
+					<div class="k-q-body k-scroll-list">
 						<div class="k-item">
-							<span class="lbl">Alquiler:</span>
+							<span class="lbl">Arriendo:</span>
 							<span id="side-bal-rent-exp" class="val red">-$500.000</span>
 						</div>
 						<div class="k-item">
-							<span class="lbl">Otros gastos:</span>
-							<span id="side-bal-other-exp" class="val">-$0</span>
+							<span class="lbl">Mercado:</span>
+							<span id="side-bal-groceries-exp" class="val">-$450.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Servicios públicos:</span>
+							<span id="side-bal-utilities-exp" class="val">-$180.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Transporte:</span>
+							<span id="side-bal-transport-exp" class="val">-$160.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Internet fijo:</span>
+							<span id="side-bal-internet-exp" class="val">-$80.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Plan datos:</span>
+							<span id="side-bal-phone-exp" class="val">-$40.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Otros:</span>
+							<span id="side-bal-other-exp" class="val">-$90.000</span>
 						</div>
 						<div class="k-item">
 							<span class="lbl">Deudas:</span>
