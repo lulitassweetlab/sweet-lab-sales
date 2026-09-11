@@ -28,16 +28,47 @@ const AVATARS = [
 	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#e11d48', bg: 'rgba(225, 29, 72, 0.12)' }
 ];
 
-// Trabajos iniciales para los jugadores
-// Sueldo base: $400.000 COP, Gastos básicos: $400.000 COP -> ¡El flujo mensual empieza en exactamente 0!
+// 12 Empleos básicos de inicio seleccionados por el usuario
 const STARTER_JOBS = [
-	{ title: 'Ayudante de Repostería 👨‍🍳', salary: 400000, icon: '👨‍🍳' },
-	{ title: 'Asistente de Tienda 🏪', salary: 400000, icon: '🏪' },
-	{ title: 'Aprendiz de Diseño 🎨', salary: 400000, icon: '🎨' },
-	{ title: 'Auxiliar de Oficina 💻', salary: 400000, icon: '💻' },
-	{ title: 'Atención al Cliente 🎧', salary: 400000, icon: '🎧' },
-	{ title: 'Asistente de Bodega 📦', salary: 400000, icon: '📦' }
+	{ id: 1, title: 'Cocinero 👨‍🍳', salary: 400000, icon: '👨‍🍳', desc: 'Preparas platos deliciosos y coordinas la cocina con gran sazón.' },
+	{ id: 2, title: 'Tendero 🏪', salary: 380000, icon: '🏪', desc: 'Atiendes a los clientes de tu barrio y mantienes la tienda surtida.' },
+	{ id: 3, title: 'Auxiliar Veterinario 🐾', salary: 420000, icon: '🐾', desc: 'Cuidas y asistes en la atención médica de perritos y gatos.' },
+	{ id: 4, title: 'Domiciliario 🛵', salary: 390000, icon: '🛵', desc: 'Entregas pedidos y paquetes de manera ágil por toda la zona.' },
+	{ id: 5, title: 'Recreacionista 🎈', salary: 410000, icon: '🎈', desc: 'Organizas dinámicas, juegos y figuras con globos en fiestas.' },
+	{ id: 6, title: 'Jardinero 🌱', salary: 380000, icon: '🌱', desc: 'Siembras flores, podas prados y cuidas zonas verdes hermosas.' },
+	{ id: 7, title: 'Constructor 🔨', salary: 430000, icon: '🔨', desc: 'Ayudas en obras, mampostería y acabados de edificaciones.' },
+	{ id: 8, title: 'Vendedor 🏷️', salary: 390000, icon: '🏷️', desc: 'Asesoras a clientes para elegir los mejores productos en el local.' },
+	{ id: 9, title: 'Fotógrafo 📸', salary: 440000, icon: '📸', desc: 'Tomas fotografías en eventos sociales y sesiones de retratos.' },
+	{ id: 10, title: 'Lavacarros 🚗', salary: 380000, icon: '🚗', desc: 'Dejas brillantes los automóviles con lavado y encerado profesional.' },
+	{ id: 11, title: 'Servicio al Cliente 🎧', salary: 400000, icon: '🎧', desc: 'Resuelves dudas y ayudas a personas con amabilidad y paciencia.' },
+	{ id: 12, title: 'Traductor 🗣️', salary: 450000, icon: '🗣️', desc: 'Traduces textos y conversaciones entre diferentes idiomas.' }
 ];
+
+// Escalafón de títulos de ascenso tras 10 salarios
+const JOB_PROMOTION_TITLES = {
+	'Cocinero': ['Cocinero 👨‍🍳', 'Cocinero Líder 👨‍🍳', 'Chef de Turno 👨‍🍳', 'Chef Principal 👨‍🍳'],
+	'Tendero': ['Tendero 🏪', 'Tendero Encargado 🏪', 'Administrador de Tienda 🏪', 'Gerente Comercial 🏪'],
+	'Auxiliar': ['Auxiliar Veterinario 🐾', 'Veterinario Asistente 🐾', 'Coordinador Veterinario 🐾', 'Director Clínico 🐾'],
+	'Domiciliario': ['Domiciliario 🛵', 'Domiciliario Experto 🛵', 'Líder de Entregas 🛵', 'Coordinador Logístico 🛵'],
+	'Recreacionista': ['Recreacionista 🎈', 'Recreacionista Principal 🎈', 'Coordinador de Eventos 🎈', 'Director Recreativo 🎈'],
+	'Jardinero': ['Jardinero 🌱', 'Jardinero Especialista 🌱', 'Diseñador de Jardines 🌱', 'Maestro Paisajista 🌱'],
+	'Constructor': ['Constructor 🔨', 'Oficial de Construcción 🔨', 'Maestro de Obra 🔨', 'Supervisor de Obras 🔨'],
+	'Vendedor': ['Vendedor 🏷️', 'Vendedor Destacado 🏷️', 'Líder de Ventas 🏷️', 'Director Comercial 🏷️'],
+	'Fotógrafo': ['Fotógrafo 📸', 'Fotógrafo Profesional 📸', 'Fotógrafo de Moda 📸', 'Director de Fotografía 📸'],
+	'Lavacarros': ['Lavacarros 🚗', 'Detallador Automotriz 🚗', 'Encargado de Lavadero 🚗', 'Administrador de Taller 🚗'],
+	'Servicio': ['Servicio al Cliente 🎧', 'Asesor Senior 🎧', 'Coordinador de Calidad 🎧', 'Supervisor de Servicio 🎧'],
+	'Traductor': ['Traductor 🗣️', 'Traductor Oficial 🗣️', 'Intérprete Principal 🗣️', 'Consultor Bilingüe 🗣️']
+};
+
+function getPromotedTitle(currentTitle, tier = 1) {
+	for (const [key, ladder] of Object.entries(JOB_PROMOTION_TITLES)) {
+		if (currentTitle.includes(key)) {
+			const idx = Math.min(tier - 1, ladder.length - 1);
+			return ladder[idx];
+		}
+	}
+	return `${currentTitle} ⭐`;
+}
 
 // Opciones de Nuevo Trabajo para cambiar de empleo con diferentes sueldos
 const NEW_JOBS = [
@@ -50,8 +81,6 @@ const NEW_JOBS = [
 	{ title: 'Administrador de Local 🏪', salary: 680000, desc: 'Coordinando el equipo y las ventas de la tienda.' },
 	{ title: 'Entrenador Deportivo ⚽', salary: 550000, desc: 'Guiando entrenamientos y partidos de fútbol juvenil.' },
 	{ title: 'Profesor de Música 🎸', salary: 500000, desc: 'Enseñando guitarra, piano y canto a nuevos talentos.' },
-	{ title: 'Repartidor Express 🛵', salary: 480000, desc: 'Entregando pedidos rápidos por toda la ciudad.' },
-	{ title: 'Auxiliar Veterinario 🐾', salary: 530000, desc: 'Cuidando perritos, gatos y animales en la clínica.' },
 	{ title: 'Piloto de Drones 🛸', salary: 800000, desc: 'Grabando tomas aéreas para películas y comerciales.' }
 ];
 
@@ -715,13 +744,11 @@ function closeBalanceDrawer() {
 function startGame() {
 	const count = parseInt(document.querySelector('.setup-count-btn.active')?.dataset.count || '2', 10);
 	const players = [];
-	const shuffledJobs = [...STARTER_JOBS].sort(() => 0.5 - Math.random());
 
 	for (let i = 0; i < count; i++) {
 		const nameInput = document.getElementById(`player-input-${i}`);
 		const name = (nameInput?.value || `Jugador ${i + 1}`).trim();
 		const avatar = AVATARS[i];
-		const job = shuffledJobs[i % shuffledJobs.length];
 
 		players.push({
 			id: i,
@@ -729,15 +756,18 @@ function startGame() {
 			avatar: avatar.emoji,
 			color: avatar.color,
 			bg: avatar.bg,
-			profession: job.title,
-			salary: job.salary,
-			fixedExpenses: job.salary, // Igual al sueldo para que el flujo neto mensual comience exactamente en 0!
+			profession: 'Sin empleo',
+			salary: 0,
+			fixedExpenses: 0, // Flujo neto mensual inicia en exactamente 0
 			debtExpenses: 0,
 			totalDebt: 0,
-			cash: 100000, // ¡Efectivo inicial en exactamente 100.000 COP!
+			cash: 100000, // Efectivo inicial en exactamente 100.000 COP
 			position: 0,
 			assets: [],
-			skipTurns: 0
+			skipTurns: 0,
+			hasJob: false, // Inician sin empleo
+			salariesCollected: 0,
+			jobTier: 1
 		});
 	}
 
@@ -928,7 +958,11 @@ function updateHUDAndHeaders() {
 	const current = gameState.players[gameState.currentPlayerIndex];
 	const pill = document.getElementById('floating-status-pill');
 	const monthNum = Math.floor(current.position / 24) + 1;
-	pill.textContent = `Turno de ${current.name} • ${current.profession} (Mes ${monthNum})`;
+	if (current && !current.hasJob) {
+		pill.textContent = `Turno de ${current.name} • Buscando empleo (¡Tira los dados para conseguir trabajo!)`;
+	} else if (current) {
+		pill.textContent = `Turno de ${current.name} • ${current.profession} (Mes ${monthNum})`;
+	}
 
 	// Resaltar casilla activa
 	document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
@@ -947,6 +981,11 @@ function updateHUDAndHeaders() {
 		}, 1800);
 	} else {
 		btnRoll.disabled = false;
+		if (!current.hasJob) {
+			btnRoll.textContent = '🎲 ¡Tirar para Empleo!';
+		} else {
+			btnRoll.textContent = '🎲 Tirar Dados 🎲';
+		}
 	}
 }
 
@@ -986,9 +1025,87 @@ function setDiceFace(diceNumber, faceValue) {
 	grid.className = `dice-face-grid face-${faceValue}`;
 }
 
+function showStarterJobRaffle(player) {
+	const jobsListHTML = STARTER_JOBS.map(j => `
+		<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-radius:10px; background:#f8fafc; font-size:0.86rem; font-weight:700;">
+			<span><strong>#${j.id}</strong> ${j.title}</span>
+			<span style="color:#16a34a; font-weight:900;">${formatCOP(j.salary)}</span>
+		</div>
+	`).join('');
+
+	showModal({
+		typeName: '🎯 SORTEO DE EMPLEO INICIAL',
+		headerClass: 'job',
+		icon: '🎲',
+		title: 'Consigue tu Primer Empleo',
+		detailedInfo: `¡Hola <strong>${player.name}</strong>! Todos los participantes comienzan buscando trabajo.<br><br>Tira los dados para obtener al azar uno de los <strong>12 empleos básicos</strong> disponibles.<br><br><div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:165px; overflow-y:auto; margin-top:6px; border:1.5px solid #e2e8f0; border-radius:14px; padding:8px;">${jobsListHTML}</div>`,
+		stats: [],
+		buttons: [
+			{
+				text: '¡Tirar Dados para mi Empleo! 🎲 (1 al 12)',
+				class: 'primary',
+				action: () => {
+					// Sorteo aleatorio 1 al 12
+					const rollNum = Math.floor(Math.random() * 12) + 1;
+					const job = STARTER_JOBS[rollNum - 1];
+
+					// Configurar caras visuales de los dados según el número obtenido
+					if (rollNum === 1) {
+						setDiceFace(1, 1);
+						setDiceFace(2, 1);
+					} else {
+						const d1 = Math.min(6, Math.max(1, Math.floor(rollNum / 2)));
+						const d2 = rollNum - d1;
+						setDiceFace(1, d1);
+						setDiceFace(2, d2);
+					}
+
+					sounds.genieMagic();
+					player.hasJob = true;
+					player.profession = job.title;
+					player.salary = job.salary;
+					player.fixedExpenses = job.salary; // Flujo neto mensual = 0
+					player.salariesCollected = 0;
+					player.jobTier = 1;
+
+					updateHUDAndHeaders();
+
+					showModal({
+						typeName: '🎉 ¡CONTRATADO!',
+						headerClass: 'job',
+						icon: '🎉',
+						title: job.title,
+						detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Sacaste el <strong>#${rollNum}</strong> en los dados y fuiste contratado como <strong>${job.title}</strong>.<br><br>⏱️ <em>Recuerda: Tu salario de <strong>${formatCOP(job.salary)} COP</strong> no se cobra de inmediato. Se cobrará cada 3 minutos cuando pases o caigas en el Día de Pago.</em>`,
+						stats: [
+							{ label: 'Empleo obtenido:', value: job.title },
+							{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' }
+						],
+						buttons: [
+							{
+								text: '¡Comenzar a Jugar y Avanzar! 🚀',
+								class: 'primary',
+								action: () => {
+									closeModal();
+								}
+							}
+						]
+					});
+				}
+			}
+		]
+	});
+}
+
 function rollTwoDice() {
 	if (gameState.isRolling || gameState.isCardFlying) return;
 	const player = gameState.players[gameState.currentPlayerIndex];
+
+	// Si el participante aún no tiene empleo, sortear primero su empleo inicial
+	if (!player.hasJob) {
+		showStarterJobRaffle(player);
+		return;
+	}
+
 	const btnRoll = document.getElementById('btn-roll-dice');
 	const dice1 = document.getElementById('hud-dice-3d-1');
 	const dice2 = document.getElementById('hud-dice-3d-2');
@@ -1148,6 +1265,13 @@ function showFloatingPaydayBubble(tileIndex, laneIndex, amount) {
 
 // 1. Día de Pago
 function collectPayday(player, isLanding) {
+	if (!player.hasJob || player.salary === 0) {
+		return;
+	}
+
+	player.salariesCollected = (player.salariesCollected || 0) + 1;
+	const count = player.salariesCollected;
+
 	const fin = getPlayerFinancials(player);
 	player.cash += fin.monthlyCashFlow;
 	sounds.cash();
@@ -1170,18 +1294,62 @@ function collectPayday(player, isLanding) {
 		void sideCash.offsetWidth;
 		sideCash.classList.add('value-payday-flash');
 	}
-	const modalBalance = document.getElementById('modal-balance-val');
-	if (modalBalance) {
-		modalBalance.textContent = `${formatCOP(player.cash)} COP`;
-		modalBalance.classList.remove('value-payday-flash');
-		void modalBalance.offsetWidth;
-		modalBalance.classList.add('value-payday-flash');
-	}
 
 	// Efecto visual flotante del valor del pago sobre la casilla física
 	const isParallelTwo = gameState.players.length === 2;
 	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 	showFloatingPaydayBubble(player.position, laneIndex, fin.monthlyCashFlow);
+
+	// 1. Cada 25 salarios cobrados: Aumento por antigüedad del 5% sin cambio de puesto
+	if (count > 0 && count % 25 === 0) {
+		const raise5 = Math.round((player.salary * 0.05) / 1000) * 1000;
+		player.salary += raise5;
+		updateHUDAndHeaders();
+		setTimeout(() => {
+			showModal({
+				typeName: '¡AUMENTO POR ANTIGÜEDAD! 📈',
+				headerClass: 'promotion',
+				icon: '🎖️',
+				title: '¡Aumento del 5% por Constancia!',
+				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Has cobrado <strong>${count} salarios</strong> en tu trayectoria laboral.<br><br>Por tu antigüedad, recibes un aumento automático del <strong>5%</strong> (+${formatCOP(raise5)} COP/mes) sin cambio de puesto.`,
+				stats: [
+					{ label: 'Salarios cobrados:', value: `${count} salarios` },
+					{ label: 'Aumento otorgado:', value: `+${formatCOP(raise5)} COP / mes (5%)`, color: 'green' },
+					{ label: 'Nuevo sueldo:', value: `${formatCOP(player.salary)} COP / mes`, color: 'green' }
+				],
+				buttons: [
+					{ text: '¡Excelente! Continuar ➔', class: 'primary', action: () => { closeModal(); } }
+				]
+			});
+		}, 1200);
+	}
+	// 2. Cada 10 salarios cobrados (que no sea 25): Ascenso laboral con 10% redondeado
+	else if (count > 0 && count % 10 === 0) {
+		const raise10 = Math.round((player.salary * 0.10) / 1000) * 1000;
+		player.salary += raise10;
+		player.jobTier = (player.jobTier || 1) + 1;
+		const newTitle = getPromotedTitle(player.profession, player.jobTier);
+		player.profession = newTitle;
+		updateHUDAndHeaders();
+
+		setTimeout(() => {
+			showModal({
+				typeName: '¡ASCENSO LABORAL! ⭐',
+				headerClass: 'promotion',
+				icon: '⭐',
+				title: '¡Has sido Ascendido!',
+				detailedInfo: `¡Bravo, <strong>${player.name}</strong>! Has acumulado <strong>${count} salarios</strong> cobrados en tu trabajo.<br><br>Tu esfuerzo ha sido premiado: ¡recibes un <strong>Ascenso de Cargo</strong> con un <strong>10% de aumento</strong> redondeado!`,
+				stats: [
+					{ label: 'Nuevo cargo:', value: newTitle },
+					{ label: 'Aumento por ascenso:', value: `+${formatCOP(raise10)} COP / mes (10%)`, color: 'green' },
+					{ label: 'Sueldo actualizado:', value: `${formatCOP(player.salary)} COP / mes`, color: 'green' }
+				],
+				buttons: [
+					{ text: '¡Celebrar mi Ascenso! 🚀', class: 'primary', action: () => { closeModal(); } }
+				]
+			});
+		}, 1200);
+	}
 
 	if (isLanding) {
 		const isZeroFlow = fin.monthlyCashFlow === 0;
@@ -1191,9 +1359,10 @@ function collectPayday(player, isLanding) {
 			icon: '💰',
 			title: '¡Día de Pago!',
 			detailedInfo: isZeroFlow
-				? `Tus ingresos cubrieron exactamente tus gastos del mes.<br><br>💡 <em>¡Consigue un ascenso, cambia a un trabajo mejor o compra una oportunidad para empezar a guardar plata cada mes!</em>`
-				: `¡Llegó tu plata del mes! Cobraste tu sueldo y las ganancias de todas tus oportunidades.`,
+				? `Tus ingresos cubrieron tus gastos del mes (Cobro #${count}).<br><br>💡 <em>¡Llega a 10 cobros para conseguir un ascenso, cambia a un trabajo mejor o compra una oportunidad para aumentar tu plata libre!</em>`
+				: `¡Llegó tu plata del mes (Cobro #${count})! Cobraste tu sueldo y las ganancias de tus negocios.`,
 			stats: [
+				{ label: 'Cobros acumulados:', value: `${count} salarios cobrados` },
 				{ label: 'Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)} COP`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
 				{ label: 'Total en tu bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
 			],
@@ -1813,7 +1982,14 @@ function renderModalSideBalance() {
 		avatarEl.style.background = player.bg;
 	}
 	if (nameEl) nameEl.textContent = `${player.name} (Turno)`;
-	if (jobEl) jobEl.textContent = player.profession;
+	if (jobEl) {
+		const count = player.salariesCollected || 0;
+		if (player.hasJob) {
+			jobEl.textContent = `${player.profession} • ${count} salarios cobrados`;
+		} else {
+			jobEl.textContent = 'Buscando empleo 🔍';
+		}
+	}
 
 	// Resumen Superior: Efectivo y Flujo Libre
 	const cashEl = document.getElementById('side-bal-cash');
