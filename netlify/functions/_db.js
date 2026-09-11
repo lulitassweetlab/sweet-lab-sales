@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 76; // 76: add last_pkg_cost and last_pkg_qty to restaurant_inventory
+const SCHEMA_VERSION = 77; // 77: promote marcela to superadmin
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -394,7 +394,7 @@ export async function ensureSchema() {
 			// Seed default users if empty
 			const userCount = await sql`SELECT COUNT(*)::int AS c FROM users`;
 			if ((userCount[0]?.c || 0) === 0) {
-				await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin'), ('marcela', 'marcelasweet', 'admin'), ('aleja', 'alejasweet', 'admin')`;
+				await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin'), ('marcela', 'marcelasweet', 'superadmin'), ('aleja', 'alejasweet', 'admin')`;
 			}
 
 			// Seed default CRM stages
@@ -886,6 +886,12 @@ export async function ensureSchema() {
 					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_pkg_cost NUMERIC DEFAULT 0`;
 					await sql`ALTER TABLE restaurant_inventory ADD COLUMN IF NOT EXISTS last_pkg_qty NUMERIC DEFAULT 1`;
 					await sql`UPDATE schema_meta SET version = 76`;
+				}
+
+				if (Number(meta[0].version) < 77) {
+					console.log('Migrating to v77: Promoting marcela to superadmin...');
+					await sql`UPDATE users SET role = 'superadmin' WHERE lower(username) = 'marcela'`;
+					await sql`UPDATE schema_meta SET version = 77`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

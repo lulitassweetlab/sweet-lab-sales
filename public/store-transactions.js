@@ -383,18 +383,16 @@ async function showSellerSelection() {
         if (!res.ok) throw new Error('Error al cargar vendedores');
         const allSellers = await res.json();
 
-        if (storeActiveSeller) {
-            const fresh = allSellers.find(s => s.id === storeActiveSeller.id || s.name.toLowerCase() === storeActiveSeller.name.toLowerCase());
-            if (fresh) {
-                storeActiveSeller = fresh;
-                safeLS.setItem('storeActiveSeller', JSON.stringify(fresh));
-            }
+        const targetName = (storeAuthUser && (storeAuthUser.username || storeAuthUser.name) || '').toLowerCase();
+        let matchedSeller = null;
+
+        if (targetName) {
+            matchedSeller = allSellers.find(s => s.name && s.name.toLowerCase() === targetName);
         }
 
-        const matchedSeller = allSellers.find(s =>
-            s.name.toLowerCase() === (storeAuthUser.username || '').toLowerCase() ||
-            s.name.toLowerCase() === (storeAuthUser.name || '').toLowerCase()
-        );
+        if (!matchedSeller && storeActiveSeller) {
+            matchedSeller = allSellers.find(s => s.id === storeActiveSeller.id || (s.name && s.name.toLowerCase() === (storeActiveSeller.name || '').toLowerCase()));
+        }
 
         if (matchedSeller) {
             setSeller(matchedSeller);

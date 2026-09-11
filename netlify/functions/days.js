@@ -89,9 +89,9 @@ export async function handler(event) {
 					} catch {}
 				}
 				
-				// Superadmin check: either role is 'superadmin' OR username is 'jorge'
+				// Superadmin check: either role is 'superadmin' OR username is 'jorge' or 'marcela'
 				const actorLower = actor.toLowerCase();
-				isSuperAdmin = role === 'superadmin' || actorLower === 'jorge';
+				isSuperAdmin = role === 'superadmin' || actorLower === 'jorge' || actorLower === 'marcela';
 				
 				const dayParam = day && day.length ? day : null;
 				const daVal = (isSuperAdmin && !Number.isNaN(da)) ? Math.max(0, da|0) : null;

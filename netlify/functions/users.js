@@ -109,7 +109,8 @@ export async function handler(event) {
 				if ((expected || '').toLowerCase() !== (password || '').toLowerCase()) return json({ error: 'Usuario o contraseña inválidos' }, 401);
 				const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${rawUsername}) ORDER BY feature ASC`;
 				const features = (featRows || []).map(f => String(f.feature));
-				return json({ username: rawUsername, role: 'user', features });
+				const role = ['jorge', 'marcela'].includes(username) ? 'superadmin' : 'user';
+				return json({ username: rawUsername, role, features });
 			}
 			case 'PUT': {
 				// Change password
@@ -131,7 +132,8 @@ export async function handler(event) {
 				// If not found, allow creating an account when current matches legacy default rule
 				const expected = username === 'jorge' ? 'Jorge123' : (username + 'sweet');
 				if ((expected || '').toLowerCase() !== (currentPassword || '').toLowerCase()) return json({ error: 'Contraseña actual incorrecta' }, 401);
-				await sql`INSERT INTO users (username, password_hash, role) VALUES (${rawUsername}, ${newPassword}, 'user') ON CONFLICT (username) DO UPDATE SET password_hash=EXCLUDED.password_hash`;
+				const defaultRole = ['jorge', 'marcela'].includes(username) ? 'superadmin' : 'user';
+				await sql`INSERT INTO users (username, password_hash, role) VALUES (${rawUsername}, ${newPassword}, ${defaultRole}) ON CONFLICT (username) DO UPDATE SET password_hash=EXCLUDED.password_hash, role=${defaultRole}`;
 				return json({ ok: true });
 			}
 			case 'PATCH': {
