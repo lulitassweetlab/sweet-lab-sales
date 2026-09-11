@@ -1,18 +1,18 @@
 /**
- * RatRace - Sweet Lab Finanzas
- * Juego de mesa financiero multijugador interactivo (1 a 4 jugadores)
- * Inspirado en CashFlow de Robert Kiyosaki
+ * RatRace - Carrera de la Rata (CashFlow)
+ * Edición Sweet Lab Finanzas
+ * Camino continuo interminable y estética oficial CashFlow
  */
 
 // ==========================================
-// 1. CONSTANTES Y CONFIGURACIONES
+// 1. CONFIGURACIÓN Y CONSTANTES
 // ==========================================
 
 const AVATARS = [
-	{ id: 'rat-blue', name: 'Quesito Veloz', emoji: '🐭', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' },
-	{ id: 'rat-purple', name: 'Don Inversor', emoji: '🐹', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' },
-	{ id: 'rat-amber', name: 'Ahorrador Feliz', emoji: '🐰', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' },
-	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.2)' }
+	{ id: 'rat-blue', name: 'Quesito Veloz', emoji: '🐭', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.25)' },
+	{ id: 'rat-purple', name: 'Don Inversor', emoji: '🐹', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.25)' },
+	{ id: 'rat-amber', name: 'Ahorrador Feliz', emoji: '🐰', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.25)' },
+	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.25)' }
 ];
 
 const PROFESSIONS = [
@@ -60,113 +60,135 @@ const PROFESSIONS = [
 	}
 ];
 
-// Perímetro del tablero de 7x7 (24 casillas en sentido horario)
-const BOARD_TILES = [
-	// Fila Superior (0 a 6): row 1, cols 1..7
-	{ id: 0, row: 1, col: 1, type: 'payday', title: 'DÍA DE PAGO', icon: '💰', desc: '¡Cobras tu Flujo de Caja mensual!' },
-	{ id: 1, row: 1, col: 2, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' },
-	{ id: 2, row: 1, col: 3, type: 'doodad', title: 'CAPRICHO', icon: '🛍️', desc: 'Gasto imprevisto o tentación' },
-	{ id: 3, row: 1, col: 4, type: 'market', title: 'MERCADO', icon: '📈', desc: 'Ventas y fluctuaciones económicas' },
-	{ id: 4, row: 1, col: 5, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' },
-	{ id: 5, row: 1, col: 6, type: 'charity', title: 'DONACIÓN', icon: '🎁', desc: 'Generosidad y educación' },
-	{ id: 6, row: 1, col: 7, type: 'payday', title: 'DÍA DE PAGO', icon: '💰', desc: '¡Cobras tu Flujo de Caja mensual!' },
+// Tipos de casillas disponibles para generar el camino continuo
+const TILE_TYPES = {
+	payday: {
+		type: 'payday',
+		styleClass: 'tile-style-payday',
+		name: 'DÍA DE PAGO',
+		icon: '💰',
+		sub: '+Flujo de Caja'
+	},
+	opportunity: {
+		type: 'opportunity',
+		styleClass: 'tile-style-opportunity',
+		name: 'OPORTUNIDAD',
+		icon: '🚀',
+		sub: 'Inversiones'
+	},
+	doodad: {
+		type: 'doodad',
+		styleClass: 'tile-style-doodad',
+		name: 'CAPRICHO',
+		icon: '🛍️',
+		sub: 'Gasto Sorpresa'
+	},
+	market: {
+		type: 'market',
+		styleClass: 'tile-style-market',
+		name: 'EL MERCADO',
+		icon: '📈',
+		sub: 'Compra y Venta'
+	},
+	charity: {
+		type: 'charity',
+		styleClass: 'tile-style-charity',
+		name: 'CARIDAD',
+		icon: '🎁',
+		sub: 'Donar / 2 Dados'
+	},
+	crisis: {
+		type: 'crisis',
+		styleClass: 'tile-style-crisis',
+		name: 'DESPIDO',
+		icon: '🚨',
+		sub: 'Pérdida de Turno'
+	}
+};
 
-	// Columna Derecha (7 a 11): rows 2..6, col 7
-	{ id: 7, row: 2, col: 7, type: 'doodad', title: 'CAPRICHO', icon: '🛍️', desc: 'Gasto imprevisto o tentación' },
-	{ id: 8, row: 3, col: 7, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' },
-	{ id: 9, row: 4, col: 7, type: 'crisis', title: 'CRISIS', icon: '🚨', desc: 'Despido temporal y emergencia' },
-	{ id: 10, row: 5, col: 7, type: 'market', title: 'MERCADO', icon: '📈', desc: 'Ventas y fluctuaciones económicas' },
-	{ id: 11, row: 6, col: 7, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' },
-
-	// Fila Inferior (12 a 18): row 7, cols 7 down to 1
-	{ id: 12, row: 7, col: 7, type: 'payday', title: 'DÍA DE PAGO', icon: '💰', desc: '¡Cobras tu Flujo de Caja mensual!' },
-	{ id: 13, row: 7, col: 6, type: 'doodad', title: 'CAPRICHO', icon: '🛍️', desc: 'Gasto imprevisto o tentación' },
-	{ id: 14, row: 7, col: 5, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' },
-	{ id: 15, row: 7, col: 4, type: 'market', title: 'MERCADO', icon: '📈', desc: 'Ventas y fluctuaciones económicas' },
-	{ id: 16, row: 7, col: 3, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' },
-	{ id: 17, row: 7, col: 2, type: 'charity', title: 'DONACIÓN', icon: '🎁', desc: 'Generosidad y educación' },
-	{ id: 18, row: 7, col: 1, type: 'payday', title: 'DÍA DE PAGO', icon: '💰', desc: '¡Cobras tu Flujo de Caja mensual!' },
-
-	// Columna Izquierda (19 a 23): rows 6 down to 2, col 1
-	{ id: 19, row: 6, col: 1, type: 'doodad', title: 'CAPRICHO', icon: '🛍️', desc: 'Gasto imprevisto o tentación' },
-	{ id: 20, row: 5, col: 1, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' },
-	{ id: 21, row: 4, col: 1, type: 'market', title: 'MERCADO', icon: '📈', desc: 'Ventas y fluctuaciones económicas' },
-	{ id: 22, row: 3, col: 1, type: 'doodad', title: 'CAPRICHO', icon: '🛍️', desc: 'Gasto imprevisto o tentación' },
-	{ id: 23, row: 2, col: 1, type: 'opportunity', title: 'OPORTUNIDAD', icon: '🚀', desc: 'Negocios e Inversiones' }
-];
-
-// Baraja de Oportunidades (Pequeñas y Grandes)
+// Baraja de Oportunidades Pequeñas
 const SMALL_DEALS = [
 	{
 		title: 'Máquina Expendedora Sweet Lab',
 		type: 'business',
-		desc: 'Instalas una máquina expendedora automática de postres y galletas en una oficina con alta afluencia de trabajadores.',
+		desc: 'Instalas una máquina automática de postres en un edificio de oficinas con alta afluencia.',
 		cost: 1200,
 		downPayment: 1200,
 		cashFlow: 180,
 		roi: '180% anual',
-		category: 'Negocio'
+		category: 'Negocio Automatizado'
 	},
 	{
 		title: 'Acciones de Sweet Tech',
 		type: 'stock',
 		ticker: 'SWT',
-		desc: 'Acciones de una empresa de tecnología local a $20 cada una. Compras un paquete de 50 acciones.',
+		desc: 'Acciones de una empresa tecnológica a $20 c/u. Adquieres un paquete de 50 acciones con dividendo mensual.',
 		cost: 1000,
 		downPayment: 1000,
 		shares: 50,
 		pricePerShare: 20,
-		cashFlow: 50, // Pequeño dividendo
+		cashFlow: 50,
 		roi: '60% anual',
 		category: 'Acciones'
 	},
 	{
-		title: 'Tienda Online de Repostería Creativa',
+		title: 'Tienda Online de Galletas Artesanales',
 		type: 'business',
-		desc: 'Creas una tienda digital automatizada de envíos de tortas y regalos personalizados.',
+		desc: 'Abres una plataforma web de regalos y postres gourmet con entregas automatizadas.',
 		cost: 800,
 		downPayment: 800,
 		cashFlow: 140,
 		roi: '210% anual',
-		category: 'Emprendimiento'
+		category: 'Emprendimiento Digital'
 	},
 	{
 		title: 'Fondo de Renta Fija Indexado',
 		type: 'fund',
-		desc: 'Inviertes en un fondo seguro que reparte intereses mensuales garantizados.',
+		desc: 'Colocas ahorros en un fondo diversificado de bajo riesgo que reparte dividendos cada mes.',
 		cost: 1500,
 		downPayment: 1500,
 		cashFlow: 170,
 		roi: '136% anual',
-		category: 'Inversión'
+		category: 'Fondo de Inversión'
 	},
 	{
 		title: 'Monedas de Oro de Colección',
 		type: 'precious_metal',
-		desc: 'Compras 2 monedas de oro raras a precio de oferta. No dan flujo mensual pero pueden venderse en Mercado al doble.',
+		desc: 'Compras 2 monedas de oro raras a precio de ganga para venderlas en El Mercado cuando suba su cotización.',
 		cost: 600,
 		downPayment: 600,
 		cashFlow: 0,
 		category: 'Coleccionable'
 	},
 	{
-		title: 'Canal de Recetas y Membresías',
+		title: 'Curso y Membresía de Repostería',
 		type: 'business',
-		desc: 'Creas un club digital de suscriptores que pagan mensualidad por clases de repostería.',
+		desc: 'Creas una comunidad digital donde usuarios pagan una suscripción mensual por recetas exclusivas.',
 		cost: 1000,
 		downPayment: 1000,
 		cashFlow: 160,
 		roi: '192% anual',
 		category: 'Negocio Digital'
+	},
+	{
+		title: 'Carrito Portátil de Postres',
+		type: 'business',
+		desc: 'Puesto móvil de postres en una zona comercial atendido por un colaborador.',
+		cost: 1600,
+		downPayment: 1600,
+		cashFlow: 220,
+		roi: '165% anual',
+		category: 'Punto de Venta'
 	}
 ];
 
+// Baraja de Oportunidades Grandes
 const BIG_DEALS = [
 	{
 		title: 'Casa de 2 Habitaciones en Renta',
 		type: 'real_estate',
 		propertyType: '2bed_house',
-		desc: 'Una excelente casa en un buen vecindario. La alquilas a una familia responsable.',
+		desc: 'Una excelente vivienda en una zona tranquila. Se alquila a una familia con contrato a largo plazo.',
 		cost: 45000,
 		downPayment: 5000,
 		cashFlow: 450,
@@ -177,7 +199,7 @@ const BIG_DEALS = [
 		title: 'Apartamento Vacacional en la Playa',
 		type: 'real_estate',
 		propertyType: 'condo',
-		desc: 'Condominio turístico administrado por agencia que genera ingresos por rentas cortas.',
+		desc: 'Condominio turístico administrado por agencia que produce altas rentas en temporada.',
 		cost: 75000,
 		downPayment: 8000,
 		cashFlow: 750,
@@ -185,7 +207,7 @@ const BIG_DEALS = [
 		category: 'Bienes Raíces'
 	},
 	{
-		title: 'Local Comercial en Plaza Central',
+		title: 'Local Comercial en Plaza Céntrica',
 		type: 'real_estate',
 		propertyType: 'commercial',
 		desc: 'Local de alta visibilidad alquilado a una cafetería de prestigio.',
@@ -196,20 +218,20 @@ const BIG_DEALS = [
 		category: 'Bienes Raíces'
 	},
 	{
-		title: 'Edificio Residencial de 4 Apartamentos',
+		title: 'Edificio de 4 Apartamentos (Multifamiliar)',
 		type: 'real_estate',
 		propertyType: '4plex',
-		desc: 'Propiedad multifamiliar que produce 4 rentas simultáneas cada mes.',
+		desc: 'Propiedad con 4 apartamentos independientes que producen 4 mensualidades simultáneas.',
 		cost: 160000,
 		downPayment: 18000,
-		cashFlow: 1750,
-		roi: '116% anual',
+		cashFlow: 1800,
+		roi: '120% anual',
 		category: 'Bienes Raíces'
 	},
 	{
 		title: 'Franquicia Express Sweet Lab',
 		type: 'business',
-		desc: 'Punto de venta franquiciado con personal capacitado operando de forma autónoma.',
+		desc: 'Franquicia con personal contratado y sistema probado que opera de manera autónoma.',
 		cost: 55000,
 		downPayment: 6000,
 		cashFlow: 650,
@@ -218,88 +240,88 @@ const BIG_DEALS = [
 	}
 ];
 
-// Baraja de Caprichos (Doodads)
+// Baraja de Caprichos (Doodads / Cosas)
 const DOODADS = [
 	{
 		title: 'Último Teléfono Inteligente',
-		desc: 'Salió el nuevo modelo con 5 cámaras. La publicidad te convenció de comprarlo.',
+		desc: 'Compraste el modelo más nuevo de teléfono para estrenar con tus amigos.',
 		cost: 850,
-		lesson: '¿Era una necesidad o un deseo? Comprar caprichos sin activos retrasa tu libertad.'
+		lesson: '¿Era una necesidad real o un deseo pasajero? Comprar caprichos sin activos retrasa tu libertad.'
 	},
 	{
-		title: 'Cena Gourmet de Cumpleaños',
-		desc: 'Invitaste a cenar a tus amigos a un restaurante de lujo para celebrar.',
+		title: 'Cena Gourmet de Celebración',
+		desc: 'Invitaste a cenar a tus amigos en un restaurante de lujo sin presupuestarlo.',
 		cost: 320,
-		lesson: 'Disfrutar la vida es genial, pero presupuestar tus salidas evita sorpresas.'
+		lesson: 'Disfrutar la vida es genial, pero tener un presupuesto asignado para ocio evita sobresaltos.'
 	},
 	{
-		title: 'Reparación Imprevista del Auto',
-		desc: 'La batería y los frenos fallaron en camino al trabajo.',
+		title: 'Reparación Imprevista del Vehículo',
+		desc: 'La batería y los frenos fallaron camino al trabajo y debiste cambiarlos de urgencia.',
 		cost: 480,
-		lesson: '¡Para esto sirve el Fondo de Emergencia! Evita pedir prestado para imprevistos.'
+		lesson: '¡Para esto sirve tu Fondo de Emergencia! Evita pedir prestado o descapitalizarte ante imprevistos.'
 	},
 	{
 		title: 'Televisor Gigante 4K en Oferta',
-		desc: 'Una súper pantalla para ver tus series favoritas los fines de semana.',
+		desc: 'Una pantalla enorme para ver series y partidos los fines de semana.',
 		cost: 650,
-		lesson: 'Un televisor es un pasivo: saca dinero de tu bolsillo y se deprecia con el tiempo.'
+		lesson: 'Un televisor es un pasivo: saca dinero de tu bolsillo y pierde valor con el tiempo.'
 	},
 	{
-		title: 'Compras Impulsivas en el Centro Comercial',
-		desc: 'Ropa, zapatos y accesorios que realmente no necesitabas.',
+		title: 'Compras por Impulso en el Centro Comercial',
+		desc: 'Ropa, zapatos y accesorios comprados solo porque tenían cartel de descuento.',
 		cost: 380,
-		lesson: 'El gasto hormiga y las compras por impulso restan capital para tus inversiones.'
+		lesson: 'Los gastos hormiga y compras impulsivas reducen tu capacidad de invertir en activos.'
 	},
 	{
-		title: 'Suscripciones que olvidaste cancelar',
-		desc: 'Servicios de streaming, apps y gimnasio que llevas meses sin usar.',
+		title: 'Suscripciones que Olvidaste Cancelar',
+		desc: 'Cuotas acumuladas de plataformas y servicios que llevabas meses sin utilizar.',
 		cost: 190,
-		lesson: 'Revisa periódicamente tus gastos fijos para eliminar fugas de dinero.'
+		lesson: 'Auditar periódicamente tus gastos fijos elimina fugas silenciosas de dinero.'
 	}
 ];
 
-// Baraja de Mercado
+// Baraja de Mercado (The Market)
 const MARKET_EVENTS = [
 	{
 		title: '¡Auge en Bienes Raíces!',
-		desc: 'Un fondo de inversión busca casas de 2 habitaciones. Ofrece pagar $95,000 por cada una. Quien tenga una casa de 2 habitaciones puede venderla hoy.',
+		desc: 'Un fondo de inversión busca casas de 2 habitaciones. Ofrecen pagar $95,000 por cada una. Quien posea una casa puede venderla hoy y ganar $50,000 netos de plusvalía.',
 		appliesTo: '2bed_house',
 		salePrice: 95000,
 		netGain: 50000,
 		actionText: 'Vender Casa por $95,000 (Ganancia neta: +$50,000)'
 	},
 	{
-		title: 'Boom Tecnológico: Acciones Sweet Tech',
-		desc: 'Sweet Tech anuncia récord de utilidades. Las acciones suben a $60 c/u (compradas a $20). Quien tenga acciones puede liquidarlas con 200% de ganancia.',
+		title: '¡Crecimiento Tecnológico: Sweet Tech!',
+		desc: 'Sweet Tech anuncia utilidades récord. Sus acciones suben a $60 c/u (adquiridas a $20). Quien tenga acciones puede venderlas hoy con 200% de ganancia.',
 		appliesTo: 'stock_SWT',
 		newPrice: 60,
 		actionText: 'Vender Acciones Sweet Tech a $60 c/u'
 	},
 	{
 		title: 'Comprador para Apartamentos en la Playa',
-		desc: 'Un grupo hotelero ofrece comprar apartamentos turísticos con $35,000 de plusvalía neta al propietario.',
+		desc: 'Un grupo hotelero adquiere condominios turísticos pagando una plusvalía neta de $35,000 sobre el costo de compra.',
 		appliesTo: 'condo',
 		salePrice: 110000,
 		netGain: 35000,
-		actionText: 'Vender Apartamento Vacacional (Ganancia neta: +$35,000)'
+		actionText: 'Vender Apartamento con Ganancia de +$35,000'
 	},
 	{
-		title: 'Subasta de Oro y Coleccionables',
-		desc: 'Los coleccionistas buscan monedas de oro. Pagan $1,500 por lote (comprado a $600).',
+		title: 'Subasta de Oro y Objetos Coleccionables',
+		desc: 'Compradores pagan $1,500 por lote de monedas de oro (adquiridas a $600).',
 		appliesTo: 'precious_metal',
 		salePrice: 1500,
 		netGain: 900,
 		actionText: 'Vender Monedas de Oro por $1,500'
 	},
 	{
-		title: 'Economía Estable',
-		desc: 'Los mercados se mantienen tranquilos este mes. Buen momento para acumular ahorros y planear tus próximas compras.',
+		title: 'Mercado Estable y Seguro',
+		desc: 'La economía se mantiene equilibrada este mes. Excelente momento para acumular efectivo y preparar tu siguiente gran inversión.',
 		appliesTo: null
 	}
 ];
 
 // ==========================================
-// 2. ESTADO DEL JUEGO
+// 2. ESTADO GLOBAL DEL JUEGO
 // ==========================================
 
 const gameState = {
@@ -307,9 +329,8 @@ const gameState = {
 	currentPlayerIndex: 0,
 	selectedTabPlayerIndex: 0,
 	isRolling: false,
-	turnStep: 'awaiting_roll', // 'awaiting_roll', 'action_pending', 'turn_ended'
-	roundCount: 1,
-	audioEnabled: true
+	generatedTiles: [], // El camino largo que nunca termina
+	currentMaxRow: 0
 };
 
 // ==========================================
@@ -345,20 +366,20 @@ class SoundEffects {
 			osc.start();
 			osc.stop(this.ctx.currentTime + duration);
 		} catch (e) {
-			// Ignore audio context blocks
+			// Ignorar errores de autoplay
 		}
 	}
 
 	roll() {
 		for (let i = 0; i < 5; i++) {
-			setTimeout(() => this.playTone(200 + Math.random() * 250, 0.08, 'triangle', 0.08), i * 70);
+			setTimeout(() => this.playTone(220 + Math.random() * 260, 0.08, 'triangle', 0.08), i * 70);
 		}
 	}
 
 	cash() {
-		this.playTone(523.25, 0.1, 'sine', 0.12); // C5
-		setTimeout(() => this.playTone(659.25, 0.1, 'sine', 0.12), 100); // E5
-		setTimeout(() => this.playTone(783.99, 0.25, 'sine', 0.15), 200); // G5
+		this.playTone(523.25, 0.1, 'sine', 0.12);
+		setTimeout(() => this.playTone(659.25, 0.1, 'sine', 0.12), 100);
+		setTimeout(() => this.playTone(783.99, 0.25, 'sine', 0.15), 200);
 	}
 
 	loss() {
@@ -377,33 +398,140 @@ class SoundEffects {
 const sounds = new SoundEffects();
 
 // ==========================================
-// 4. INICIALIZACIÓN Y CONFIGURACIÓN
+// 4. GENERADOR DEL CAMINO CONTINUO INTERMINABLE
+// ==========================================
+
+/**
+ * Genera bloques de casillas dinámicas para el camino sinuoso continuo.
+ * Cada bloque añade varias filas de 6 casillas que serpentean.
+ */
+function extendContinuousTrack(rowsToAdd = 6) {
+	const trackContainer = document.getElementById('track-path');
+	if (!trackContainer) return;
+
+	const tilesPerRow = 6;
+	const currentTileCount = gameState.generatedTiles.length;
+
+	for (let r = 0; r < rowsToAdd; r++) {
+		const rowIndex = gameState.currentMaxRow++;
+		const isEvenRow = (rowIndex % 2 === 0); // Fila par: izq a der, impar: der a izq
+
+		// Marcador mensual cada 2 filas (aprox 12 casillas)
+		if (rowIndex % 2 === 0) {
+			const monthNum = Math.floor(rowIndex / 2) + 1;
+			const marker = document.createElement('div');
+			marker.className = 'milestone-marker';
+			marker.innerHTML = `<span>🧀 TRAMO FINANCIERO: MES ${monthNum}</span>`;
+			trackContainer.appendChild(marker);
+		}
+
+		const rowEl = document.createElement('div');
+		rowEl.className = 'track-row';
+		rowEl.id = `track-row-${rowIndex}`;
+
+		const rowTiles = [];
+
+		for (let c = 0; c < tilesPerRow; c++) {
+			const globalIndex = currentTileCount + (r * tilesPerRow) + c;
+			const tileData = pickTileTypeForIndex(globalIndex);
+			tileData.globalIndex = globalIndex;
+			gameState.generatedTiles.push(tileData);
+			rowTiles.push(tileData);
+		}
+
+		// Si es fila impar, invertimos visualmente para dar el efecto de camino sinuoso que va y viene
+		const displayTiles = isEvenRow ? rowTiles : [...rowTiles].reverse();
+
+		displayTiles.forEach(tile => {
+			const tileEl = createTileDOM(tile);
+			rowEl.appendChild(tileEl);
+		});
+
+		trackContainer.appendChild(rowEl);
+	}
+}
+
+/**
+ * Determina el tipo de casilla asegurando que haya un Día de Pago cada 6-7 casillas,
+ * y variando entre Oportunidades, Caprichos, Mercado, Caridad y Despido.
+ */
+function pickTileTypeForIndex(index) {
+	if (index === 0) {
+		return { ...TILE_TYPES.payday, id: index, title: 'SALIDA • DÍA DE PAGO' };
+	}
+
+	// Día de Pago regular cada 6 o 7 casillas (el sueldo/flujo del mes)
+	if (index % 6 === 0) {
+		return { ...TILE_TYPES.payday, id: index };
+	}
+
+	// Variedad balanceada entre las demás casillas
+	const cycle = index % 12;
+	let typeKey = 'opportunity';
+
+	switch (cycle) {
+		case 1: typeKey = 'opportunity'; break;
+		case 2: typeKey = 'doodad'; break;
+		case 3: typeKey = 'market'; break;
+		case 4: typeKey = 'opportunity'; break;
+		case 5: typeKey = 'charity'; break;
+		case 7: typeKey = 'doodad'; break;
+		case 8: typeKey = 'opportunity'; break;
+		case 9: typeKey = 'crisis'; break;
+		case 10: typeKey = 'market'; break;
+		case 11: typeKey = 'opportunity'; break;
+		default: typeKey = 'opportunity';
+	}
+
+	return { ...TILE_TYPES[typeKey], id: index };
+}
+
+function createTileDOM(tile) {
+	const el = document.createElement('div');
+	el.id = `track-tile-${tile.globalIndex}`;
+	el.className = `track-tile ${tile.styleClass}`;
+
+	el.innerHTML = `
+		<span class="track-tile-num">${tile.globalIndex + 1}</span>
+		<span class="track-tile-icon">${tile.icon}</span>
+		<div>
+			<div class="track-tile-name">${tile.name}</div>
+			<div class="track-tile-sub">${tile.sub}</div>
+		</div>
+		<div class="track-tile-pawns" id="tile-pawns-${tile.globalIndex}"></div>
+	`;
+
+	return el;
+}
+
+// ==========================================
+// 5. INICIALIZACIÓN Y EVENT LISTENERS
 // ==========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-	setupPlayerConfigInputs(2);
-	renderBoardTiles();
+	setupPlayerInputs(2);
 	wireEventListeners();
 });
 
-function setupPlayerConfigInputs(count) {
-	const container = document.getElementById('player-configs');
+function setupPlayerInputs(count) {
+	const container = document.getElementById('setup-players-container');
 	if (!container) return;
 	container.innerHTML = '';
 
+	const defaultNames = ['Jorge', 'Lulita', 'Mateo', 'Valeria'];
+
 	for (let i = 0; i < count; i++) {
 		const avatar = AVATARS[i];
-		const defaultNames = ['Jorge', 'Lulita', 'Mateo', 'Valeria'];
 		const name = defaultNames[i] || `Jugador ${i + 1}`;
 
 		const row = document.createElement('div');
-		row.className = 'player-config-row';
+		row.className = 'player-input-row';
 		row.innerHTML = `
-			<div class="player-badge" style="background: ${avatar.bg}; border: 2px solid ${avatar.color};">
+			<div class="player-badge-preview" style="background: ${avatar.bg}; border: 2px solid ${avatar.color};">
 				${avatar.emoji}
 			</div>
-			<input type="text" id="player-name-${i}" class="player-name-input" value="${name}" placeholder="Nombre del jugador ${i + 1}" maxlength="18" />
-			<span style="font-size: 0.85rem; font-weight: 700; color: ${avatar.color};">${avatar.name}</span>
+			<input type="text" id="player-input-${i}" class="player-name-field" value="${name}" placeholder="Nombre del jugador ${i + 1}" maxlength="18" />
+			<span style="font-size: 0.85rem; font-weight: 800; color: ${avatar.color}; font-family: 'Outfit', sans-serif;">${avatar.name}</span>
 		`;
 		container.appendChild(row);
 	}
@@ -411,28 +539,28 @@ function setupPlayerConfigInputs(count) {
 
 function wireEventListeners() {
 	// Selector de cantidad de jugadores
-	document.querySelectorAll('.player-count-btn').forEach(btn => {
+	document.querySelectorAll('.setup-count-btn').forEach(btn => {
 		btn.addEventListener('click', (e) => {
-			document.querySelectorAll('.player-count-btn').forEach(b => b.classList.remove('active'));
+			document.querySelectorAll('.setup-count-btn').forEach(b => b.classList.remove('active'));
 			e.target.classList.add('active');
 			const count = parseInt(e.target.dataset.count, 10);
-			setupPlayerConfigInputs(count);
+			setupPlayerInputs(count);
 		});
 	});
 
-	// Comenzar Partida
-	document.getElementById('btn-start')?.addEventListener('click', () => {
+	// Iniciar Partida
+	document.getElementById('btn-start-play')?.addEventListener('click', () => {
 		sounds.init();
-		startNewGame();
+		startContinuousGame();
 	});
 
-	// Botón Tirar Dado
-	document.getElementById('btn-roll')?.addEventListener('click', () => {
+	// Botón Tirar Dado en el HUD
+	document.getElementById('btn-roll-dice')?.addEventListener('click', () => {
 		sounds.init();
-		rollDiceTurn();
+		rollDiceContinuous();
 	});
 
-	// Botón Volver
+	// Botón Volver al Sistema
 	document.getElementById('btn-exit')?.addEventListener('click', () => {
 		window.location.href = '/index.html';
 	});
@@ -440,12 +568,13 @@ function wireEventListeners() {
 	// Botón Nueva Partida
 	document.getElementById('btn-new-game')?.addEventListener('click', () => {
 		if (confirm('¿Deseas reiniciar la partida y volver a la configuración?')) {
+			document.getElementById('game-hud').classList.add('hidden');
 			document.getElementById('game-screen').classList.add('hidden');
 			document.getElementById('setup-screen').classList.remove('hidden');
 		}
 	});
 
-	// Botón Reglas
+	// Modal de Reglas
 	document.getElementById('btn-rules')?.addEventListener('click', () => {
 		document.getElementById('rules-modal').classList.add('open');
 	});
@@ -463,10 +592,10 @@ function wireEventListeners() {
 		showPayDebtModal();
 	});
 
-	// Botones de Victoria
+	// Modal de Victoria
 	document.getElementById('btn-victory-restart')?.addEventListener('click', () => {
 		document.getElementById('victory-modal').classList.remove('open');
-		startNewGame();
+		startContinuousGame();
 	});
 	document.getElementById('btn-victory-exit')?.addEventListener('click', () => {
 		window.location.href = '/index.html';
@@ -474,47 +603,17 @@ function wireEventListeners() {
 }
 
 // ==========================================
-// 5. RENDERIZADO DEL TABLERO
+// 6. INICIO DE PARTIDA
 // ==========================================
 
-function renderBoardTiles() {
-	const grid = document.getElementById('board-grid');
-	if (!grid) return;
-
-	// Remover casillas viejas preservando el centro
-	grid.querySelectorAll('.tile').forEach(t => t.remove());
-
-	BOARD_TILES.forEach(tile => {
-		const el = document.createElement('div');
-		el.id = `tile-${tile.id}`;
-		el.className = `tile tile-${tile.type}`;
-		el.style.gridRow = tile.row;
-		el.style.gridColumn = tile.col;
-
-		el.innerHTML = `
-			<span class="tile-num">${tile.id + 1}</span>
-			<span class="tile-icon">${tile.icon}</span>
-			<span class="tile-title">${tile.title}</span>
-			<div class="tile-pawns" id="tile-pawns-${tile.id}"></div>
-		`;
-
-		grid.appendChild(el);
-	});
-}
-
-// ==========================================
-// 6. CREACIÓN Y GESTIÓN DE JUGADORES
-// ==========================================
-
-function startNewGame() {
-	const count = parseInt(document.querySelector('.player-count-btn.active')?.dataset.count || '2', 10);
+function startContinuousGame() {
+	const count = parseInt(document.querySelector('.setup-count-btn.active')?.dataset.count || '2', 10);
 	const players = [];
 
-	// Mezclar profesiones para asignar aleatoriamente
 	const shuffledProfessions = [...PROFESSIONS].sort(() => 0.5 - Math.random());
 
 	for (let i = 0; i < count; i++) {
-		const nameInput = document.getElementById(`player-name-${i}`);
+		const nameInput = document.getElementById(`player-input-${i}`);
 		const name = (nameInput?.value || `Jugador ${i + 1}`).trim();
 		const avatar = AVATARS[i];
 		const prof = shuffledProfessions[i % shuffledProfessions.length];
@@ -531,70 +630,83 @@ function startNewGame() {
 			debtExpenses: 0,
 			totalDebt: 0,
 			cash: prof.savings,
-			position: 0,
+			position: 0, // Índice en el camino continuo
 			assets: [],
-			hasTwoDice: 0, // Turnos restantes con 2 dados
-			skipTurns: 0 // Turnos a perder por crisis
+			hasTwoDice: 0,
+			skipTurns: 0
 		});
 	}
 
 	gameState.players = players;
 	gameState.currentPlayerIndex = 0;
 	gameState.selectedTabPlayerIndex = 0;
-	gameState.turnStep = 'awaiting_roll';
-	gameState.roundCount = 1;
+	gameState.isRolling = false;
+	gameState.generatedTiles = [];
+	gameState.currentMaxRow = 0;
 
-	// Cambiar a pantalla de juego
+	// Limpiar contenedor del camino
+	const trackPath = document.getElementById('track-path');
+	if (trackPath) trackPath.innerHTML = '';
+
+	// Generar las primeras 8 filas (48 casillas de camino inicial)
+	extendContinuousTrack(8);
+
+	// Cambiar vistas
 	document.getElementById('setup-screen').classList.add('hidden');
+	document.getElementById('game-hud').classList.remove('hidden');
 	document.getElementById('game-screen').classList.remove('hidden');
 
 	renderPlayerTabs();
-	updatePawnsOnBoard();
-	updateActivePlayerUI();
+	updatePawnsOnTrack();
+	updateActivePlayerHUD();
 	updateFinancialSheet(gameState.selectedTabPlayerIndex);
+
+	// Centrar cámara en la casilla 0
+	scrollToCurrentTile(0);
 }
 
 function renderPlayerTabs() {
-	const container = document.getElementById('player-tabs');
+	const container = document.getElementById('cf-player-tabs');
 	if (!container) return;
 	container.innerHTML = '';
 
 	gameState.players.forEach((p, idx) => {
 		const tab = document.createElement('div');
-		tab.className = `player-tab ${idx === gameState.selectedTabPlayerIndex ? 'active' : ''} ${idx === gameState.currentPlayerIndex ? 'is-turn' : ''}`;
-		tab.id = `player-tab-${idx}`;
+		tab.className = `cf-tab ${idx === gameState.selectedTabPlayerIndex ? 'active' : ''} ${idx === gameState.currentPlayerIndex ? 'is-turn' : ''}`;
+		tab.id = `cf-tab-${idx}`;
 		tab.style.borderTop = `3px solid ${p.color}`;
 		tab.innerHTML = `
-			<span style="font-size: 1.1rem;">${p.avatar}</span>
+			<span style="font-size: 1.2rem;">${p.avatar}</span>
 			<span>${p.name.split(' ')[0]}</span>
 		`;
 
 		tab.addEventListener('click', () => {
 			gameState.selectedTabPlayerIndex = idx;
-			document.querySelectorAll('.player-tab').forEach(t => t.classList.remove('active'));
+			document.querySelectorAll('.cf-tab').forEach(t => t.classList.remove('active'));
 			tab.classList.add('active');
 			updateFinancialSheet(idx);
+			// Centrar cámara en el jugador seleccionado al hacer clic en su pestaña
+			scrollToCurrentTile(p.position);
 		});
 
 		container.appendChild(tab);
 	});
 }
 
-function updatePawnsOnBoard() {
-	// Limpiar todos los pawns
-	BOARD_TILES.forEach(tile => {
-		const el = document.getElementById(`tile-pawns-${tile.id}`);
-		if (el) el.innerHTML = '';
+function updatePawnsOnTrack() {
+	// Limpiar pawns
+	gameState.generatedTiles.forEach(tile => {
+		const pawnsContainer = document.getElementById(`tile-pawns-${tile.globalIndex}`);
+		if (pawnsContainer) pawnsContainer.innerHTML = '';
 	});
 
-	// Añadir pawns a las casillas actuales
+	// Colocar pawns
 	gameState.players.forEach(p => {
 		const pawnsContainer = document.getElementById(`tile-pawns-${p.position}`);
 		if (pawnsContainer) {
 			const pawn = document.createElement('div');
-			pawn.className = 'pawn';
+			pawn.className = 'cf-pawn';
 			pawn.style.background = p.color;
-			pawn.style.borderColor = 'white';
 			pawn.title = p.name;
 			pawn.innerHTML = p.avatar;
 			pawnsContainer.appendChild(pawn);
@@ -602,55 +714,61 @@ function updatePawnsOnBoard() {
 	});
 }
 
-function updateActivePlayerUI() {
+function updateActivePlayerHUD() {
 	const current = gameState.players[gameState.currentPlayerIndex];
-	const turnAvatar = document.getElementById('turn-avatar');
-	const turnName = document.getElementById('turn-name');
-	const btnRoll = document.getElementById('btn-roll');
-	const centerLog = document.getElementById('center-log');
+	const hudAvatar = document.getElementById('hud-avatar');
+	const hudName = document.getElementById('hud-name');
+	const hudProf = document.getElementById('hud-profession');
+	const btnRoll = document.getElementById('btn-roll-dice');
+	const statusLog = document.getElementById('hud-status-log');
 
-	if (turnAvatar) turnAvatar.textContent = current.avatar;
-	if (turnName) {
-		turnName.textContent = `Turno de ${current.name}`;
-		turnName.style.color = current.color;
+	if (hudAvatar) hudAvatar.textContent = current.avatar;
+	if (hudName) {
+		hudName.textContent = `Turno de ${current.name}`;
+		hudName.style.color = current.color;
 	}
+	if (hudProf) hudProf.textContent = current.profession;
 
 	// Resaltar casilla activa
-	document.querySelectorAll('.tile').forEach(t => t.classList.remove('tile-active-highlight'));
-	const currentTile = document.getElementById(`tile-${current.position}`);
-	if (currentTile) currentTile.classList.add('tile-active-highlight');
+	document.querySelectorAll('.track-tile').forEach(t => t.classList.remove('active-step'));
+	const activeTile = document.getElementById(`track-tile-${current.position}`);
+	if (activeTile) activeTile.classList.add('active-step');
 
 	// Actualizar tabs
-	document.querySelectorAll('.player-tab').forEach((t, i) => {
-		if (i === gameState.currentPlayerIndex) {
-			t.classList.add('is-turn');
-		} else {
-			t.classList.remove('is-turn');
-		}
+	document.querySelectorAll('.cf-tab').forEach((t, i) => {
+		if (i === gameState.currentPlayerIndex) t.classList.add('is-turn');
+		else t.classList.remove('is-turn');
 	});
 
 	if (current.skipTurns > 0) {
 		btnRoll.disabled = true;
-		centerLog.innerHTML = `<span style="color:#f87171;">⚠️ ${current.name} está en crisis y pierde este turno.</span>`;
+		statusLog.innerHTML = `<strong style="color:#f87171;">⚠️ ${current.name} está en crisis de empleo y pierde este turno.</strong>`;
 		setTimeout(() => {
 			current.skipTurns--;
 			endTurn();
-		}, 2000);
+		}, 2200);
 		return;
 	}
 
 	btnRoll.disabled = false;
 	btnRoll.textContent = current.hasTwoDice > 0 ? 'Tirar 2 Dados 🎲🎲' : 'Tirar Dado 🎲';
-	centerLog.textContent = '¡Lanza el dado para avanzar por el tablero!';
+	statusLog.textContent = '¡Lanza el dado para avanzar por el camino financiero!';
 
-	// Enfocar la hoja financiera del jugador actual
+	// Enfocar hoja financiera del jugador activo
 	gameState.selectedTabPlayerIndex = gameState.currentPlayerIndex;
 	renderPlayerTabs();
 	updateFinancialSheet(gameState.currentPlayerIndex);
 }
 
+function scrollToCurrentTile(tileIndex) {
+	const tileEl = document.getElementById(`track-tile-${tileIndex}`);
+	if (tileEl) {
+		tileEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
+}
+
 // ==========================================
-// 7. CÁLCULO FINANCIERO Y HOJA DE BALANCE
+// 7. CÁLCULO FINANCIERO Y BALANCE SHEET
 // ==========================================
 
 function getPlayerFinancials(player) {
@@ -686,25 +804,19 @@ function updateFinancialSheet(playerIndex) {
 	if (sheetProf) sheetProf.textContent = p.profession;
 
 	// Efectivo
-	const cashVal = document.getElementById('sheet-cash-val');
-	if (cashVal) cashVal.textContent = `$${p.cash.toLocaleString()}`;
+	document.getElementById('sheet-cash-val').textContent = `$${p.cash.toLocaleString()}`;
 
-	// Progreso hacia libertad
-	const freedomPerc = document.getElementById('freedom-percentage');
-	const freedomFill = document.getElementById('freedom-fill');
-	const freedomPassive = document.getElementById('freedom-passive');
-	const freedomExpenses = document.getElementById('freedom-expenses');
+	// Medidor de Libertad Financiera
+	document.getElementById('freedom-percentage').textContent = `${fin.freedomProgress}%`;
+	document.getElementById('freedom-fill').style.width = `${fin.freedomProgress}%`;
+	document.getElementById('freedom-passive').textContent = `$${fin.passiveIncome.toLocaleString()}`;
+	document.getElementById('freedom-expenses').textContent = `$${fin.totalExpenses.toLocaleString()}`;
 
-	if (freedomPerc) freedomPerc.textContent = `${fin.freedomProgress}%`;
-	if (freedomFill) freedomFill.style.width = `${fin.freedomProgress}%`;
-	if (freedomPassive) freedomPassive.textContent = `$${fin.passiveIncome.toLocaleString()}`;
-	if (freedomExpenses) freedomExpenses.textContent = `$${fin.totalExpenses.toLocaleString()}`;
-
-	// Flujo de caja
+	// Flujo de Caja
 	const cashflowVal = document.getElementById('sheet-cashflow-val');
 	if (cashflowVal) {
 		cashflowVal.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}$${fin.monthlyCashFlow.toLocaleString()}`;
-		cashflowVal.style.color = fin.monthlyCashFlow >= 0 ? '#34d399' : '#f87171';
+		cashflowVal.style.color = fin.monthlyCashFlow >= 0 ? '#4ade80' : '#f87171';
 	}
 
 	// Ingresos y Gastos
@@ -721,18 +833,18 @@ function updateFinancialSheet(playerIndex) {
 	if (assetsContainer) {
 		if (p.assets.length === 0) {
 			assetsContainer.innerHTML = `
-				<div style="color:#64748b; font-size:0.75rem; text-align:center; padding:10px;">
-					Aún no tienes activos. ¡Aprovecha las casillas de Oportunidad!
+				<div style="color:#c084fc; font-size:0.75rem; text-align:center; padding:10px;">
+					Aún no tienes activos. ¡Aprovecha las casillas de Oportunidad verde!
 				</div>
 			`;
 		} else {
 			assetsContainer.innerHTML = p.assets.map(a => `
-				<div class="asset-card">
+				<div class="cf-asset-entry">
 					<div>
-						<div class="asset-name">${a.title}</div>
-						<small style="color:#94a3b8; font-size:0.65rem;">${a.category || 'Activo'}</small>
+						<div class="cf-asset-name">${a.title}</div>
+						<small style="color:#d8b4fe; font-size:0.65rem;">${a.category || 'Activo'}</small>
 					</div>
-					<div class="asset-flow">+${a.cashFlow ? `$${a.cashFlow.toLocaleString()}/mes` : '$0'}</div>
+					<div class="cf-asset-gain">+${a.cashFlow ? `$${a.cashFlow.toLocaleString()}/mes` : '$0'}</div>
 				</div>
 			`).join('');
 		}
@@ -743,86 +855,96 @@ function updateFinancialSheet(playerIndex) {
 // 8. MOVIMIENTO Y TIRADA DE DADOS
 // ==========================================
 
-function rollDiceTurn() {
+function rollDiceContinuous() {
 	if (gameState.isRolling) return;
 	const player = gameState.players[gameState.currentPlayerIndex];
-	const btnRoll = document.getElementById('btn-roll');
-	const diceDisplay = document.getElementById('dice-display');
+	const btnRoll = document.getElementById('btn-roll-dice');
+	const diceDisplay = document.getElementById('hud-dice-val');
 
 	gameState.isRolling = true;
 	btnRoll.disabled = true;
 	diceDisplay.classList.add('rolling');
 	sounds.roll();
 
-	let rollsCount = 0;
+	let rollCount = 0;
 	const interval = setInterval(() => {
 		const tempVal = Math.floor(Math.random() * 6) + 1;
-		diceDisplay.textContent = getDiceFace(tempVal);
-		rollsCount++;
+		diceDisplay.textContent = getDiceSymbol(tempVal);
+		rollCount++;
 
-		if (rollsCount > 8) {
+		if (rollCount > 8) {
 			clearInterval(interval);
 			diceDisplay.classList.remove('rolling');
 
-			// Resultado final
 			const d1 = Math.floor(Math.random() * 6) + 1;
-			let totalRoll = d1;
+			let totalSteps = d1;
 
 			if (player.hasTwoDice > 0) {
 				const d2 = Math.floor(Math.random() * 6) + 1;
-				totalRoll = d1 + d2;
+				totalSteps = d1 + d2;
 				player.hasTwoDice--;
-				diceDisplay.textContent = `${d1}+${d2}=${totalRoll}`;
+				diceDisplay.textContent = `${d1}+${d2}=${totalSteps}`;
 			} else {
-				diceDisplay.textContent = getDiceFace(d1);
+				diceDisplay.textContent = getDiceSymbol(d1);
 			}
 
-			// Mover ficha
-			movePlayerSteps(player, totalRoll);
+			// Desplazar ficha paso a paso por el camino continuo
+			stepForwardOnTrack(player, totalSteps);
 		}
 	}, 70);
 }
 
-function getDiceFace(val) {
+function getDiceSymbol(val) {
 	const faces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 	return faces[val - 1] || '🎲';
 }
 
-function movePlayerSteps(player, steps) {
+function stepForwardOnTrack(player, steps) {
 	let remaining = steps;
-	const totalTiles = BOARD_TILES.length;
 
-	const stepInterval = setInterval(() => {
-		player.position = (player.position + 1) % totalTiles;
-		updatePawnsOnBoard();
+	const moveInterval = setInterval(() => {
+		player.position++;
 
-		// Resaltar casilla
-		document.querySelectorAll('.tile').forEach(t => t.classList.remove('tile-active-highlight'));
-		document.getElementById(`tile-${player.position}`)?.classList.add('tile-active-highlight');
+		// Si el jugador se acerca al final del camino cargado, extender el camino infinitamente
+		if (player.position >= gameState.generatedTiles.length - 12) {
+			extendContinuousTrack(6); // Añadir 6 filas más (36 casillas más)
+		}
 
-		// ¿Pasó por Día de Pago durante el camino?
-		if (BOARD_TILES[player.position].type === 'payday' && remaining > 1) {
+		updatePawnsOnTrack();
+
+		// Resaltar casilla actual y mover suavemente la cámara del camino
+		document.querySelectorAll('.track-tile').forEach(t => t.classList.remove('active-step'));
+		const tileEl = document.getElementById(`track-tile-${player.position}`);
+		if (tileEl) {
+			tileEl.classList.add('active-step');
+			scrollToCurrentTile(player.position);
+		}
+
+		const currentTileData = gameState.generatedTiles[player.position];
+
+		// ¿Pasó por un Día de Pago durante el trayecto?
+		if (currentTileData && currentTileData.type === 'payday' && remaining > 1) {
 			collectPayday(player, false);
 		}
 
 		remaining--;
 
 		if (remaining <= 0) {
-			clearInterval(stepInterval);
+			clearInterval(moveInterval);
 			gameState.isRolling = false;
-			// Procesar casilla de llegada
-			handleTileLanding(player, BOARD_TILES[player.position]);
+			// Gestionar casilla de llegada
+			handleContinuousLanding(player, currentTileData);
 		}
-	}, 140);
+	}, 150);
 }
 
 // ==========================================
-// 9. EVENTOS DE LAS CASILLAS
+// 9. EVENTOS DE CASILLAS
 // ==========================================
 
-function handleTileLanding(player, tile) {
-	const centerLog = document.getElementById('center-log');
-	centerLog.innerHTML = `<strong>${player.name}</strong> cayó en <strong>${tile.title}</strong> (${tile.icon}).`;
+function handleContinuousLanding(player, tile) {
+	const statusLog = document.getElementById('hud-status-log');
+	statusLog.innerHTML = `<strong>${player.name}</strong> cayó en <strong>${tile.name}</strong> (${tile.icon}).`;
 
 	switch (tile.type) {
 		case 'payday':
@@ -849,23 +971,23 @@ function handleTileLanding(player, tile) {
 }
 
 // Cobro de Día de Pago
-function collectPayday(player, showNotification = true) {
+function collectPayday(player, showPopup = true) {
 	const fin = getPlayerFinancials(player);
 	player.cash += fin.monthlyCashFlow;
 	sounds.cash();
 	updateFinancialSheet(gameState.currentPlayerIndex);
 
-	if (showNotification) {
+	if (showPopup) {
 		showModal({
 			headerClass: 'payday',
 			icon: '💰',
 			title: '¡DÍA DE PAGO!',
 			subtitle: 'Tu flujo de caja mensual ha ingresado',
-			desc: `Has recibido tu Flujo de Caja Mensual:<br><strong style="font-size:1.3rem; color:#34d399;">+$${fin.monthlyCashFlow.toLocaleString()}</strong>`,
+			desc: `Has recibido tu Flujo de Caja Mensual:<br><strong style="font-size:1.4rem; color:#facc15; font-family:'Outfit',sans-serif;">+$${fin.monthlyCashFlow.toLocaleString()}</strong>`,
 			stats: [
 				{ label: 'Ingresos Totales', value: `+$${fin.totalIncome.toLocaleString()}`, color: 'green' },
 				{ label: 'Gastos Totales', value: `-$${fin.totalExpenses.toLocaleString()}`, color: 'red' },
-				{ label: 'Nuevo Saldo en Efectivo', value: `$${player.cash.toLocaleString()}`, color: 'green' }
+				{ label: 'Nuevo Efectivo en Mano', value: `$${player.cash.toLocaleString()}`, color: 'green' }
 			],
 			buttons: [
 				{ text: '¡Excelente! Continuar', class: 'primary', action: () => { closeModal(); endTurn(); } }
@@ -880,14 +1002,14 @@ function showOpportunityModal(player) {
 		headerClass: 'opportunity',
 		icon: '🚀',
 		title: 'Oportunidad de Inversión',
-		subtitle: '¿Qué tipo de negocio deseas explorar?',
-		desc: 'Elige si quieres ver un <strong>Pequeño Negocio</strong> (bajo costo de entrada) o un <strong>Gran Negocio</strong> (mayor rendimiento y más capital requerido).',
+		subtitle: '¿Qué tamaño de negocio deseas explorar?',
+		desc: 'Elige si deseas explorar un <strong>Pequeño Negocio</strong> (bajo enganche) o un <strong>Gran Negocio</strong> (mayor capital y más flujo pasivo).',
 		stats: [
 			{ label: 'Tu Efectivo Disponible', value: `$${player.cash.toLocaleString()}`, color: 'green' }
 		],
 		buttons: [
 			{
-				text: '🔍 Pequeño Negocio ($500 - $2,000)',
+				text: '🔍 Pequeño Negocio ($600 - $1,600)',
 				class: 'primary',
 				action: () => presentOpportunityDeal(player, SMALL_DEALS[Math.floor(Math.random() * SMALL_DEALS.length)])
 			},
@@ -971,8 +1093,8 @@ function showDoodadModal(player) {
 		headerClass: 'doodad',
 		icon: '🛍️',
 		title: doodad.title,
-		subtitle: 'Gasto imprevisto',
-		desc: `${doodad.desc}<br><br><small style="color:#fca5a5;">💡 <em>${doodad.lesson}</em></small>`,
+		subtitle: 'Gasto Imprevisto',
+		desc: `${doodad.desc}<br><br><small style="color:#fbcfe8;">💡 <em>${doodad.lesson}</em></small>`,
 		stats: [
 			{ label: 'Costo del Capricho', value: `-$${doodad.cost.toLocaleString()}`, color: 'red' },
 			{ label: 'Tu Efectivo Actual', value: `$${player.cash.toLocaleString()}` }
@@ -984,7 +1106,7 @@ function showDoodadModal(player) {
 				action: () => {
 					player.cash -= doodad.cost;
 					if (player.cash < 0) {
-						// Endeudamiento automático si no alcanza
+						// Préstamo automático si el dinero no alcanza
 						const debtNeeded = Math.ceil(Math.abs(player.cash) / 1000) * 1000;
 						player.totalDebt += debtNeeded;
 						player.debtExpenses += (debtNeeded * 0.1);
@@ -999,7 +1121,7 @@ function showDoodadModal(player) {
 	});
 }
 
-// Modal Mercado (Market)
+// Modal Mercado (The Market)
 function showMarketModal(player) {
 	const event = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
 	const eligibleAssets = player.assets.filter(a => {
@@ -1014,7 +1136,7 @@ function showMarketModal(player) {
 
 	if (eligibleAssets.length > 0) {
 		buttons.push({
-			text: `¡Vender Activo con Ganancia!`,
+			text: '¡Vender Activo con Gran Ganancia!',
 			class: 'primary',
 			action: () => {
 				const asset = eligibleAssets[0];
@@ -1048,7 +1170,7 @@ function showMarketModal(player) {
 	});
 }
 
-// Modal Donación / Educación
+// Modal Caridad
 function showCharityModal(player) {
 	const charityCost = Math.round(player.salary * 0.1);
 	const canAfford = player.cash >= charityCost;
@@ -1056,16 +1178,16 @@ function showCharityModal(player) {
 	showModal({
 		headerClass: 'charity',
 		icon: '🎁',
-		title: 'Donación y Educación Financiera',
-		subtitle: 'Sé generoso e invierte en tu mente',
-		desc: 'Donar el 10% de tu sueldo a una causa noble o pagar un taller de finanzas te llena de energía: <strong>podrás lanzar con 2 dados durante tus siguientes 3 turnos</strong> para moverte más rápido por el tablero.',
+		title: 'Caridad y Generosidad',
+		subtitle: 'La ley de dar para recibir',
+		desc: 'Donar el 10% de tu sueldo a una causa comunitaria te premia con una aceleración: <strong>podrás lanzar con 2 dados durante tus siguientes 3 turnos</strong> para avanzar con mayor velocidad.',
 		stats: [
-			{ label: 'Costo (10% de tu sueldo)', value: `$${charityCost.toLocaleString()}`, color: 'red' },
+			{ label: 'Donación (10% del sueldo)', value: `$${charityCost.toLocaleString()}`, color: 'red' },
 			{ label: 'Beneficio', value: '2 Dados por 3 turnos 🎲🎲', color: 'green' }
 		],
 		buttons: [
 			{
-				text: canAfford ? `Donar / Capacitarme (-$${charityCost.toLocaleString()})` : 'Efectivo insuficiente',
+				text: canAfford ? `Donar (-$${charityCost.toLocaleString()})` : 'Efectivo insuficiente',
 				class: 'primary',
 				action: () => {
 					if (!canAfford) return;
@@ -1086,7 +1208,7 @@ function showCharityModal(player) {
 	});
 }
 
-// Modal Crisis / Despido
+// Modal Despido / Crisis
 function showCrisisModal(player) {
 	sounds.loss();
 	const fin = getPlayerFinancials(player);
@@ -1095,16 +1217,16 @@ function showCrisisModal(player) {
 	showModal({
 		headerClass: 'crisis',
 		icon: '🚨',
-		title: '¡Crisis Temporal en el Trabajo!',
-		subtitle: 'Recorte de personal y emergencia',
-		desc: 'Tu empresa atraviesa una reestructuración. Debes pagar los gastos fijos del mes con tus ahorros de emergencia y pierdes tu próximo turno buscando nuevas fuentes de ingreso.<br><br>💡 <em>Lección: Tener 3 a 6 meses de gastos en ahorros te protege de cualquier crisis.</em>',
+		title: '¡Despido Temporal en el Trabajo!',
+		subtitle: 'Reestructuración y emergencia',
+		desc: 'Tu empresa pasa por un ajuste. Debes cubrir los gastos fijos del mes con tus ahorros de emergencia y pierdes tu próximo turno de tirada.<br><br>💡 <em>Lección: Contar con un fondo de reserva de 3 a 6 meses de gastos te mantiene protegido.</em>',
 		stats: [
 			{ label: 'Gastos a Pagar', value: `-$${monthlyExpenses.toLocaleString()}`, color: 'red' },
 			{ label: 'Penalización', value: 'Pierdes 1 turno', color: 'red' }
 		],
 		buttons: [
 			{
-				text: 'Pagar Gastos y Afrontar Crisis',
+				text: 'Pagar Gastos y Afrontar Despido',
 				class: 'primary',
 				action: () => {
 					player.cash -= monthlyExpenses;
@@ -1119,7 +1241,7 @@ function showCrisisModal(player) {
 }
 
 // ==========================================
-// 10. PRÉSTAMOS Y GESTIÓN DE DEUDAS
+// 10. PRÉSTAMOS Y DEUDA BANCARIA
 // ==========================================
 
 function showLoanModal(suggestedAmount = 1000, onComplete = null) {
@@ -1131,7 +1253,7 @@ function showLoanModal(suggestedAmount = 1000, onComplete = null) {
 		icon: '🏦',
 		title: 'Préstamo Bancario',
 		subtitle: 'Apalancamiento Financiero',
-		desc: 'El banco te presta dinero en bloques de <strong>$1,000</strong>. Cada $1,000 prestados añade <strong>$100/mes de gasto en intereses</strong> (10% mensual).<br><br>💡 <em>La "deuda buena" es la que usas para comprar activos que producen más dinero del que pagas en intereses.</em>',
+		desc: 'El banco te otorga préstamos en bloques de <strong>$1,000</strong>. Cada $1,000 prestados añade <strong>$100/mes de intereses</strong> (10% mensual) a tus gastos.<br><br>💡 <em>Usa préstamos para comprar activos que te dejen más dinero del que pagas en intereses.</em>',
 		stats: [
 			{ label: 'Monto a Solicitar', value: `$${roundSuggested.toLocaleString()}`, color: 'green' },
 			{ label: 'Costo Mensual de Intereses', value: `+$${(roundSuggested * 0.1).toLocaleString()}/mes`, color: 'red' }
@@ -1174,7 +1296,7 @@ function showPayDebtModal() {
 		icon: '💳',
 		title: 'Pagar Deuda Bancaria',
 		subtitle: 'Reduce tus gastos y aumenta tu flujo',
-		desc: `Tienes <strong>$${player.totalDebt.toLocaleString()}</strong> en deudas. Al pagar un bloque de <strong>$${payAmount.toLocaleString()}</strong>, reduces tus gastos mensuales en <strong>$100/mes</strong>.`,
+		desc: `Tienes <strong>$${player.totalDebt.toLocaleString()}</strong> en préstamos bancarios. Al liquidar un bloque de <strong>$${payAmount.toLocaleString()}</strong>, tus gastos mensuales disminuyen en <strong>$100/mes</strong>.`,
 		stats: [
 			{ label: 'Tu Efectivo', value: `$${player.cash.toLocaleString()}` },
 			{ label: 'Deuda Restante', value: `$${player.totalDebt.toLocaleString()}`, color: 'red' }
@@ -1203,7 +1325,7 @@ function showPayDebtModal() {
 }
 
 // ==========================================
-// 11. CONDICIÓN DE VICTORIA Y FIN DE TURNO
+// 11. VICTORIA Y CAMBIO DE TURNO
 // ==========================================
 
 function checkVictoryCondition(player) {
@@ -1224,29 +1346,29 @@ function triggerVictory(player) {
 
 	if (msg) {
 		msg.innerHTML = `
-			¡Enhorabuena, <strong>${player.name}</strong>! 🎉<br>
+			¡Enhorabuena, <strong>${player.name}</strong>! 🎉<br><br>
 			Tus <strong>Ingresos Pasivos ($${fin.passiveIncome.toLocaleString()})</strong> han superado por completo tus <strong>Gastos Totales ($${fin.totalExpenses.toLocaleString()})</strong>.<br><br>
-			Ya no dependes de un sueldo fijo. ¡Has alcanzado la <strong>Libertad Financiera</strong> y has escapado de la Carrera de la Rata!
+			¡Eres financieramente libre y has escapado de la Carrera de la Rata!
 		`;
 	}
 
 	if (summary) {
 		summary.innerHTML = `
-			<div class="card-stat-row">
-				<span class="stat-label">Ingresos Pasivos Mensuales</span>
-				<span class="stat-value green">+$${fin.passiveIncome.toLocaleString()}/mes</span>
+			<div class="card-stat-line">
+				<span class="lbl">Ingresos Pasivos Mensuales</span>
+				<span class="val green">+$${fin.passiveIncome.toLocaleString()}/mes</span>
 			</div>
-			<div class="card-stat-row">
-				<span class="stat-label">Gastos Totales Mensuales</span>
-				<span class="stat-value red">-$${fin.totalExpenses.toLocaleString()}/mes</span>
+			<div class="card-stat-line">
+				<span class="lbl">Gastos Totales Mensuales</span>
+				<span class="val red">-$${fin.totalExpenses.toLocaleString()}/mes</span>
 			</div>
-			<div class="card-stat-row">
-				<span class="stat-label">Activos Construidos</span>
-				<span class="stat-value green">${player.assets.length} inversiones</span>
+			<div class="card-stat-line">
+				<span class="lbl">Activos Construidos</span>
+				<span class="val green">${player.assets.length} activos</span>
 			</div>
-			<div class="card-stat-row">
-				<span class="stat-label">Efectivo Acumulado</span>
-				<span class="stat-value green">$${player.cash.toLocaleString()}</span>
+			<div class="card-stat-line">
+				<span class="lbl">Efectivo Acumulado</span>
+				<span class="val green">$${player.cash.toLocaleString()}</span>
 			</div>
 		`;
 	}
@@ -1256,18 +1378,12 @@ function triggerVictory(player) {
 }
 
 function endTurn() {
-	// Verificar victoria antes de cambiar
 	const current = gameState.players[gameState.currentPlayerIndex];
 	if (checkVictoryCondition(current)) return;
 
-	// Pasar al siguiente jugador
 	gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-	if (gameState.currentPlayerIndex === 0) {
-		gameState.roundCount++;
-	}
-
 	gameState.isRolling = false;
-	updateActivePlayerUI();
+	updateActivePlayerHUD();
 }
 
 // ==========================================
@@ -1286,23 +1402,23 @@ function showModal({ headerClass, icon, title, subtitle, desc, stats = [], butto
 
 	if (!modal) return;
 
-	header.className = `card-header ${headerClass || 'opportunity'}`;
+	header.className = `card-header-cf ${headerClass || 'opportunity'}`;
 	iconEl.textContent = icon || 'ℹ️';
 	titleEl.textContent = title;
 	subEl.textContent = subtitle || '';
 	descEl.innerHTML = desc;
 
 	statsEl.innerHTML = stats.map(s => `
-		<div class="card-stat-row">
-			<span class="stat-label">${s.label}</span>
-			<span class="stat-value ${s.color || ''}">${s.value}</span>
+		<div class="card-stat-line">
+			<span class="lbl">${s.label}</span>
+			<span class="val ${s.color || ''}">${s.value}</span>
 		</div>
 	`).join('');
 
 	footerEl.innerHTML = '';
 	buttons.forEach(b => {
 		const btn = document.createElement('button');
-		btn.className = `card-btn ${b.class || 'primary'}`;
+		btn.className = `cf-dialog-btn ${b.class || 'primary'}`;
 		btn.textContent = b.text;
 		btn.addEventListener('click', b.action);
 		footerEl.appendChild(btn);
@@ -1315,7 +1431,6 @@ function closeModal() {
 	document.getElementById('card-modal')?.classList.remove('open');
 }
 
-// Micro-confeti con Canvas puro integrado
 function launchVictoryConfetti() {
 	const canvas = document.createElement('canvas');
 	canvas.style.position = 'fixed';
@@ -1332,7 +1447,7 @@ function launchVictoryConfetti() {
 	canvas.height = window.innerHeight;
 
 	const confetti = [];
-	const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ffffff'];
+	const colors = ['#facc15', '#22c55e', '#3b82f6', '#ec4899', '#f97316', '#ffffff'];
 
 	for (let i = 0; i < 150; i++) {
 		confetti.push({
