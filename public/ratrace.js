@@ -44,26 +44,278 @@ const STARTER_JOBS = [
 	{ id: 12, title: 'Traductor 🗣️', salary: 450000, icon: '🗣️', desc: 'Traduces textos y conversaciones entre diferentes idiomas.' }
 ];
 
-// Escalafón de títulos de ascenso tras 10 salarios
-const JOB_PROMOTION_TITLES = {
-	'Cocinero': ['Cocinero 👨‍🍳', 'Cocinero Líder 👨‍🍳', 'Chef de Turno 👨‍🍳', 'Chef Principal 👨‍🍳'],
-	'Tendero': ['Tendero 🏪', 'Tendero Encargado 🏪', 'Administrador de Tienda 🏪', 'Gerente Comercial 🏪'],
-	'Auxiliar': ['Auxiliar Veterinario 🐾', 'Veterinario Asistente 🐾', 'Coordinador Veterinario 🐾', 'Director Clínico 🐾'],
-	'Domiciliario': ['Domiciliario 🛵', 'Domiciliario Experto 🛵', 'Líder de Entregas 🛵', 'Coordinador Logístico 🛵'],
-	'Recreacionista': ['Recreacionista 🎈', 'Recreacionista Principal 🎈', 'Coordinador de Eventos 🎈', 'Director Recreativo 🎈'],
-	'Jardinero': ['Jardinero 🌱', 'Jardinero Especialista 🌱', 'Diseñador de Jardines 🌱', 'Maestro Paisajista 🌱'],
-	'Constructor': ['Constructor 🔨', 'Oficial de Construcción 🔨', 'Maestro de Obra 🔨', 'Supervisor de Obras 🔨'],
-	'Vendedor': ['Vendedor 🏷️', 'Vendedor Destacado 🏷️', 'Líder de Ventas 🏷️', 'Director Comercial 🏷️'],
-	'Fotógrafo': ['Fotógrafo 📸', 'Fotógrafo Profesional 📸', 'Fotógrafo de Moda 📸', 'Director de Fotografía 📸'],
-	'Lavacarros': ['Lavacarros 🚗', 'Detallador Automotriz 🚗', 'Encargado de Lavadero 🚗', 'Administrador de Taller 🚗'],
-	'Servicio': ['Servicio al Cliente 🎧', 'Asesor Senior 🎧', 'Coordinador de Calidad 🎧', 'Supervisor de Servicio 🎧'],
-	'Traductor': ['Traductor 🗣️', 'Traductor Oficial 🗣️', 'Intérprete Principal 🗣️', 'Consultor Bilingüe 🗣️']
+// Escalafón completo de 20 títulos de ascenso para cada una de las 12 profesiones
+const JOB_PROMOTIONS_20 = {
+	'Cocinero': [
+		'Cocinero 👨‍🍳',
+		'Ayudante de Cocina 👨‍🍳',
+		'Cocinero de Preparación 👨‍🍳',
+		'Cocinero de Línea 👨‍🍳',
+		'Cocinero de Turno 👨‍🍳',
+		'Cocinero Especialista en Parrilla 👨‍🍳',
+		'Cocinero Pastelero / Repostero 👨‍🍳',
+		'Demi Chef de Partie 👨‍🍳',
+		'Chef de Partie (Jefe de Partida) 👨‍🍳',
+		'Sous Chef Junior 👨‍🍳',
+		'Sous Chef Principal 👨‍🍳',
+		'Chef de Cuisine (Jefe de Cocina) 👨‍🍳',
+		'Chef Ejecutivo de Restaurante 👨‍🍳',
+		'Chef Director de Menú & Recetas 👨‍🍳',
+		'Chef Corporativo Multisede 👨‍🍳',
+		'Asesor Gastronómico Gourmet 👨‍🍳',
+		'Master Chef & Juez Culinario 👨‍🍳',
+		'Director de Innovación Culinaria 👨‍🍳',
+		'Chef Propietario de Restaurante 👨‍🍳',
+		'Magnate Culinario Internacional 👨‍🍳'
+	],
+	'Tendero': [
+		'Tendero 🏪',
+		'Auxiliar de Bodega y Abarrotes 🏪',
+		'Reponedor y Cajero de Tienda 🏪',
+		'Dependiente de Mostrador 🏪',
+		'Tendero de Turno 🏪',
+		'Tendero Encargado 🏪',
+		'Jefe de Inventario y Surtido 🏪',
+		'Coordinador de Compras Barriales 🏪',
+		'Subadministrador de Tienda 🏪',
+		'Administrador de Autoservicio 🏪',
+		'Gerente de Minimercado 🏪',
+		'Supervisor de Red de Tiendas 🏪',
+		'Gerente de Surtido y Proveedores 🏪',
+		'Director Comercial de Supermercado 🏪',
+		'Gerente de Expansión de Puntos 🏪',
+		'Director Nacional de Retail Barrial 🏪',
+		'Propietario de Cadena de Tiendas 🏪',
+		'Franquiciador de Autoservicios 🏪',
+		'Mayorista Distribuidor de Alimentos 🏪',
+		'Magnate de Distribución y Retail 🏪'
+	],
+	'Auxiliar': [
+		'Auxiliar Veterinario 🐾',
+		'Pasante de Cuidados de Mascotas 🐾',
+		'Auxiliar de Hospitalización Animal 🐾',
+		'Asistente de Consultorio Clínico 🐾',
+		'Cuidador y Enfermero Veterinario 🐾',
+		'Asistente de Cirugía Veterinaria 🐾',
+		'Técnico de Laboratorio Animal 🐾',
+		'Auxiliar de Urgencias Veterinarias 🐾',
+		'Coordinador de Área Médica 🐾',
+		'Terapeuta y Rehabilitador Animal 🐾',
+		'Supervisor de Clínica Veterinaria 🐾',
+		'Administrador de Hospital de Mascotas 🐾',
+		'Especialista en Nutrición Animal 🐾',
+		'Director Operativo Veterinario 🐾',
+		'Coordinador de Rescate y Refugios 🐾',
+		'Director de Red de Clínicas 🐾',
+		'Propietario de Clínica de Mascotas 🐾',
+		'Fundador de Hospital Veterinario 24h 🐾',
+		'Director de Red de Hospitales Animales 🐾',
+		'Líder Mundial de Bienestar Veterinario 🐾'
+	],
+	'Domiciliario': [
+		'Domiciliario 🛵',
+		'Repartidor Ciclista Urbano 🛵',
+		'Domiciliario Motorizado Novato 🛵',
+		'Repartidor Exprés de Zona 🛵',
+		'Domiciliario VIP de Restaurantes 🛵',
+		'Mensajero Corporativo Confiable 🛵',
+		'Líder de Cuadrilla de Reparto 🛵',
+		'Despachador de Rutas y Envíos 🛵',
+		'Coordinador de Flota Local 🛵',
+		'Supervisor de Entregas y Tiempos 🛵',
+		'Jefe de Base de Domicilios 🛵',
+		'Analista de Rutas y Logística 🛵',
+		'Administrador de Hub de Envíos 🛵',
+		'Gerente de Operaciones de Mensajería 🛵',
+		'Director Logístico de Última Milla 🛵',
+		'Propietario de Flota de Envíos 🛵',
+		'Fundador de App de Mensajería Local 🛵',
+		'Operador Logístico de Carga Ligera 🛵',
+		'Proveedor Nacional de Transporte Exprés 🛵',
+		'Magnate de Logística y Envíos Globales 🛵'
+	],
+	'Recreacionista': [
+		'Recreacionista 🎈',
+		'Asistente de Animación Infantil 🎈',
+		'Recreacionista de Juegos y Rondas 🎈',
+		'Mago y Globoflexista de Fiestas 🎈',
+		'Pintucaritas y Animador de Cumpleaños 🎈',
+		'Recreacionista Principal de Eventos 🎈',
+		'Coordinador de Dinámicas y Juegos 🎈',
+		'Animador Maestro de Ceremonias 🎈',
+		'Diseñador de Shows Infantiles 🎈',
+		'Productor de Fiestas Temáticas 🎈',
+		'Coordinador Logístico de Eventos 🎈',
+		'Director de Elenco de Recreación 🎈',
+		'Gerente de Agencia de Eventos 🎈',
+		'Diseñador de Experiencias Corporativas 🎈',
+		'Productor de Festivales Familiares 🎈',
+		'Director de Parque de Inflables 🎈',
+		'Propietario de Empresa de Eventos 🎈',
+		'Creador de Franquicias Recreativas 🎈',
+		'Dueño de Cadena de Entretenimiento 🎈',
+		'Magnate del Entretenimiento Familiar 🎈'
+	],
+	'Jardinero': [
+		'Jardinero 🌱',
+		'Asistente de Corte y Limpieza 🌱',
+		'Operario de Podas y Césped 🌱',
+		'Jardinero Residencial Cuidador 🌱',
+		'Sembrador de Vivero y Plantas 🌱',
+		'Jardinero de Poda Artística Topiaria 🌱',
+		'Especialista en Riegos y Abonos 🌱',
+		'Encargado de Huertas y Viveros 🌱',
+		'Cuidador de Jardines Botánicos 🌱',
+		'Asesor de Mantenimiento Verde 🌱',
+		'Supervisor de Cuadrilla de Paisajismo 🌱',
+		'Diseñador de Jardines y Terrazas 🌱',
+		'Arquitecto de Paisajismo Natural 🌱',
+		'Director de Reforestación Urbana 🌱',
+		'Consultor de Muros y Techos Vivos 🌱',
+		'Propietario de Vivero y Paisajismo 🌱',
+		'Proveedor de Zonas Verdes Corporativas 🌱',
+		'Desarrollador de Parques Ecológicos 🌱',
+		'Dueño de Red de Centros de Jardinería 🌱',
+		'Líder Mundial de Paisajismo Ecológico 🌱'
+	],
+	'Constructor': [
+		'Constructor 🔨',
+		'Ayudante Raso de Obra 🔨',
+		'Oficial de Mampostería 🔨',
+		'Instalador de Drywall y Acabados 🔨',
+		'Oficial de Enchapado y Pintura 🔨',
+		'Carpintero y Armador de Estructuras 🔨',
+		'Técnico Electricista de Obra 🔨',
+		'Maestro de Obra Auxiliar 🔨',
+		'Maestro de Obra General 🔨',
+		'Supervisor de Seguridad y Obras 🔨',
+		'Residente de Acabados y Reformas 🔨',
+		'Contratista de Reformas Residenciales 🔨',
+		'Director de Obras Civiles 🔨',
+		'Gerente de Construcción y Costos 🔨',
+		'Ingeniero Residente de Edificaciones 🔨',
+		'Contratista General de Proyectos 🔨',
+		'Propietario de Constructora Residencial 🔨',
+		'Desarrollador de Conjuntos Urbanos 🔨',
+		'Constructor de Centros Comerciales 🔨',
+		'Magnate de Megaestructuras y Urbanismo 🔨'
+	],
+	'Vendedor': [
+		'Vendedor 🏷️',
+		'Promotor de Piso y Mostrador 🏷️',
+		'Vendedor de Tienda Comercial 🏷️',
+		'Asesor de Ventas Telefónicas 🏷️',
+		'Ejecutivo de Ventas Junior 🏷️',
+		'Asesor Comercial de Cuentas Clave 🏷️',
+		'Representante de Ventas en Terreno 🏷️',
+		'Asesor Comercial VIP Corporativo 🏷️',
+		'Capacitador de Técnicas de Cierre 🏷️',
+		'Líder de Equipo Comercial 🏷️',
+		'Supervisor Regional de Ventas 🏷️',
+		'Subgerente de Canales Comerciales 🏷️',
+		'Gerente Comercial de Sucursal 🏷️',
+		'Gerente de Expansión de Clientes 🏷️',
+		'Director Comercial Regional 🏷️',
+		'Vicepresidente Comercial Corporativo 🏷️',
+		'Propietario de Agencia Comercial 🏷️',
+		'Socio de Importaciones y Ventas 🏷️',
+		'Fundador de Red de Franquicias Retail 🏷️',
+		'Magnate de Comercio y Ventas Globales 🏷️'
+	],
+	'Fotógrafo': [
+		'Fotógrafo 📸',
+		'Asistente de Iluminación y Estudio 📸',
+		'Retocador Digital y Editor 📸',
+		'Fotógrafo de Retratos Escolares 📸',
+		'Fotógrafo de Eventos y Fiestas 📸',
+		'Fotógrafo de Bodas y Celebraciones 📸',
+		'Fotógrafo de Producto y E-commerce 📸',
+		'Fotógrafo Gastronómico de Restaurantes 📸',
+		'Fotoperiodista y Reportero Gráfico 📸',
+		'Fotógrafo Inmobiliario y Arquitectura 📸',
+		'Fotógrafo de Moda y Pasarelas 📸',
+		'Director de Fotografía en Estudio 📸',
+		'Productor Visual Publicitario 📸',
+		'Fotógrafo de Portadas y Revistas 📸',
+		'Director Creativo de Agencia Visual 📸',
+		'Propietario de Estudio Fotográfico 📸',
+		'Productor de Documentales y Marcas 📸',
+		'Artista Visual con Galería Propia 📸',
+		'Fundador de Productora Audiovisual 📸',
+		'Leyenda y Maestro de las Artes Visuales 📸'
+	],
+	'Lavacarros': [
+		'Lavacarros 🚗',
+		'Operario de Enjuague y Aspirado 🚗',
+		'Lavador de Chasis y Motor 🚗',
+		'Lavador Profesional de Exteriores 🚗',
+		'Especialista en Limpieza de Cojinería 🚗',
+		'Técnico en Descontaminación de Pintura 🚗',
+		'Pulidor y Brillador de Carrocerías 🚗',
+		'Detallador Automotriz Junior 🚗',
+		'Master Detailer en Corrección de Pintura 🚗',
+		'Aplicador de Recubrimientos Cerámicos 🚗',
+		'Jefe de Línea de Lavado y Acabados 🚗',
+		'Encargado de Lavadero Automotriz 🚗',
+		'Administrador de Centro de Detailing 🚗',
+		'Gerente de Servicios Automotrices 🚗',
+		'Diseñador de Autolavados Automatizados 🚗',
+		'Propietario de Centro de Detailing 🚗',
+		'Franquiciador de Lavaderos Ecológicos 🚗',
+		'Dueño de Cadena de Autolavados Express 🚗',
+		'Distribuidor Nacional de Insumos Car-Care 🚗',
+		'Magnate de Estaciones de Detailing Automotriz 🚗'
+	],
+	'Servicio': [
+		'Servicio al Cliente 🎧',
+		'Operador Telefónico de Recepción 🎧',
+		'Agente de Soporte por Chat 🎧',
+		'Asesor de Atención en Mostrador 🎧',
+		'Agente de Soporte Técnico Básico 🎧',
+		'Especialista en Retención y Fidelización 🎧',
+		'Asesor de Casos Especiales y PQR 🎧',
+		'Auditor de Calidad en Atención 🎧',
+		'Entrenador de Nuevos Asesores 🎧',
+		'Team Leader de Atención 🎧',
+		'Supervisor de Centro de Contacto 🎧',
+		'Coordinador de Experiencia del Cliente CX 🎧',
+		'Analista de Métricas y Satisfacción 🎧',
+		'Jefe de Operaciones de Call Center 🎧',
+		'Gerente de Relación con el Cliente CRM 🎧',
+		'Director de Experiencia del Usuario 🎧',
+		'Consultor Estratégico de Servicio 🎧',
+		'Propietario de Centro de Contacto BPO 🎧',
+		'Vicepresidente de Éxito del Cliente CX 🎧',
+		'Magnate Global de Experiencia y Servicios BPO 🎧'
+	],
+	'Traductor': [
+		'Traductor 🗣️',
+		'Transcriptor y Asistente de Textos 🗣️',
+		'Traductor de Documentos Simples 🗣️',
+		'Corrector de Estilo Bilingüe 🗣️',
+		'Traductor de Subtítulos y Web 🗣️',
+		'Traductor Técnico de Manuales 🗣️',
+		'Intérprete Consecutivo de Enlace 🗣️',
+		'Traductor Literario de Artículos 🗣️',
+		'Traductor Jurídico y Comercial 🗣️',
+		'Intérprete Simultáneo de Negocios 🗣️',
+		'Traductor Oficial Certificado 🗣️',
+		'Intérprete de Foros Internacionales 🗣️',
+		'Líder de Localización de Software 🗣️',
+		'Consultor Lingüístico Multinacional 🗣️',
+		'Intérprete Diplomático de Embajadas 🗣️',
+		'Director de Agencia de Traducción 🗣️',
+		'Propietario de Empresa de Idiomas 🗣️',
+		'Intérprete de Cumbres de la ONU 🗣️',
+		'Creador de Software de Traducción 🗣️',
+		'Líder Mundial de Diplomacia e Idiomas 🗣️'
+	]
 };
 
 function getPromotedTitle(currentTitle, tier = 1) {
-	for (const [key, ladder] of Object.entries(JOB_PROMOTION_TITLES)) {
+	for (const [key, ladder] of Object.entries(JOB_PROMOTIONS_20)) {
 		if (currentTitle.includes(key)) {
-			const idx = Math.min(tier - 1, ladder.length - 1);
+			const idx = Math.min(Math.max(0, tier - 1), ladder.length - 1);
 			return ladder[idx];
 		}
 	}
@@ -146,10 +398,10 @@ const TILE_TYPES = {
 	charity: {
 		type: 'charity',
 		styleClass: 'tile-color-charity',
-		name: 'REGALO',
+		name: 'DONACIÓN',
 		icon: '🎁',
-		sub: 'Buena energía',
-		badge: 'Solidaridad'
+		sub: 'Dar con generosidad',
+		badge: 'Donación'
 	},
 	crisis: {
 		type: 'crisis',
@@ -552,6 +804,7 @@ function createLaneTileDOM(tile, laneIndex = 0) {
 	card.className = `tile-lane-card ${tile.styleClass}`;
 
 	card.innerHTML = `
+		<div class="tile-bg-art tile-bg-${tile.type}"></div>
 		<div class="tile-header-row">
 			<span class="tile-sub-badge">${tile.badge || tile.sub}</span>
 			<div class="tile-pawns-slot" id="lane-pawns-${laneIndex}-${tile.globalIndex}"></div>
@@ -1435,6 +1688,16 @@ function showJobModal(player) {
 // 3. Ascenso en el Trabajo
 function showPromotionModal(player) {
 	const promo = pickRandom(PROMOTIONS);
+	const nextTier = (player.jobTier || 1) + 1;
+	const nextTitle = getPromotedTitle(player.profession, nextTier);
+
+	const stats = [
+		{ label: 'Tu sueldo sube:', value: `+${formatCOP(promo.raise)} / mes`, color: 'green' },
+		{ label: 'Bono sorpresa en mano:', value: `+${formatCOP(promo.bonus)} COP`, color: 'green' }
+	];
+	if (nextTitle !== player.profession) {
+		stats.unshift({ label: 'Nuevo cargo alcanzado:', value: nextTitle });
+	}
 
 	showModal({
 		typeName: 'ASCENSO LABORAL ⭐',
@@ -1442,10 +1705,7 @@ function showPromotionModal(player) {
 		icon: '⭐',
 		title: promo.title,
 		detailedInfo: `¡Felicitaciones por tu esfuerzo y constancia! ${promo.desc}`,
-		stats: [
-			{ label: 'Tu sueldo sube:', value: `+${formatCOP(promo.raise)} / mes`, color: 'green' },
-			{ label: 'Bono sorpresa en mano:', value: `+${formatCOP(promo.bonus)} COP`, color: 'green' }
-		],
+		stats,
 		buttons: [
 			{
 				text: '¡Celebrar y Recibir Aumento! 🎉',
@@ -1453,6 +1713,10 @@ function showPromotionModal(player) {
 				action: () => {
 					player.salary += promo.raise;
 					player.cash += promo.bonus;
+					if (nextTitle !== player.profession) {
+						player.jobTier = nextTier;
+						player.profession = nextTitle;
+					}
 					sounds.cash();
 					updateHUDAndHeaders();
 					closeModal(() => endTurn());
