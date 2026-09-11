@@ -129,14 +129,13 @@
 
 		/* ====================================================
 		   HUD MINIMALISTA POR JUGADOR / CAMINO
-		   (Efectivo y Flujo justo arriba de cada camino)
 		   ==================================================== */
 		.players-road-headers-bar {
 			display: flex;
 			justify-content: center;
 			align-items: center;
 			gap: 24px;
-			padding: 10px 16px;
+			padding: 8px 16px;
 			background: rgba(255, 255, 255, 0.95);
 			backdrop-filter: blur(10px);
 			border-bottom: 1.5px solid var(--border-color);
@@ -154,8 +153,8 @@
 			border-radius: 18px;
 			padding: 8px 16px;
 			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-			min-width: 280px;
-			max-width: 360px;
+			min-width: 270px;
+			max-width: 350px;
 			flex: 1;
 			box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 			cursor: pointer;
@@ -239,31 +238,35 @@
 		.fin-item .val.blue { color: #2563eb; }
 
 		/* ====================================================
-		   PERSPECTIVA DEL CAMINO HACIA EL HORIZONTE (3D)
-		   (Soporta Caminos en Paralelo para Jugadores)
+		   PERSPECTIVA DEL CAMINO HACIA EL HORIZONTE (3D PROFUNDO)
 		   ==================================================== */
 		.stage-perspective-viewport {
 			position: relative;
 			width: 100%;
-			height: calc(100vh - 220px);
+			height: calc(100vh - 210px);
 			min-height: 480px;
-			max-height: 640px;
+			max-height: 660px;
 			margin: 0 auto;
 			overflow: hidden;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: flex-end;
-			background: radial-gradient(circle at 50% 15%, #ffffff 0%, #f1f5f9 100%);
+			/* Cielo y horizonte al fondo */
+			background: linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 25%, #ffffff 70%, #f8fafc 100%);
+			/* Perspectiva potente sobre todo el viewport */
+			perspective: 600px;
+			perspective-origin: 50% 30%;
 		}
 
+		/* Suavizado en la línea del horizonte */
 		.horizon-line {
 			position: absolute;
 			top: 0;
 			left: 0;
 			width: 100%;
-			height: 80px;
-			background: linear-gradient(to bottom, #ffffff 40%, rgba(248, 250, 252, 0) 100%);
+			height: 110px;
+			background: linear-gradient(to bottom, #cbd5e1 0%, rgba(241, 245, 249, 0.8) 50%, rgba(255, 255, 255, 0) 100%);
 			z-index: 50;
 			pointer-events: none;
 		}
@@ -274,39 +277,42 @@
 			width: 100%;
 			max-width: 900px;
 			height: 100%;
-			perspective: 750px;
-			perspective-origin: 50% 85%;
 			display: flex;
 			justify-content: center;
 			align-items: flex-end;
-			gap: 24px;
+			gap: 30px;
+			transform-style: preserve-3d;
 		}
 
-		/* Cada camino individual (para modo 1 jugador o 2 jugadores en paralelo) */
+		/* Cada columna de pista */
 		.parallel-road-column {
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			position: relative;
-			width: 250px;
+			width: 260px;
+			transform-style: preserve-3d;
 		}
 
+		/* La Pista Inclinada en 3D Hacia el Fondo (Perspectiva de Carretera) */
 		.road-3d-track {
-			width: 240px;
+			width: 250px;
 			display: flex;
-			flex-direction: column-reverse; /* Inicio abajo, horizonte arriba */
+			flex-direction: column-reverse; /* La casilla actual abajo y el futuro arriba en el horizonte */
 			align-items: center;
 			gap: 16px;
-			padding-bottom: 24px;
+			padding-bottom: 40px;
 			transform-origin: 50% 100%;
-			transform: rotateX(24deg);
+			transform-style: preserve-3d;
+			/* Inclinación 3D pronunciada */
+			transform: rotateX(42deg);
 			transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 		}
 
-		/* Casilla Individual Minimalista */
+		/* Casilla Individual con Profundidad 3D */
 		.tile-lane-card {
-			width: 226px;
-			height: 110px;
+			width: 236px;
+			height: 115px;
 			background: #ffffff;
 			border: 2px solid var(--border-color);
 			border-radius: 20px;
@@ -314,20 +320,20 @@
 			display: flex;
 			flex-direction: column;
 			justify-content: space-between;
-			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), inset 0 2px 4px rgba(255, 255, 255, 0.8);
 			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 			position: relative;
 			flex-shrink: 0;
+			transform-style: preserve-3d;
 		}
 
 		.tile-lane-card.active-step {
 			border-color: #16a34a !important;
-			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3), 0 14px 32px rgba(22, 163, 74, 0.2) !important;
-			transform: scale(1.06);
+			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35), 0 16px 36px rgba(22, 163, 74, 0.25) !important;
+			transform: translateZ(20px) scale(1.05);
 			z-index: 25;
 		}
 
-		/* Nombre de la casilla en la mitad, bien visible, sin # */
 		.tile-header-row {
 			display: flex;
 			justify-content: space-between;
@@ -355,15 +361,15 @@
 		}
 
 		.mini-pawn {
-			width: 28px;
-			height: 28px;
+			width: 30px;
+			height: 30px;
 			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 1rem;
-			border: 2px solid #ffffff;
-			box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+			font-size: 1.1rem;
+			border: 2.5px solid #ffffff;
+			box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 			transition: all 0.25s ease;
 		}
 
@@ -378,7 +384,7 @@
 		}
 
 		.tile-icon-bubble {
-			font-size: 2.1rem;
+			font-size: 2.2rem;
 			line-height: 1;
 			flex-shrink: 0;
 		}
@@ -443,7 +449,6 @@
 
 		/* ====================================================
 		   CONTROLES LATERALES PARA EXPLORAR LA PISTA
-		   (Mirar adelante sin mover el ficho)
 		   ==================================================== */
 		.track-look-controls {
 			position: absolute;
@@ -532,7 +537,6 @@
 			100% { transform: rotate(0deg) scale(1); }
 		}
 
-		/* Puntos del dado estilo Casino */
 		.dice-face-grid {
 			width: 50px;
 			height: 50px;
@@ -580,7 +584,6 @@
 		.dice-face-grid.face-6 .pip-7,
 		.dice-face-grid.face-6 .pip-9 { visibility: visible; }
 
-		/* Botón de Tirada Grande */
 		.btn-throw-big {
 			background: linear-gradient(135deg, #16a34a, #15803d);
 			color: white;
@@ -610,7 +613,6 @@
 			box-shadow: 0 8px 25px rgba(22, 163, 74, 0.4);
 		}
 
-		/* Pill Flotante de Estado Minimalista */
 		.floating-turn-pill {
 			position: fixed;
 			top: 115px;
@@ -974,9 +976,7 @@
 	</header>
 
 	<!-- BARRA DE INFORMACIÓN FINANCIERA UBICADA JUSTO ARRIBA DE CADA CAMINO -->
-	<div id="game-hud" class="players-road-headers-bar hidden">
-		<!-- Contenedores generados dinámicamente según 1 o 2 caminos paralelos -->
-	</div>
+	<div id="game-hud" class="players-road-headers-bar hidden"></div>
 
 	<!-- Pill Flotante de Estado de Turno -->
 	<div id="floating-status-pill" class="floating-turn-pill hidden">
@@ -1015,7 +1015,7 @@
 			<button id="btn-start-play" class="btn-start-game">🚀 ¡Comenzar Carrera!</button>
 		</section>
 
-		<!-- 2. Pantalla Principal de Juego (Caminos en Paralelo con Perspectiva Frontal 3D) -->
+		<!-- 2. Pantalla Principal de Juego (Caminos en Paralelo con Perspectiva Frontal 3D Profunda) -->
 		<section id="game-screen" class="hidden">
 			<!-- Controles para mirar adelante sin mover la ficha -->
 			<div class="track-look-controls">
@@ -1027,9 +1027,7 @@
 			<!-- Pista con Sensación de Avanzar hacia el Horizonte (1 o 2 Caminos Paralelos) -->
 			<div class="stage-perspective-viewport">
 				<div class="horizon-line"></div>
-				<div class="road-3d-scene" id="road-3d-scene-container">
-					<!-- Las columnas de caminos paralelas se crean aquí dinámicamente -->
-				</div>
+				<div class="road-3d-scene" id="road-3d-scene-container"></div>
 			</div>
 
 			<!-- ÁREA PROTAGONISTA: DOS DADOS GRANDES 3D Y CONTROL DE TIRO -->
@@ -1061,7 +1059,7 @@
 		</section>
 	</main>
 
-	<!-- DRAWER LATERAL: BALANCE Y ESTADO FINANCIERO COMPLETO (Bajo Demanda) -->
+	<!-- DRAWER LATERAL: BALANCE Y ESTADO FINANCIERO COMPLETO -->
 	<div id="balance-drawer-overlay" class="cf-drawer-overlay">
 		<div class="cf-drawer-content">
 			<div class="drawer-header">
@@ -1165,17 +1163,17 @@
 			</div>
 			<div class="card-body-cf" style="font-size: 0.95rem; line-height: 1.5; max-height: 400px; overflow-y: auto;">
 				<p><strong>1. ¿Cuál es el Objetivo?</strong><br>
-				Ganas cuando tus <strong>Ingresos Pasivos</strong> (generados por negocios, inmuebles o inversiones) superan tus <strong>Gastos Totales Mensuales</strong>.</p>
+				Ganas cuando tus <strong>Ingresos Pasivos</strong> (generados por negocios o inversiones) superan tus <strong>Gastos Totales Mensuales</strong>.</p>
 
-				<p><strong>2. Pista en Perspectiva Frontal:</strong><br>
-				Avanzas hacia adelante en la pista hacia el horizonte. Puedes explorar las casillas de más adelante con las flechas de control ▲ / ▼.</p>
+				<p><strong>2. Pista en Perspectiva Frontal hacia el Horizonte:</strong><br>
+				Avanzas hacia el fondo de la pantalla. Puedes explorar casillas futuras con las flechas ▲ / ▼ sin mover tu ficha.</p>
 
 				<p><strong>3. Casillas Oficiales:</strong><br>
 				• 💰 <strong>Día de Pago:</strong> Cobras tu Flujo de Caja mensual neto.<br>
-				• 🚀 <strong>Oportunidad:</strong> Negocios y bienes raíces que generan flujo pasivo.<br>
+				• 🚀 <strong>Oportunidad:</strong> Negocios directos que generan flujo pasivo.<br>
 				• 🛍️ <strong>Capricho:</strong> Gastos imprevistos de estilo de vida.<br>
 				• 📈 <strong>El Mercado:</strong> Ofertas para liquidar tus propiedades con gran plusvalía.<br>
-				• 🎁 <strong>Caridad:</strong> Donar el 10% te da beneficios.<br>
+				• 🎁 <strong>Caridad:</strong> Bonificación de bendición financiera.<br>
 				• 🚨 <strong>Despido:</strong> Pierdes 1 turno cubriendo tus gastos fijos.</p>
 			</div>
 			<div class="card-footer-cf">
@@ -1203,7 +1201,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-11-parallel-dice2"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-11-perspective-boost"></script>
 </body>
 
 </html>

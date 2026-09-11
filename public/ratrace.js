@@ -816,8 +816,8 @@ function centerPerspective() {
 	const track0 = document.getElementById('road-lane-track-0');
 	const track1 = document.getElementById('road-lane-track-1');
 
-	if (track0) track0.style.transform = `rotateX(24deg) translateY(${translateY}px)`;
-	if (track1) track1.style.transform = `rotateX(24deg) translateY(${translateY}px)`;
+	if (track0) track0.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
+	if (track1) track1.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
 }
 
 // ==========================================
