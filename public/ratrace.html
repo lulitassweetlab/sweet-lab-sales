@@ -23,7 +23,6 @@
 
 			/* Colores Oficiales de Casillas CashFlow */
 			--tile-payday: #facc15;      /* Amarillo Oro - Día de Pago */
-			--tile-payday-dark: #713f12;
 			--tile-opp: #16a34a;         /* Verde - Oportunidades */
 			--tile-doodad: #db2777;      /* Rosa Magenta - Caprichos */
 			--tile-market: #2563eb;      /* Azul Real - El Mercado */
@@ -49,17 +48,17 @@
 
 		/* Barra Superior Limpia y Blanca */
 		.cf-header {
-			background: rgba(255, 255, 255, 0.96);
+			background: rgba(255, 255, 255, 0.98);
 			backdrop-filter: blur(12px);
 			border-bottom: 1.5px solid var(--border-color);
-			padding: 12px 24px;
+			padding: 10px 24px;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			position: sticky;
 			top: 0;
 			z-index: 200;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 		}
 
 		.cf-brand {
@@ -141,9 +140,9 @@
 			justify-content: space-between;
 			flex-wrap: wrap;
 			gap: 16px;
-			box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+			box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 			position: sticky;
-			top: 64px;
+			top: 60px;
 			z-index: 150;
 		}
 
@@ -187,8 +186,8 @@
 		}
 
 		.hud-dice {
-			width: 52px;
-			height: 52px;
+			width: 50px;
+			height: 50px;
 			background: #ffffff;
 			border: 2px solid var(--border-color);
 			border-radius: 12px;
@@ -217,7 +216,7 @@
 			background: linear-gradient(135deg, #16a34a, #15803d);
 			color: white;
 			border: none;
-			padding: 12px 26px;
+			padding: 11px 24px;
 			border-radius: 12px;
 			font-size: 1.05rem;
 			font-weight: 900;
@@ -243,7 +242,7 @@
 			flex: 1;
 			min-width: 220px;
 			background: var(--bg-subtle);
-			padding: 10px 16px;
+			padding: 9px 16px;
 			border-radius: 10px;
 			border: 1px solid var(--border-color);
 			font-size: 0.85rem;
@@ -254,9 +253,9 @@
 
 		/* Contenedor Principal */
 		.cf-container {
-			max-width: 1400px;
+			max-width: 1500px;
 			margin: 0 auto;
-			padding: 20px;
+			padding: 16px 20px 40px;
 		}
 
 		/* Pantalla de Configuración Inicial */
@@ -375,195 +374,163 @@
 			transform: scale(1.02);
 		}
 
-		/* PANTALLA PRINCIPAL DE JUEGO (2 COLUMNAS) */
-		#game-screen {
-			display: grid;
-			grid-template-columns: 1fr 430px;
-			gap: 24px;
-			margin-top: 10px;
-		}
-
-		@media (max-width: 1100px) {
-			#game-screen {
-				grid-template-columns: 1fr;
-			}
-		}
-
-		/* COLUMNA 1: EL CAMINO LINEAL (SOLO 1 CASILLA DE ANCHO, UNA DELANTE DE LA OTRA) */
-		.linear-road-viewport {
+		/* SECCIÓN DEL CAMINO HACIA ADELANTE (PISTA LINEAL HORIZONTAL DE 1 SOLA CASILLA A LA VEZ) */
+		.road-section-wrapper {
 			background: var(--bg-card);
 			border: 1.5px solid var(--border-color);
-			border-radius: 24px;
-			padding: 24px 20px;
-			box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-			position: relative;
-			overflow-y: auto;
-			max-height: calc(100vh - 165px);
-			scroll-behavior: smooth;
+			border-radius: 20px;
+			padding: 16px 20px;
+			box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+			margin-bottom: 20px;
 		}
 
-		.road-header-info {
-			text-align: center;
-			margin-bottom: 24px;
-			padding: 12px;
-			background: var(--bg-subtle);
-			border-radius: 16px;
-			border: 1px solid var(--border-color);
+		.road-section-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 12px;
 		}
 
-		.road-header-info h2 {
+		.road-section-header h2 {
 			margin: 0;
 			font-family: 'Outfit', sans-serif;
-			font-size: 1.4rem;
+			font-size: 1.15rem;
 			font-weight: 900;
 			color: var(--text-main);
 			display: flex;
 			align-items: center;
-			justify-content: center;
 			gap: 8px;
 		}
 
-		.road-header-info p {
-			margin: 4px 0 0 0;
-			font-size: 0.85rem;
+		.road-section-header span {
+			font-size: 0.8rem;
 			color: var(--text-muted);
+			font-weight: 600;
 		}
 
-		/* La Pista Lineal Vertical: 1 sola casilla a la vez */
-		.linear-path {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			position: relative;
-			padding: 10px 0 40px;
-			width: 100%;
-		}
-
-		/* Línea central guía del camino que conecta las casillas */
-		.linear-path::before {
-			content: '';
-			position: absolute;
-			top: 20px;
-			bottom: 40px;
-			left: 50%;
-			transform: translateX(-50%);
-			width: 6px;
-			background: repeating-linear-gradient(to bottom, #cbd5e1 0, #cbd5e1 14px, transparent 14px, transparent 26px);
-			z-index: 1;
-		}
-
-		/* Contenedor de cada paso (casilla + conector hacia adelante) */
-		.path-step-container {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			width: 100%;
-			max-width: 520px;
-			position: relative;
-			z-index: 2;
-			margin-bottom: 18px;
-		}
-
-		/* Flecha / conector de avance entre casillas */
-		.step-connector {
-			height: 24px;
+		/* Contenedor con Scroll Horizontal Fluido */
+		.horizontal-road-track {
 			display: flex;
 			align-items: center;
-			justify-content: center;
-			font-size: 1rem;
-			color: #94a3b8;
+			gap: 12px;
+			overflow-x: auto;
+			overflow-y: hidden;
+			padding: 10px 4px 18px;
+			scroll-behavior: smooth;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		/* Barra de scroll limpia */
+		.horizontal-road-track::-webkit-scrollbar {
+			height: 8px;
+		}
+		.horizontal-road-track::-webkit-scrollbar-track {
+			background: var(--bg-subtle);
+			border-radius: 4px;
+		}
+		.horizontal-road-track::-webkit-scrollbar-thumb {
+			background: #cbd5e1;
+			border-radius: 4px;
+		}
+
+		/* Conector con Flecha hacia Adelante (➔) */
+		.forward-arrow-connector {
+			font-size: 1.2rem;
+			color: #cbd5e1;
 			font-weight: 900;
+			flex-shrink: 0;
+			user-select: none;
 		}
 
-		/* Hito de Mes / Tramo en el camino */
-		.road-milestone {
-			width: 100%;
-			max-width: 480px;
-			background: #ffffff;
+		/* Hito de Mes Intermedio */
+		.road-month-milestone {
+			min-width: 140px;
+			height: 190px;
+			background: linear-gradient(135deg, #ffffff 50%, #fef9c3 100%);
 			border: 2px dashed #f59e0b;
-			border-radius: 14px;
-			padding: 10px 16px;
-			margin: 16px 0;
-			text-align: center;
-			font-family: 'Outfit', sans-serif;
-			font-weight: 900;
-			font-size: 0.95rem;
-			color: #b45309;
+			border-radius: 18px;
+			padding: 14px;
 			display: flex;
+			flex-direction: column;
 			align-items: center;
 			justify-content: center;
+			text-align: center;
 			gap: 8px;
-			box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
-			z-index: 5;
+			flex-shrink: 0;
+			box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
 		}
 
-		/* Tarjeta de Casilla Individual (Una adelante de la otra) */
+		.road-month-milestone .icon { font-size: 2.2rem; }
+		.road-month-milestone .title { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 0.9rem; color: #b45309; }
+		.road-month-milestone .sub { font-size: 0.75rem; color: #713f12; font-weight: 600; }
+
+		/* Tarjeta de Casilla Individual (Menos ancha: 160px) */
 		.road-tile-card {
-			width: 100%;
+			width: 160px;
+			min-width: 160px;
+			max-width: 160px;
+			height: 190px;
 			background: #ffffff;
 			border: 2px solid var(--border-color);
 			border-radius: 18px;
-			padding: 14px 18px;
+			padding: 12px 10px;
 			display: flex;
+			flex-direction: column;
 			align-items: center;
 			justify-content: space-between;
-			gap: 16px;
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+			text-align: center;
+			box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
 			transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 			cursor: pointer;
 			position: relative;
+			flex-shrink: 0;
 		}
 
 		.road-tile-card:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-		}
-
-		.road-tile-left {
-			display: flex;
-			align-items: center;
-			gap: 14px;
+			transform: translateY(-4px);
+			box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 		}
 
 		.road-tile-badge {
-			width: 32px;
-			height: 32px;
-			border-radius: 10px;
-			background: var(--bg-subtle);
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			font-size: 0.75rem;
+			position: absolute;
+			top: 8px;
+			left: 10px;
+			font-size: 0.68rem;
 			font-weight: 900;
 			color: var(--text-muted);
+			background: var(--bg-subtle);
+			padding: 2px 6px;
+			border-radius: 6px;
 			font-family: 'Outfit', sans-serif;
-			flex-shrink: 0;
 		}
 
 		.road-tile-icon {
 			font-size: 2.2rem;
+			margin-top: 14px;
 			flex-shrink: 0;
 		}
 
 		.road-tile-texts {
 			display: flex;
 			flex-direction: column;
+			gap: 2px;
 		}
 
 		.road-tile-title {
 			font-family: 'Outfit', sans-serif;
-			font-size: 1.05rem;
+			font-size: 0.85rem;
 			font-weight: 900;
 			letter-spacing: 0.3px;
+			line-height: 1.15;
 		}
 
 		.road-tile-sub {
-			font-size: 0.8rem;
+			font-size: 0.7rem;
 			font-weight: 600;
 			color: var(--text-muted);
 		}
 
-		/* Colores de las casillas con acentos CashFlow */
+		/* Colores de las casillas CashFlow */
 		.tile-color-payday {
 			border-color: #facc15;
 			background: linear-gradient(135deg, #ffffff 60%, #fef9c3 100%);
@@ -606,45 +573,49 @@
 		.tile-color-crisis .road-tile-title { color: #6b21a8; }
 		.tile-color-crisis .road-tile-badge { background: #e9d5ff; color: #6b21a8; }
 
-		/* Casilla activa del jugador actual */
+		/* Casilla activa resaltada */
 		.road-tile-card.active-step {
-			box-shadow: 0 0 0 3px #16a34a, 0 10px 30px rgba(22, 163, 74, 0.25) !important;
+			box-shadow: 0 0 0 3px #16a34a, 0 10px 25px rgba(22, 163, 74, 0.25) !important;
 			border-color: #16a34a !important;
-			transform: scale(1.03);
+			transform: scale(1.05) translateY(-4px);
 			z-index: 20;
 		}
 
-		/* Fichas de los Jugadores en la casilla */
+		/* Fichas de los Jugadores */
 		.road-tile-pawns {
 			display: flex;
 			align-items: center;
+			justify-content: center;
 			gap: 4px;
-			flex-shrink: 0;
+			min-height: 28px;
+			width: 100%;
 		}
 
 		.cf-pawn {
-			width: 32px;
-			height: 32px;
+			width: 28px;
+			height: 28px;
 			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 1.15rem;
-			box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-			border: 2.5px solid white;
+			font-size: 1rem;
+			box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+			border: 2px solid white;
 			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 		}
 
-		/* COLUMNA 2: ESTADO FINANCIERO OFICIAL (BALANCE SHEET) */
-		.cf-sidebar {
-			display: flex;
-			flex-direction: column;
+		/* SECCIÓN DEL ESTADO FINANCIERO (GRID RESPONSIVE ABAJO DEL CAMINO) */
+		.financial-dashboard {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 			gap: 16px;
 		}
 
-		.cf-player-tabs {
+		/* Pestañas de Jugadores */
+		.cf-player-tabs-bar {
+			grid-column: 1 / -1;
 			display: flex;
-			gap: 6px;
+			gap: 8px;
 			background: var(--bg-card);
 			padding: 8px;
 			border-radius: 16px;
@@ -656,14 +627,14 @@
 			background: var(--bg-subtle);
 			border: 1.5px solid var(--border-color);
 			border-radius: 12px;
-			padding: 10px 6px;
+			padding: 10px 8px;
 			color: var(--text-main);
 			display: flex;
-			flex-direction: column;
 			align-items: center;
-			gap: 4px;
+			justify-content: center;
+			gap: 8px;
 			cursor: pointer;
-			font-size: 0.8rem;
+			font-size: 0.85rem;
 			font-weight: 800;
 			font-family: 'Outfit', sans-serif;
 			transition: all 0.2s;
@@ -678,60 +649,43 @@
 
 		.cf-tab.is-turn::after {
 			content: '🎲';
-			font-size: 0.8rem;
+			font-size: 0.85rem;
 		}
 
-		/* Hoja de Balance Contable en Blanco */
-		.cf-ledger-card {
+		/* Tarjetas del Dashboard Financiero */
+		.dash-card {
 			background: var(--bg-card);
 			border: 1.5px solid var(--border-color);
-			border-radius: 24px;
-			padding: 24px;
-			box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+			border-radius: 18px;
+			padding: 18px;
+			box-shadow: 0 3px 12px rgba(0,0,0,0.02);
 			display: flex;
 			flex-direction: column;
-			gap: 16px;
+			gap: 14px;
 		}
 
-		.ledger-header {
+		.dash-card-header {
 			display: flex;
 			justify-content: space-between;
-			align-items: flex-start;
+			align-items: center;
 			border-bottom: 1.5px solid var(--border-color);
-			padding-bottom: 14px;
+			padding-bottom: 10px;
 		}
 
-		.ledger-profession {
-			font-size: 0.85rem;
-			color: var(--text-muted);
-			font-weight: 700;
-		}
-
-		.ledger-cash-box {
-			text-align: right;
-		}
-
-		.ledger-cash-box .label {
-			font-size: 0.75rem;
-			text-transform: uppercase;
-			color: var(--text-muted);
-			font-weight: 800;
-			letter-spacing: 0.5px;
-		}
-
-		.ledger-cash-box .val {
+		.dash-card-header h3 {
+			margin: 0;
 			font-family: 'Outfit', sans-serif;
-			font-size: 1.6rem;
+			font-size: 1.05rem;
 			font-weight: 900;
-			color: #16a34a;
+			color: var(--text-main);
 		}
 
 		/* Medidor de Libertad Financiera */
 		.freedom-gauge {
 			background: var(--bg-subtle);
 			border: 1.5px solid var(--border-color);
-			border-radius: 16px;
-			padding: 14px 16px;
+			border-radius: 14px;
+			padding: 12px 14px;
 		}
 
 		.gauge-title-row {
@@ -745,16 +699,16 @@
 		}
 
 		.gauge-bar-outer {
-			height: 14px;
+			height: 12px;
 			background: #e2e8f0;
-			border-radius: 7px;
+			border-radius: 6px;
 			overflow: hidden;
 		}
 
 		.gauge-bar-fill {
 			height: 100%;
 			background: linear-gradient(90deg, #3b82f6, #16a34a);
-			border-radius: 7px;
+			border-radius: 6px;
 			transition: width 0.4s ease;
 		}
 
@@ -769,8 +723,8 @@
 		.cf-cashflow-banner {
 			background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
 			border: 2px solid #facc15;
-			border-radius: 16px;
-			padding: 14px 18px;
+			border-radius: 14px;
+			padding: 12px 16px;
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
@@ -780,13 +734,13 @@
 		.cf-cashflow-banner .label {
 			font-family: 'Outfit', sans-serif;
 			font-weight: 900;
-			font-size: 0.9rem;
+			font-size: 0.85rem;
 			color: #854d0e;
 		}
 
 		.cf-cashflow-banner .amount {
 			font-family: 'Outfit', sans-serif;
-			font-size: 1.5rem;
+			font-size: 1.35rem;
 			font-weight: 900;
 			color: #15803d;
 		}
@@ -795,22 +749,22 @@
 		.cf-accounting-grid {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
-			gap: 12px;
+			gap: 10px;
 		}
 
 		.cf-accounting-col {
 			background: var(--bg-subtle);
 			border: 1px solid var(--border-color);
-			border-radius: 14px;
-			padding: 12px;
+			border-radius: 12px;
+			padding: 10px;
 		}
 
 		.accounting-col-title {
 			font-family: 'Outfit', sans-serif;
-			font-size: 0.8rem;
+			font-size: 0.75rem;
 			font-weight: 900;
 			text-transform: uppercase;
-			margin-bottom: 8px;
+			margin-bottom: 6px;
 			display: flex;
 			justify-content: space-between;
 		}
@@ -821,8 +775,8 @@
 		.accounting-item {
 			display: flex;
 			justify-content: space-between;
-			font-size: 0.8rem;
-			padding: 4px 0;
+			font-size: 0.78rem;
+			padding: 3px 0;
 			border-bottom: 1px dashed var(--border-color);
 		}
 
@@ -830,31 +784,16 @@
 		.accounting-item .val { font-weight: 800; font-family: 'Outfit', sans-serif; color: var(--text-main); }
 
 		/* Lista de Activos */
-		.cf-assets-box {
-			background: var(--bg-subtle);
-			border: 1px solid var(--border-color);
-			border-radius: 14px;
-			padding: 12px;
-		}
-
-		.cf-assets-box h4 {
-			margin: 0 0 8px 0;
-			font-family: 'Outfit', sans-serif;
-			font-size: 0.85rem;
-			font-weight: 900;
-			color: var(--text-main);
-		}
-
 		.cf-assets-list {
 			display: flex;
 			flex-direction: column;
 			gap: 6px;
-			max-height: 120px;
+			max-height: 130px;
 			overflow-y: auto;
 		}
 
 		.cf-asset-entry {
-			background: #ffffff;
+			background: var(--bg-subtle);
 			border: 1px solid var(--border-color);
 			border-radius: 8px;
 			padding: 6px 10px;
@@ -867,11 +806,12 @@
 		.cf-asset-name { font-weight: 800; color: #2563eb; }
 		.cf-asset-gain { font-weight: 900; color: #16a34a; font-family: 'Outfit', sans-serif; }
 
-		/* Acciones de Deuda */
+		/* Acciones de Préstamos */
 		.cf-debt-actions {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
 			gap: 10px;
+			margin-top: 4px;
 		}
 
 		/* MODALES DE EVENTOS */
@@ -1033,7 +973,7 @@
 		</div>
 
 		<div id="hud-status-log" class="hud-message-log">
-			¡Lanza el dado para avanzar por el camino financiero!
+			¡Lanza el dado para avanzar hacia adelante por el camino!
 		</div>
 	</div>
 
@@ -1042,7 +982,7 @@
 		<section id="setup-screen">
 			<div class="setup-header">
 				<h2>¡La Carrera de la Rata!</h2>
-				<p>Aprende a ahorrar, invertir y alcanzar tu Libertad Financiera en un camino lineal continuo.</p>
+				<p>Aprende a ahorrar, invertir y alcanzar tu Libertad Financiera en un camino lineal continuo hacia adelante.</p>
 			</div>
 
 			<div style="margin-bottom: 24px;">
@@ -1069,45 +1009,44 @@
 			<button id="btn-start-play" class="btn-start-game">🚀 ¡Comenzar Carrera!</button>
 		</section>
 
-		<!-- 2. Pantalla Principal de Juego (Camino Lineal + Hoja Financiera) -->
+		<!-- 2. Pantalla Principal de Juego -->
 		<section id="game-screen" class="hidden">
-			<!-- Columna 1: El Camino Lineal (1 sola casilla a la vez, una adelante de la otra) -->
-			<div class="linear-road-viewport" id="track-viewport">
-				<div class="road-header-info">
-					<h2>🧀 CAMINO DE LA LIBERTAD FINANCIERA</h2>
-					<p>Avanza casilla a casilla. Cada paso te acerca a escapar de la Carrera de la Rata.</p>
+			<!-- Pista Lineal Horizontal Hacia Adelante (1 sola casilla a la vez, estrechas, hacia adelante ➔) -->
+			<div class="road-section-wrapper">
+				<div class="road-section-header">
+					<h2>🧀 PISTA DE AVANCE HACIA ADELANTE ➔</h2>
+					<span id="road-progress-indicator">Casilla #1 • Mes 1</span>
 				</div>
 
-				<!-- Contenedor del camino lineal continuo -->
-				<div id="linear-path" class="linear-path">
-					<!-- Casillas generadas en fila india (1 por fila) -->
+				<div class="horizontal-road-track" id="horizontal-track">
+					<!-- Casillas lineales hacia adelante generadas dinámicamente -->
 				</div>
 			</div>
 
-			<!-- Columna 2: Estado Financiero Oficial (Balance Sheet) -->
-			<div class="cf-sidebar">
-				<!-- Pestañas de Jugadores -->
-				<div id="cf-player-tabs" class="cf-player-tabs">
+			<!-- Dashboard de Estado Financiero Oficial (Balance Sheet en COP) -->
+			<div class="financial-dashboard">
+				<!-- Selector de Pestañas de Jugadores -->
+				<div id="cf-player-tabs" class="cf-player-tabs-bar">
 					<!-- Pestañas generadas por JS -->
 				</div>
 
-				<!-- Tarjeta de Hoja de Balance Contable -->
-				<div class="cf-ledger-card">
-					<div class="ledger-header">
+				<!-- Tarjeta 1: Perfil y Libertad Financiera -->
+				<div class="dash-card">
+					<div class="dash-card-header">
 						<div>
-							<h3 id="sheet-name" style="margin:0 0 4px 0; font-size:1.3rem; font-family:'Outfit',sans-serif; color:var(--text-main);">🐭 Jorge</h3>
-							<div id="sheet-profession" class="ledger-profession">Chef de Repostería</div>
+							<h3 id="sheet-name" style="color:var(--text-main);">🐭 Jorge</h3>
+							<div id="sheet-profession" style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">Chef de Repostería</div>
 						</div>
-						<div class="ledger-cash-box">
-							<div class="label">Efectivo en Mano</div>
-							<div id="sheet-cash-val" class="val">$1.400.000 COP</div>
+						<div style="text-align:right;">
+							<div style="font-size:0.7rem; text-transform:uppercase; color:var(--text-muted); font-weight:800;">Efectivo en Mano</div>
+							<div id="sheet-cash-val" style="font-family:'Outfit',sans-serif; font-size:1.35rem; font-weight:900; color:#16a34a;">$1.400.000 COP</div>
 						</div>
 					</div>
 
 					<!-- Medidor de Libertad Financiera -->
 					<div class="freedom-gauge">
 						<div class="gauge-title-row">
-							<span>Meta de Libertad Financiera</span>
+							<span>Progreso a Libertad Financiera</span>
 							<span id="freedom-percentage">0%</span>
 						</div>
 						<div class="gauge-bar-outer">
@@ -1117,17 +1056,40 @@
 							🎯 <strong>Meta:</strong> Ingresos Pasivos (<span id="freedom-passive" style="color:#16a34a; font-weight:800;">$0</span>) &gt; Gastos Totales (<span id="freedom-expenses" style="color:#dc2626; font-weight:800;">$1.800.000</span>).
 						</div>
 					</div>
+				</div>
 
-					<!-- Flujo de Caja Mensual (Cash Flow) -->
+				<!-- Tarjeta 2: Flujo de Caja y Acciones de Deuda -->
+				<div class="dash-card">
+					<div class="dash-card-header">
+						<h3>💰 Flujo de Efectivo</h3>
+						<small style="color:var(--text-muted); font-weight:600;">Cobro mensual</small>
+					</div>
+
 					<div class="cf-cashflow-banner">
 						<div>
 							<div class="label">Flujo de Caja Mensual</div>
-							<small style="color:#854d0e; font-size:0.75rem; font-weight:700;">Lo que cobras en cada Día de Pago</small>
+							<small style="color:#854d0e; font-size:0.75rem; font-weight:700;">Cobras en cada Día de Pago</small>
 						</div>
 						<div id="sheet-cashflow-val" class="amount">+$1.000.000</div>
 					</div>
 
-					<!-- Desglose de Ingresos y Gastos -->
+					<div class="cf-debt-actions">
+						<button id="btn-request-loan" class="cf-btn cf-btn-secondary" style="font-size:0.8rem; justify-content:center;">
+							🏦 Préstamo Bancario
+						</button>
+						<button id="btn-pay-debt" class="cf-btn cf-btn-secondary" style="font-size:0.8rem; justify-content:center;">
+							💳 Pagar Préstamos
+						</button>
+					</div>
+				</div>
+
+				<!-- Tarjeta 3: Desglose de Ingresos y Gastos -->
+				<div class="dash-card">
+					<div class="dash-card-header">
+						<h3>📊 Ingresos y Gastos</h3>
+						<small style="color:var(--text-muted); font-weight:600;">Detalle mensual</small>
+					</div>
+
 					<div class="cf-accounting-grid">
 						<div class="cf-accounting-col">
 							<div class="accounting-col-title green">
@@ -1159,25 +1121,19 @@
 							</div>
 						</div>
 					</div>
+				</div>
 
-					<!-- Lista de Activos -->
-					<div class="cf-assets-box">
-						<h4>Tus Activos (Negocios / Propiedades)</h4>
-						<div id="sheet-assets-list" class="cf-assets-list">
-							<div style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:10px;">
-								Aún no tienes activos. ¡Aprovecha las casillas de Oportunidad verde!
-							</div>
-						</div>
+				<!-- Tarjeta 4: Activos Adquiridos -->
+				<div class="dash-card">
+					<div class="dash-card-header">
+						<h3>🏢 Tus Activos (Inversiones)</h3>
+						<small style="color:var(--text-muted); font-weight:600;">Flujo generado</small>
 					</div>
 
-					<!-- Acciones Bancarias -->
-					<div class="cf-debt-actions">
-						<button id="btn-request-loan" class="cf-btn cf-btn-secondary" style="font-size:0.8rem; justify-content:center;">
-							🏦 Préstamo Bancario
-						</button>
-						<button id="btn-pay-debt" class="cf-btn cf-btn-secondary" style="font-size:0.8rem; justify-content:center;">
-							💳 Pagar Préstamos
-						</button>
+					<div id="sheet-assets-list" class="cf-assets-list">
+						<div style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:10px;">
+							Aún no tienes activos. ¡Aprovecha las casillas de Oportunidad verde!
+						</div>
 					</div>
 				</div>
 			</div>
@@ -1218,8 +1174,8 @@
 				<p><strong>1. ¿Cuál es el Objetivo?</strong><br>
 				Ganas el juego cuando tus <strong>Ingresos Pasivos</strong> (generados por negocios, propiedades o inversiones sin que tengas que trabajar por ellos) superan tus <strong>Gastos Totales Mensuales</strong>. En ese momento alcanzas la <strong>Libertad Financiera</strong> y escapas de la Carrera de la Rata.</p>
 
-				<p><strong>2. ¿Cómo Funciona el Camino?</strong><br>
-				El camino va en una sola línea continua, una casilla delante de la otra. Vas avanzando paso a paso mientras tiras los dados.</p>
+				<p><strong>2. ¿Cómo Funciona el Camino Hacia Adelante?</strong><br>
+				El camino va en una sola línea continua, una casilla delante de la otra hacia adelante (de izquierda a derecha ➔). Cada tirada te hace avanzar hacia la meta.</p>
 
 				<p><strong>3. Casillas Oficiales:</strong><br>
 				• 💰 <strong style="color:#ca8a04;">Amarillo (Día de Pago):</strong> Cobras tu Flujo de Caja neto mensual (Ingresos - Gastos).<br>
@@ -1259,7 +1215,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-11-white-path"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-11-forward-road"></script>
 </body>
 
 </html>

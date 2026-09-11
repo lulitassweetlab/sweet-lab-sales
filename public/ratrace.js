@@ -1,7 +1,7 @@
 /**
  * RatRace - Carrera de la Rata (CashFlow)
  * Edición Sweet Lab Finanzas - Versión Colombia (Pesos Colombianos COP)
- * Camino Lineal Continuo (Una casilla a la vez, una delante de la otra)
+ * Camino Lineal Hacia Adelante (Una casilla a la vez en fila única ➔)
  * Paleta: Blanco y 1% Gris
  */
 
@@ -78,14 +78,14 @@ const TILE_TYPES = {
 		styleClass: 'tile-color-payday',
 		name: 'DÍA DE PAGO',
 		icon: '💰',
-		sub: '+Cobro de Flujo de Caja'
+		sub: '+Flujo de Caja'
 	},
 	opportunity: {
 		type: 'opportunity',
 		styleClass: 'tile-color-opportunity',
 		name: 'OPORTUNIDAD',
 		icon: '🚀',
-		sub: 'Comprar Negocios o Inmuebles'
+		sub: 'Comprar Activos'
 	},
 	doodad: {
 		type: 'doodad',
@@ -99,21 +99,21 @@ const TILE_TYPES = {
 		styleClass: 'tile-color-market',
 		name: 'EL MERCADO',
 		icon: '📈',
-		sub: 'Vender Activos con Ganancia'
+		sub: 'Vender con Ganancia'
 	},
 	charity: {
 		type: 'charity',
 		styleClass: 'tile-color-charity',
 		name: 'CARIDAD',
 		icon: '🎁',
-		sub: 'Donar para tirar 2 Dados'
+		sub: 'Donar / 2 Dados'
 	},
 	crisis: {
 		type: 'crisis',
 		styleClass: 'tile-color-crisis',
 		name: 'DESPIDO',
 		icon: '🚨',
-		sub: 'Pérdida de Turno y Gastos'
+		sub: 'Pérdida de Turno'
 	}
 };
 
@@ -122,7 +122,7 @@ const SMALL_DEALS = [
 	{
 		title: 'Máquina Expendedora Sweet Lab',
 		type: 'business',
-		desc: 'Instalas una máquina automática de postres y snacks en una torre de oficinas con alto flujo.',
+		desc: 'Instalas una máquina automática de postres y snacks en una torre corporativa con alto flujo.',
 		cost: 3500000,
 		downPayment: 3500000,
 		cashFlow: 450000,
@@ -341,7 +341,7 @@ const gameState = {
 	currentPlayerIndex: 0,
 	selectedTabPlayerIndex: 0,
 	isRolling: false,
-	generatedTiles: [] // Camino lineal continuo
+	generatedTiles: [] // Camino lineal horizontal hacia adelante
 };
 
 // ==========================================
@@ -388,7 +388,7 @@ class SoundEffects {
 	}
 
 	step() {
-		this.playTone(320, 0.06, 'sine', 0.08);
+		this.playTone(340, 0.06, 'sine', 0.08);
 	}
 
 	cash() {
@@ -413,16 +413,16 @@ class SoundEffects {
 const sounds = new SoundEffects();
 
 // ==========================================
-// 5. GENERADOR DEL CAMINO LINEAL CONTINUO (1 CASILLA A LA VEZ)
+// 5. GENERADOR DEL CAMINO HACIA ADELANTE (FILA ÚNICA HORIZONTAL)
 // ==========================================
 
 /**
- * Añade casillas en una sola columna hacia adelante (una delante de la otra).
- * Sin casillas a los lados. Conectadas en línea recta.
+ * Añade casillas en una sola línea horizontal hacia adelante (de izquierda a derecha ➔).
+ * Menos ancha (160px), una exactamente delante de la otra.
  */
-function extendLinearRoad(tilesCountToAdd = 25) {
-	const pathContainer = document.getElementById('linear-path');
-	if (!pathContainer) return;
+function extendForwardRoad(tilesCountToAdd = 25) {
+	const trackContainer = document.getElementById('horizontal-track');
+	if (!trackContainer) return;
 
 	const startIdx = gameState.generatedTiles.length;
 
@@ -432,31 +432,33 @@ function extendLinearRoad(tilesCountToAdd = 25) {
 		tileData.globalIndex = globalIndex;
 		gameState.generatedTiles.push(tileData);
 
-		// Contenedor de paso
-		const stepContainer = document.createElement('div');
-		stepContainer.className = 'path-step-container';
-		stepContainer.id = `path-step-${globalIndex}`;
-
-		// Si es múltiplo de 6, agregar un hito de mes
+		// Si es múltiplo de 6 (y no es el inicio), agregar un hito de mes
 		if (globalIndex > 0 && globalIndex % 6 === 0) {
 			const monthNum = Math.floor(globalIndex / 6) + 1;
 			const milestone = document.createElement('div');
-			milestone.className = 'road-milestone';
-			milestone.innerHTML = `🏁 <strong>TRAMO FINANCIERO • MES ${monthNum}</strong>`;
-			stepContainer.appendChild(milestone);
+			milestone.className = 'road-month-milestone';
+			milestone.innerHTML = `
+				<div class="icon">🏁</div>
+				<div class="title">MES ${monthNum}</div>
+				<div class="sub">Tramo Financiero</div>
+			`;
+			trackContainer.appendChild(milestone);
+
+			const milestoneArrow = document.createElement('div');
+			milestoneArrow.className = 'forward-arrow-connector';
+			milestoneArrow.innerHTML = '➔';
+			trackContainer.appendChild(milestoneArrow);
 		} else if (globalIndex > 0) {
-			// Conector con flecha de avance hacia adelante
-			const connector = document.createElement('div');
-			connector.className = 'step-connector';
-			connector.innerHTML = '⬇';
-			stepContainer.appendChild(connector);
+			// Flecha hacia adelante entre casillas (➔)
+			const arrow = document.createElement('div');
+			arrow.className = 'forward-arrow-connector';
+			arrow.innerHTML = '➔';
+			trackContainer.appendChild(arrow);
 		}
 
-		// La tarjeta de casilla única
-		const tileCard = createRoadTileDOM(tileData);
-		stepContainer.appendChild(tileCard);
-
-		pathContainer.appendChild(stepContainer);
+		// La casilla individual compacta (160px de ancho)
+		const tileCard = createForwardTileDOM(tileData);
+		trackContainer.appendChild(tileCard);
 	}
 }
 
@@ -465,7 +467,6 @@ function pickTileForIndex(index) {
 		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • DÍA DE PAGO' };
 	}
 
-	// Día de Pago cada 6 casillas (mensualidad de ingresos)
 	if (index % 6 === 0) {
 		return { ...TILE_TYPES.payday, id: index };
 	}
@@ -490,19 +491,17 @@ function pickTileForIndex(index) {
 	return { ...TILE_TYPES[typeKey], id: index };
 }
 
-function createRoadTileDOM(tile) {
+function createForwardTileDOM(tile) {
 	const card = document.createElement('div');
 	card.id = `road-tile-${tile.globalIndex}`;
 	card.className = `road-tile-card ${tile.styleClass}`;
 
 	card.innerHTML = `
-		<div class="road-tile-left">
-			<div class="road-tile-badge">#${tile.globalIndex + 1}</div>
-			<div class="road-tile-icon">${tile.icon}</div>
-			<div class="road-tile-texts">
-				<div class="road-tile-title">${tile.name}</div>
-				<div class="road-tile-sub">${tile.sub}</div>
-			</div>
+		<div class="road-tile-badge">#${tile.globalIndex + 1}</div>
+		<div class="road-tile-icon">${tile.icon}</div>
+		<div class="road-tile-texts">
+			<div class="road-tile-title">${tile.name}</div>
+			<div class="road-tile-sub">${tile.sub}</div>
 		</div>
 		<div class="road-tile-pawns" id="road-pawns-${tile.globalIndex}"></div>
 	`;
@@ -555,12 +554,12 @@ function wireEventListeners() {
 
 	document.getElementById('btn-start-play')?.addEventListener('click', () => {
 		sounds.init();
-		startLinearGame();
+		startForwardGame();
 	});
 
 	document.getElementById('btn-roll-dice')?.addEventListener('click', () => {
 		sounds.init();
-		rollDiceLinear();
+		rollDiceForward();
 	});
 
 	document.getElementById('btn-exit')?.addEventListener('click', () => {
@@ -592,7 +591,7 @@ function wireEventListeners() {
 
 	document.getElementById('btn-victory-restart')?.addEventListener('click', () => {
 		document.getElementById('victory-modal').classList.remove('open');
-		startLinearGame();
+		startForwardGame();
 	});
 	document.getElementById('btn-victory-exit')?.addEventListener('click', () => {
 		window.location.href = '/index.html';
@@ -600,10 +599,10 @@ function wireEventListeners() {
 }
 
 // ==========================================
-// 7. INICIO DE PARTIDA LINEAL
+// 7. INICIO DE PARTIDA HACIA ADELANTE
 // ==========================================
 
-function startLinearGame() {
+function startForwardGame() {
 	const count = parseInt(document.querySelector('.setup-count-btn.active')?.dataset.count || '2', 10);
 	const players = [];
 
@@ -640,22 +639,22 @@ function startLinearGame() {
 	gameState.isRolling = false;
 	gameState.generatedTiles = [];
 
-	const pathContainer = document.getElementById('linear-path');
-	if (pathContainer) pathContainer.innerHTML = '';
+	const trackContainer = document.getElementById('horizontal-track');
+	if (trackContainer) trackContainer.innerHTML = '';
 
-	// Generar las primeras 30 casillas lineales iniciales
-	extendLinearRoad(30);
+	// Generar las primeras 30 casillas lineales hacia adelante
+	extendForwardRoad(30);
 
 	document.getElementById('setup-screen').classList.add('hidden');
 	document.getElementById('game-hud').classList.remove('hidden');
 	document.getElementById('game-screen').classList.remove('hidden');
 
 	renderPlayerTabs();
-	updatePawnsOnLinearRoad();
+	updatePawnsOnForwardRoad();
 	updateActivePlayerHUD();
 	updateFinancialSheet(gameState.selectedTabPlayerIndex);
 
-	scrollToCurrentTile(0);
+	scrollToTileHorizontally(0);
 }
 
 function renderPlayerTabs() {
@@ -667,7 +666,7 @@ function renderPlayerTabs() {
 		const tab = document.createElement('div');
 		tab.className = `cf-tab ${idx === gameState.selectedTabPlayerIndex ? 'active' : ''} ${idx === gameState.currentPlayerIndex ? 'is-turn' : ''}`;
 		tab.id = `cf-tab-${idx}`;
-		tab.style.borderTop = `3px solid ${p.color}`;
+		tab.style.borderLeft = `4px solid ${p.color}`;
 		tab.innerHTML = `
 			<span style="font-size: 1.25rem;">${p.avatar}</span>
 			<span>${p.name.split(' ')[0]}</span>
@@ -678,14 +677,14 @@ function renderPlayerTabs() {
 			document.querySelectorAll('.cf-tab').forEach(t => t.classList.remove('active'));
 			tab.classList.add('active');
 			updateFinancialSheet(idx);
-			scrollToCurrentTile(p.position);
+			scrollToTileHorizontally(p.position);
 		});
 
 		container.appendChild(tab);
 	});
 }
 
-function updatePawnsOnLinearRoad() {
+function updatePawnsOnForwardRoad() {
 	gameState.generatedTiles.forEach(tile => {
 		const pawnsContainer = document.getElementById(`road-pawns-${tile.globalIndex}`);
 		if (pawnsContainer) pawnsContainer.innerHTML = '';
@@ -711,6 +710,7 @@ function updateActivePlayerHUD() {
 	const hudProf = document.getElementById('hud-profession');
 	const btnRoll = document.getElementById('btn-roll-dice');
 	const statusLog = document.getElementById('hud-status-log');
+	const progressIndicator = document.getElementById('road-progress-indicator');
 
 	if (hudAvatar) hudAvatar.textContent = current.avatar;
 	if (hudName) {
@@ -729,6 +729,11 @@ function updateActivePlayerHUD() {
 		else t.classList.remove('is-turn');
 	});
 
+	if (progressIndicator) {
+		const monthNum = Math.floor(current.position / 6) + 1;
+		progressIndicator.textContent = `Casilla #${current.position + 1} • Mes ${monthNum}`;
+	}
+
 	if (current.skipTurns > 0) {
 		btnRoll.disabled = true;
 		statusLog.innerHTML = `<strong style="color:#dc2626;">⚠️ ${current.name} está en cesantía temporal y pierde este turno.</strong>`;
@@ -741,17 +746,18 @@ function updateActivePlayerHUD() {
 
 	btnRoll.disabled = false;
 	btnRoll.textContent = current.hasTwoDice > 0 ? 'Tirar 2 Dados 🎲🎲' : 'Tirar Dado 🎲';
-	statusLog.textContent = `Casilla #${current.position + 1} • ¡Lanza el dado para avanzar!`;
+	statusLog.textContent = `Casilla #${current.position + 1} • ¡Lanza el dado para avanzar hacia adelante!`;
 
 	gameState.selectedTabPlayerIndex = gameState.currentPlayerIndex;
 	renderPlayerTabs();
 	updateFinancialSheet(gameState.currentPlayerIndex);
 }
 
-function scrollToCurrentTile(tileIndex) {
+function scrollToTileHorizontally(tileIndex) {
 	const tileEl = document.getElementById(`road-tile-${tileIndex}`);
-	if (tileEl) {
-		tileEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	const trackContainer = document.getElementById('horizontal-track');
+	if (tileEl && trackContainer) {
+		tileEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 	}
 }
 
@@ -834,10 +840,10 @@ function updateFinancialSheet(playerIndex) {
 }
 
 // ==========================================
-// 9. MOVIMIENTO PASO A PASO (SENSACIÓN DE AVANCE REAL)
+// 9. MOVIMIENTO HACIA ADELANTE (SENSACIÓN REAL DE AVANCE)
 // ==========================================
 
-function rollDiceLinear() {
+function rollDiceForward() {
 	if (gameState.isRolling) return;
 	const player = gameState.players[gameState.currentPlayerIndex];
 	const btnRoll = document.getElementById('btn-roll-dice');
@@ -870,7 +876,7 @@ function rollDiceLinear() {
 				diceDisplay.textContent = getDiceSymbol(d1);
 			}
 
-			// Iniciar movimiento paso a paso
+			// Iniciar movimiento paso a paso hacia adelante
 			stepForwardOnRoad(player, totalSteps);
 		}
 	}, 70);
@@ -889,31 +895,30 @@ function stepForwardOnRoad(player, totalSteps) {
 		player.position++;
 		stepsRemaining--;
 
-		// Efecto de sonido de paso
 		sounds.step();
 
-		// Si se acerca al final de las casillas cargadas, añadir 20 casillas más
+		// Si se acerca al final de las casillas cargadas, añadir 20 más a la derecha
 		if (player.position >= gameState.generatedTiles.length - 8) {
-			extendLinearRoad(20);
+			extendForwardRoad(20);
 		}
 
-		updatePawnsOnLinearRoad();
+		updatePawnsOnForwardRoad();
 
-		// Resaltar casilla actual y centrar viewport suavemente
+		// Resaltar casilla actual y centrar cámara horizontalmente
 		document.querySelectorAll('.road-tile-card').forEach(t => t.classList.remove('active-step'));
 		const tileEl = document.getElementById(`road-tile-${player.position}`);
 		if (tileEl) {
 			tileEl.classList.add('active-step');
-			scrollToCurrentTile(player.position);
+			scrollToTileHorizontally(player.position);
 		}
 
 		const currentTileData = gameState.generatedTiles[player.position];
 
 		if (statusLog) {
-			statusLog.innerHTML = `<strong>${player.name}</strong> avanzando... (Casilla #${player.position + 1} de ${totalSteps - stepsRemaining}/${totalSteps})`;
+			statusLog.innerHTML = `<strong>${player.name}</strong> avanzando hacia adelante... (Casilla #${player.position + 1}, ${totalSteps - stepsRemaining}/${totalSteps})`;
 		}
 
-		// Cobro si pasa por Día de Pago durante la tirada
+		// Cobro si pasa por Día de Pago durante el trayecto
 		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0) {
 			collectPayday(player, false);
 		}
@@ -921,16 +926,16 @@ function stepForwardOnRoad(player, totalSteps) {
 		if (stepsRemaining <= 0) {
 			clearInterval(stepInterval);
 			gameState.isRolling = false;
-			handleLinearLanding(player, currentTileData);
+			handleForwardLanding(player, currentTileData);
 		}
-	}, 200); // 200ms por paso para que se sienta el ritmo de caminata hacia adelante
+	}, 220);
 }
 
 // ==========================================
 // 10. EVENTOS DE CASILLAS
 // ==========================================
 
-function handleLinearLanding(player, tile) {
+function handleForwardLanding(player, tile) {
 	const statusLog = document.getElementById('hud-status-log');
 	statusLog.innerHTML = `<strong>${player.name}</strong> llegó a la Casilla #${player.position + 1}: <strong>${tile.name}</strong> (${tile.icon}).`;
 
