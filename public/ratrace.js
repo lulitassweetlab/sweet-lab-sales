@@ -199,63 +199,36 @@ const SMALL_DEALS = [
 		cashFlow: 580000,
 		roi: '165% anual',
 		category: 'Punto de Venta'
-	}
-];
-
-const BIG_DEALS = [
-	{
-		title: 'Apartaestudio para Renta',
-		type: 'real_estate',
-		propertyType: 'apartaestudio',
-		desc: 'Apartaestudio bien ubicado en zona residencial, arrendado con contrato anual.',
-		cost: 130000000,
-		downPayment: 15000000,
-		cashFlow: 950000,
-		roi: '76% anual',
-		category: 'Bienes Raíces'
 	},
 	{
-		title: 'Apartamento Turístico en Santa Marta',
-		type: 'real_estate',
-		propertyType: 'condo_playa',
-		desc: 'Condominio cerca a la playa con administración hotelera y alta ocupación.',
-		cost: 240000000,
-		downPayment: 25000000,
-		cashFlow: 1850000,
-		roi: '88% anual',
-		category: 'Bienes Raíces'
-	},
-	{
-		title: 'Local Comercial en Plaza Central',
-		type: 'real_estate',
-		propertyType: 'commercial',
-		desc: 'Local de alta visibilidad alquilado a una cadena de servicios financieros.',
-		cost: 350000000,
-		downPayment: 35000000,
-		cashFlow: 2700000,
-		roi: '92% anual',
-		category: 'Bienes Raíces'
-	},
-	{
-		title: 'Casa con 3 Apartamentos Multifamiliar',
-		type: 'real_estate',
-		propertyType: 'multifamiliar',
-		desc: 'Inmueble de 3 niveles con 3 viviendas que generan 3 arriendos mensuales simultáneos.',
-		cost: 480000000,
-		downPayment: 48000000,
-		cashFlow: 3900000,
-		roi: '97% anual',
-		category: 'Bienes Raíces'
-	},
-	{
-		title: 'Franquicia Express Sweet Lab',
+		title: 'Estación de Café y Snacks Sweet Lab',
 		type: 'business',
-		desc: 'Punto de venta franquiciado con empleados en centro comercial con alto flujo de clientes.',
-		cost: 150000000,
-		downPayment: 18000000,
-		cashFlow: 1650000,
-		roi: '110% anual',
-		category: 'Franquicia'
+		desc: 'Instalas una pequeña estación de café de especialidad y galletas en un coworking.',
+		cost: 3200000,
+		downPayment: 3200000,
+		cashFlow: 420000,
+		roi: '157% anual',
+		category: 'Negocio Automatizado'
+	},
+	{
+		title: 'Participación en Lote de Paneles Solares',
+		type: 'fund',
+		desc: 'Inversión comunitaria en energía solar que vende excedentes y reparte utilidades.',
+		cost: 4500000,
+		downPayment: 4500000,
+		cashFlow: 520000,
+		roi: '138% anual',
+		category: 'Energía Renovable'
+	},
+	{
+		title: 'Software SaaS para Restaurantes Locales',
+		type: 'business',
+		desc: 'App de menú digital y comandas que cobra suscripciones mensuales a 12 restaurantes.',
+		cost: 2800000,
+		downPayment: 2800000,
+		cashFlow: 490000,
+		roi: '210% anual',
+		category: 'Tecnología'
 	}
 ];
 
@@ -1002,35 +975,10 @@ function collectPayday(player, isLanding) {
 	}
 }
 
-// 2. Oportunidades (Pequeño Negocio o Gran Negocio)
+// 2. Oportunidad Directa (Solo Oportunidades Pequeñas)
 function showOpportunityModal(player) {
-	showModal({
-		headerClass: 'opportunity',
-		icon: '🚀',
-		title: '¡OPORTUNIDAD DE INVERSIÓN!',
-		subtitle: 'Haz que el dinero trabaje para ti',
-		desc: `¿Deseas ver una <strong>Oportunidad Pequeña</strong> (bajo costo) o un <strong>Gran Negocio</strong> (bienes raíces con alta plusvalía y flujo)?`,
-		stats: [
-			{ label: 'Tu Efectivo Disponible', value: `${formatCOP(player.cash)} COP`, color: 'green' }
-		],
-		buttons: [
-			{
-				text: 'Negocio Pequeño (hasta $4.5M)',
-				class: 'primary',
-				action: () => presentDeal(player, pickRandom(SMALL_DEALS))
-			},
-			{
-				text: 'Gran Negocio (Bienes Raíces)',
-				class: 'primary',
-				action: () => presentDeal(player, pickRandom(BIG_DEALS))
-			},
-			{
-				text: 'Pasar Turno',
-				class: 'secondary',
-				action: () => { closeModal(); endTurn(); }
-			}
-		]
-	});
+	const deal = pickRandom(SMALL_DEALS);
+	presentDeal(player, deal);
 }
 
 function presentDeal(player, deal) {
