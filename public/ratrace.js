@@ -794,8 +794,7 @@ function updatePawnsOnRoad() {
 }
 
 /**
- * Actualiza la barra superior con el encabezado financiero de cada jugador
- * ubicado directamente arriba de su camino.
+ * Actualiza el HUD flotante minimalista de jugadores en la parte superior
  */
 function updateHUDAndHeaders() {
 	const container = document.getElementById('game-hud');
@@ -806,38 +805,31 @@ function updateHUDAndHeaders() {
 		const fin = getPlayerFinancials(p);
 		const isMyTurn = idx === gameState.currentPlayerIndex;
 
-		const card = document.createElement('div');
-		card.className = `player-stat-header-card ${isMyTurn ? 'active-player-header' : ''}`;
-		card.style.borderTopColor = p.color;
+		const pill = document.createElement('div');
+		pill.className = `player-hud-pill ${isMyTurn ? 'is-turn' : ''}`;
+		pill.title = `Click para ver balance de ${p.name}`;
 
-		card.innerHTML = `
-			<div class="stat-header-player-title">
-				<div class="avatar-circle" style="background:${p.bg};">${p.avatar}</div>
-				<div>
-					<div class="player-name">${p.name}</div>
-					<div class="player-role">${p.profession}</div>
+		pill.innerHTML = `
+			<div class="player-hud-avatar" style="background:${p.bg};">${p.avatar}</div>
+			<div class="player-hud-data">
+				<div class="player-hud-name-row">
+					<span class="p-name">${p.name}</span>
+					${isMyTurn ? '<span class="p-turn-indicator">Turno</span>' : ''}
 				</div>
-				${isMyTurn ? '<span class="stat-header-turn-badge">En Turno</span>' : ''}
-			</div>
-
-			<div class="stat-header-financial-numbers">
-				<div class="fin-item">
-					<span class="lbl">Efectivo</span>
-					<span class="val ${p.cash >= 0 ? 'green' : 'red'}">${formatCOP(p.cash)}</span>
-				</div>
-				<div class="fin-item">
-					<span class="lbl">Flujo/Mes</span>
-					<span class="val blue">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
+				<div class="player-hud-stats-row">
+					<span class="p-cash">💵 ${formatCOP(p.cash)}</span>
+					<span class="p-divider">•</span>
+					<span class="p-flow ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">📈 ${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
 				</div>
 			</div>
 		`;
 
-		card.addEventListener('click', () => {
+		pill.addEventListener('click', () => {
 			gameState.selectedDrawerPlayerIndex = idx;
 			openBalanceDrawer();
 		});
 
-		container.appendChild(card);
+		container.appendChild(pill);
 	});
 
 	// Actualizar pill flotante

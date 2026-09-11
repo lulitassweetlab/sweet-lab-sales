@@ -47,216 +47,255 @@
 		}
 
 		/* Barra Superior Minimalista */
-		.cf-header {
-			background: rgba(255, 255, 255, 0.96);
-			backdrop-filter: blur(10px);
-			border-bottom: 1px solid var(--border-color);
-			padding: 8px 20px;
+		/* ====================================================
+		   ELEMENTOS FLOTANTES MINIMALISTAS (Full-Screen UI)
+		   ==================================================== */
+		.floating-brand-pill {
+			position: fixed;
+			top: 14px;
+			left: 18px;
+			z-index: 150;
 			display: flex;
 			align-items: center;
-			justify-content: space-between;
-			position: sticky;
-			top: 0;
-			z-index: 200;
+			gap: 8px;
+			padding: 6px 14px;
+			border-radius: 999px;
+			background: rgba(255, 255, 255, 0.88);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			border: 1.5px solid var(--border-color);
+			box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+			user-select: none;
 		}
 
-		.cf-brand {
-			display: flex;
-			align-items: center;
-			gap: 10px;
-		}
-
-		.cf-brand img {
-			height: 32px;
+		.floating-brand-pill img {
+			height: 22px;
 			width: auto;
-			border-radius: 6px;
+			border-radius: 4px;
 		}
 
-		.cf-brand-titles h1 {
-			margin: 0;
+		.floating-brand-pill .brand-title {
 			font-family: 'Outfit', sans-serif;
-			font-size: 1.15rem;
 			font-weight: 900;
+			font-size: 0.85rem;
 			color: var(--text-main);
-			display: flex;
-			align-items: center;
-			gap: 6px;
+			letter-spacing: -0.2px;
 		}
 
-		.cf-brand-titles span {
-			font-size: 0.7rem;
-			color: var(--text-muted);
+		.floating-brand-pill .brand-divider {
+			color: #cbd5e1;
+			font-size: 0.8rem;
+		}
+
+		.floating-brand-pill .brand-sub {
+			font-size: 0.72rem;
 			font-weight: 700;
+			color: var(--text-muted);
 			text-transform: uppercase;
 			letter-spacing: 0.5px;
 		}
 
-		.cf-actions {
-			display: flex;
-			align-items: center;
-			gap: 8px;
-		}
-
-		.cf-btn {
-			border: none;
-			border-radius: 10px;
-			padding: 7px 14px;
-			font-size: 0.8rem;
-			font-weight: 800;
-			cursor: pointer;
-			transition: all 0.2s ease;
-			display: inline-flex;
-			align-items: center;
-			gap: 6px;
-			font-family: 'Outfit', sans-serif;
-		}
-
-		.cf-btn:hover {
-			transform: translateY(-1px);
-			box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-		}
-
-		.cf-btn-gold {
-			background: linear-gradient(135deg, #facc15, #f59e0b);
-			color: #713f12;
-		}
-
-		.cf-btn-secondary {
-			background: var(--bg-card);
-			color: var(--text-main);
-			border: 1px solid var(--border-color);
-		}
-
-		/* ====================================================
-		   HUD MINIMALISTA POR JUGADOR / CAMINO
-		   ==================================================== */
-		.players-road-headers-bar {
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			gap: 24px;
-			padding: 8px 16px;
-			background: rgba(255, 255, 255, 0.95);
-			backdrop-filter: blur(10px);
-			border-bottom: 1.5px solid var(--border-color);
-			position: sticky;
-			top: 50px;
+		/* 2. HUD Minimalista Flotante de Jugadores */
+		.floating-players-hud {
+			position: fixed;
+			top: 14px;
+			left: 50%;
+			transform: translateX(-50%);
 			z-index: 150;
-		}
-
-		.road-player-stat-header {
 			display: flex;
 			align-items: center;
+			justify-content: center;
 			gap: 12px;
-			background: var(--bg-card);
-			border: 2px solid var(--border-color);
-			border-radius: 18px;
-			padding: 8px 16px;
-			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-			min-width: 270px;
-			max-width: 350px;
-			flex: 1;
-			box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+			pointer-events: auto;
+		}
+
+		.player-hud-pill {
+			display: flex;
+			align-items: center;
+			gap: 9px;
+			padding: 5px 14px 5px 8px;
+			border-radius: 999px;
+			background: rgba(255, 255, 255, 0.88);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			border: 1.5px solid var(--border-color);
+			box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 			cursor: pointer;
+			transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 		}
 
-		.road-player-stat-header.is-current-turn {
+		.player-hud-pill:hover {
+			transform: translateY(-2px);
+			background: #ffffff;
+			box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
+		}
+
+		.player-hud-pill.is-turn {
 			border-color: #16a34a !important;
-			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25), 0 8px 20px rgba(22, 163, 74, 0.15);
-			background: #f0fdf4;
-			transform: scale(1.02);
+			background: rgba(240, 253, 244, 0.95);
+			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25), 0 6px 20px rgba(22, 163, 74, 0.15);
+			transform: scale(1.03);
 		}
 
-		.stat-header-pawn {
-			width: 44px;
-			height: 44px;
+		.player-hud-avatar {
+			width: 28px;
+			height: 28px;
 			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 1.5rem;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-			flex-shrink: 0;
-			border: 2px solid white;
-		}
-
-		.stat-header-info {
-			display: flex;
-			flex-direction: column;
-			flex: 1;
-		}
-
-		.stat-header-title-row {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			margin-bottom: 3px;
-		}
-
-		.stat-header-name {
-			font-family: 'Outfit', sans-serif;
 			font-size: 1.05rem;
-			font-weight: 900;
+			border: 1.5px solid white;
+			box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 		}
 
-		.stat-header-turn-badge {
-			font-size: 0.68rem;
-			font-weight: 800;
-			text-transform: uppercase;
-			padding: 2px 8px;
-			border-radius: 8px;
-			background: #16a34a;
-			color: white;
-		}
-
-		.stat-header-financial-numbers {
-			display: flex;
-			align-items: center;
-			gap: 12px;
-			font-size: 0.8rem;
-		}
-
-		.fin-item {
+		.player-hud-data {
 			display: flex;
 			flex-direction: column;
+			line-height: 1.15;
 		}
 
-		.fin-item .lbl {
-			font-size: 0.62rem;
-			font-weight: 700;
-			color: var(--text-muted);
+		.player-hud-name-row {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.p-name {
+			font-family: 'Outfit', sans-serif;
+			font-size: 0.82rem;
+			font-weight: 800;
+			color: var(--text-main);
+		}
+
+		.p-turn-indicator {
+			font-size: 0.65rem;
+			font-weight: 800;
+			color: #15803d;
+			background: #dcfce7;
+			padding: 1px 6px;
+			border-radius: 6px;
 			text-transform: uppercase;
 		}
 
-		.fin-item .val {
+		.player-hud-stats-row {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+			font-size: 0.72rem;
 			font-family: 'Outfit', sans-serif;
-			font-weight: 900;
-			font-size: 0.88rem;
+			font-weight: 700;
 		}
 
-		.fin-item .val.green { color: #16a34a; }
-		.fin-item .val.blue { color: #2563eb; }
+		.p-cash { color: #16a34a; }
+		.p-divider { color: #cbd5e1; }
+		.p-flow.green { color: #2563eb; }
+		.p-flow.red { color: #dc2626; }
 
-		/* ====================================================
-		   PERSPECTIVA DEL CAMINO HACIA EL HORIZONTE (3D PROFUNDO)
-		   ==================================================== */
+		/* 3. Dock Flotante de Acciones (Arriba Derecha) */
+		.floating-actions-dock {
+			position: fixed;
+			top: 14px;
+			right: 18px;
+			z-index: 150;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			pointer-events: auto;
+		}
+
+		.floating-action-btn {
+			height: 38px;
+			padding: 0 12px;
+			border-radius: 999px;
+			background: rgba(255, 255, 255, 0.88);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			border: 1.5px solid var(--border-color);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-family: 'Outfit', sans-serif;
+			font-weight: 700;
+			font-size: 0.8rem;
+			color: var(--text-main);
+			cursor: pointer;
+			transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+		}
+
+		.floating-action-btn:hover {
+			transform: translateY(-2px);
+			background: #ffffff;
+			box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+			border-color: #cbd5e1;
+		}
+
+		.floating-action-btn.exit {
+			padding: 0;
+			width: 38px;
+			justify-content: center;
+			color: #ef4444;
+			font-weight: 900;
+			font-size: 1rem;
+		}
+
+		/* 4. Tablero a Pantalla Completa (Full Screen 3D) */
+		#game-screen {
+			position: fixed;
+			inset: 0;
+			width: 100vw;
+			height: 100vh;
+			overflow: hidden;
+			z-index: 10;
+		}
+
 		.stage-perspective-viewport {
-			position: relative;
-			width: 100%;
-			height: calc(100vh - 210px);
-			min-height: 480px;
-			max-height: 660px;
-			margin: 0 auto;
+			position: absolute;
+			inset: 0;
+			width: 100vw;
+			height: 100vh;
+			min-height: 100vh;
+			max-height: 100vh;
+			margin: 0;
+			padding: 0;
 			overflow: hidden;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: flex-end;
-			/* Cielo y horizonte al fondo */
-			background: linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 25%, #ffffff 70%, #f8fafc 100%);
-			/* Perspectiva potente sobre todo el viewport */
-			perspective: 600px;
-			perspective-origin: 50% 30%;
+			background: linear-gradient(180deg, #e0f2fe 0%, #f0fdf4 30%, #ffffff 70%, #f8fafc 100%);
+			perspective: 620px;
+			perspective-origin: 50% 26%;
+			cursor: grab;
+		}
+
+		.setup-screen-card {
+			max-width: 520px;
+			margin: 60px auto 40px;
+			background: #ffffff;
+			border: 1.5px solid var(--border-color);
+			border-radius: 28px;
+			padding: 32px;
+			box-shadow: 0 20px 50px rgba(0,0,0,0.06);
+			position: relative;
+			z-index: 50;
+		}
+
+		@media (max-width: 768px) {
+			.floating-brand-pill .brand-sub,
+			.floating-brand-pill .brand-divider {
+				display: none;
+			}
+			.floating-action-btn .btn-lbl {
+				display: none;
+			}
+			.floating-action-btn {
+				padding: 0 10px;
+			}
+			.floating-players-hud {
+				top: 56px;
+			}
 		}
 
 		/* Suavizado en la línea del horizonte */
@@ -1157,34 +1196,33 @@
 </head>
 
 <body>
-	<!-- Barra Superior Minimalista -->
-	<header class="cf-header">
-		<div class="cf-brand">
-			<img src="/logo.png" alt="Sweet Lab" />
-			<div class="cf-brand-titles">
-				<h1>🐭 CASHFLOW</h1>
-				<span>Carrera de la Rata</span>
-			</div>
-		</div>
-		<div class="cf-actions">
-			<button id="btn-toggle-balance" class="cf-btn cf-btn-secondary">📋 Ver Balance</button>
-			<button id="btn-rules" class="cf-btn cf-btn-secondary">📖 Reglas</button>
-			<button id="btn-new-game" class="cf-btn cf-btn-gold">🔄 Reiniciar</button>
-			<button id="btn-exit" class="cf-btn cf-btn-secondary">⬅ Salir</button>
-		</div>
-	</header>
+	<!-- Marca Flotante Minimalista (Arriba a la Izquierda) -->
+	<div class="floating-brand-pill">
+		<img src="/logo.png" alt="Sweet Lab" />
+		<span class="brand-title">CASHFLOW</span>
+		<span class="brand-divider">|</span>
+		<span class="brand-sub">Sweet Lab</span>
+	</div>
 
-	<!-- BARRA DE INFORMACIÓN FINANCIERA UBICADA JUSTO ARRIBA DE CADA CAMINO -->
-	<div id="game-hud" class="players-road-headers-bar hidden"></div>
+	<!-- HUD Flotante Minimalista de Jugadores (Arriba al Centro) -->
+	<div id="game-hud" class="floating-players-hud hidden"></div>
+
+	<!-- Acciones Flotantes Minimalistas (Arriba a la Derecha) -->
+	<div class="floating-actions-dock">
+		<button id="btn-toggle-balance" class="floating-action-btn" title="Ver Balance Financiero">📋 Balance</button>
+		<button id="btn-rules" class="floating-action-btn" title="Ver Reglas del Juego">📖 Reglas</button>
+		<button id="btn-new-game" class="floating-action-btn" title="Reiniciar Partida">🔄 Reiniciar</button>
+		<button id="btn-exit" class="floating-action-btn exit" title="Salir al Menú Principal">✕</button>
+	</div>
 
 	<!-- Pill Flotante de Estado de Turno -->
 	<div id="floating-status-pill" class="floating-turn-pill hidden">
 		¡Lanza los 2 dados para avanzar hacia el frente!
 	</div>
 
-	<main style="max-width: 1200px; margin: 0 auto; padding: 10px 16px;">
+	<main>
 		<!-- 1. Pantalla de Configuración Inicial -->
-		<section id="setup-screen">
+		<section id="setup-screen" class="setup-screen-card">
 			<div class="setup-header">
 				<h2>¡La Carrera de la Rata!</h2>
 				<p style="color:var(--text-muted); font-size:0.95rem; margin:0;">
