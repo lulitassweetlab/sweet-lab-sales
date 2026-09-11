@@ -133,43 +133,28 @@ const TILE_TYPES = {
 };
 
 // Barajas de cartas adaptadas al capital inicial ($100.000 COP)
+// Utilidades mensuales calibradas: Negocios propios 10%, Otros negocios/alquiler 5%, Inversiones/acciones 3%
 const SMALL_DEALS = [
-	{
-		title: 'Máquina de Dulces y Chicles 🍬',
-		type: 'business',
-		desc: 'Una máquina automática que vende solita en un centro comercial.',
-		cost: 80000,
-		downPayment: 80000,
-		cashFlow: 25000,
-		category: 'Negocio Automático'
-	},
+	// --- 1. NEGOCIOS PROPIOS (10% de ganancia mensual) ---
 	{
 		title: 'Puesto de Cupcakes y Postres 🧁',
 		type: 'business',
 		desc: 'Vendes cajitas de postres a tus vecinos y amigos cada semana.',
 		cost: 50000,
 		downPayment: 50000,
-		cashFlow: 18000,
-		category: 'Emprendimiento'
-	},
-	{
-		title: 'Acciones Sweet Lab 📈',
-		type: 'stock',
-		ticker: 'SWT',
-		desc: 'Compraste una partecita de Sweet Lab y recibes ganancias cada mes.',
-		cost: 100000,
-		downPayment: 100000,
-		cashFlow: 30000,
-		category: 'Acciones'
+		cashFlow: 5000, // 10%
+		roiPercent: 10,
+		category: 'Negocio Propio'
 	},
 	{
 		title: 'Carrito de Limonada y Helados 🍦',
 		type: 'business',
 		desc: 'Un carrito móvil que vende en los días soleados del parque.',
-		cost: 120000,
-		downPayment: 120000,
-		cashFlow: 40000,
-		category: 'Negocio Local'
+		cost: 80000,
+		downPayment: 80000,
+		cashFlow: 8000, // 10%
+		roiPercent: 10,
+		category: 'Negocio Propio'
 	},
 	{
 		title: 'Tienda de Stickers y Diseños 🎨',
@@ -177,36 +162,127 @@ const SMALL_DEALS = [
 		desc: 'Imprimes calcomanías geniales que compran jóvenes y estudiantes.',
 		cost: 60000,
 		downPayment: 60000,
-		cashFlow: 22000,
-		category: 'Diseño'
+		cashFlow: 6000, // 10%
+		roiPercent: 10,
+		category: 'Negocio Propio'
 	},
 	{
-		title: 'Alquiler de Consolas y Juegos 🎮',
+		title: 'Lavado Ecológico de Bicicletas 🚲',
 		type: 'business',
-		desc: 'Tus amigos pagan por jugar torneos de videojuegos los fines de semana.',
-		cost: 150000,
-		downPayment: 150000,
-		cashFlow: 50000,
-		category: 'Entretenimiento'
+		desc: 'Prestas servicio de limpieza y brillo de bicicletas en tu barrio.',
+		cost: 70000,
+		downPayment: 70000,
+		cashFlow: 7000, // 10%
+		roiPercent: 10,
+		category: 'Negocio Propio'
+	},
+	{
+		title: 'Taller de Pulseras y Accesorios 💍',
+		type: 'business',
+		desc: 'Diseñas y vendes pulseras artesanales muy populares.',
+		cost: 40000,
+		downPayment: 40000,
+		cashFlow: 4000, // 10%
+		roiPercent: 10,
+		category: 'Negocio Propio'
 	},
 	{
 		title: 'Canal de Videos y Reseñas 📱',
 		type: 'business',
 		desc: 'Creas videos entretenidos y las marcas te pagan publicidad mensual.',
-		cost: 180000,
-		downPayment: 180000,
-		cashFlow: 65000,
-		category: 'Redes Sociales'
+		cost: 100000,
+		downPayment: 100000,
+		cashFlow: 10000, // 10%
+		roiPercent: 10,
+		category: 'Negocio Propio'
+	},
+
+	// --- 2. OTROS NEGOCIOS Y ALQUILERES (5% de ganancia mensual) ---
+	{
+		title: 'Máquina de Dulces Automática 🍬',
+		type: 'business',
+		desc: 'Una máquina automática que vende solita en un centro comercial.',
+		cost: 80000,
+		downPayment: 80000,
+		cashFlow: 4000, // 5%
+		roiPercent: 5,
+		category: 'Negocio Automático'
+	},
+	{
+		title: 'Alquiler de Consolas y Videojuegos 🎮',
+		type: 'business',
+		desc: 'Tus amigos pagan por jugar torneos los fines de semana.',
+		cost: 120000,
+		downPayment: 120000,
+		cashFlow: 6000, // 5%
+		roiPercent: 5,
+		category: 'Alquiler de Equipos'
 	},
 	{
 		title: 'Habitación para Alquilar 🏠',
 		type: 'property',
 		propertyType: 'apartaestudio',
 		desc: 'Una habitación pequeña que alquilas y te pagan arriendo puntual.',
-		cost: 250000,
-		downPayment: 250000,
-		cashFlow: 85000,
+		cost: 200000,
+		downPayment: 200000,
+		cashFlow: 10000, // 5%
+		roiPercent: 5,
 		category: 'Propiedad Raíz'
+	},
+	{
+		title: 'Lavadora Automática de Ropa 🧺',
+		type: 'business',
+		desc: 'Una lavadora comunitaria que funciona con monedas en un edificio.',
+		cost: 140000,
+		downPayment: 140000,
+		cashFlow: 7000, // 5%
+		roiPercent: 5,
+		category: 'Negocio Automático'
+	},
+
+	// --- 3. INVERSIONES, ACCIONES Y FONDOS (3% de ganancia mensual) ---
+	{
+		title: 'Acciones Sweet Lab 📈',
+		type: 'stock',
+		ticker: 'SWT',
+		desc: 'Compraste una partecita de Sweet Lab y recibes ganancias cada mes.',
+		cost: 100000,
+		downPayment: 100000,
+		cashFlow: 3000, // 3%
+		roiPercent: 3,
+		category: 'Acciones'
+	},
+	{
+		title: 'Fondo de Ahorro con Interés 🏦',
+		type: 'stock',
+		ticker: 'FND',
+		desc: 'Guardas un capital que te genera un rendimiento seguro y tranquilo.',
+		cost: 50000,
+		downPayment: 50000,
+		cashFlow: 1500, // 3%
+		roiPercent: 3,
+		category: 'Inversión Pasiva'
+	},
+	{
+		title: 'Participación en Mini Market 🛒',
+		type: 'business',
+		desc: 'Inviertes como socio silencioso en la tienda de tu barrio.',
+		cost: 150000,
+		downPayment: 150000,
+		cashFlow: 4500, // 3%
+		roiPercent: 3,
+		category: 'Inversión Pasiva'
+	},
+	{
+		title: 'Bono Financiero Seguro 📑',
+		type: 'stock',
+		ticker: 'BND',
+		desc: 'Un bono que te paga un interés fijo todos los meses sin mover un dedo.',
+		cost: 80000,
+		downPayment: 80000,
+		cashFlow: 2400, // 3%
+		roiPercent: 3,
+		category: 'Inversión Pasiva'
 	}
 ];
 
@@ -1230,8 +1306,8 @@ function presentDeal(player, deal) {
 	const canAfford = player.cash >= deal.downPayment;
 
 	const stats = [
-		{ label: 'Inversión hoy:', value: `${formatCOP(deal.downPayment)} COP` },
-		{ label: 'Ganancia mensual:', value: `+${formatCOP(deal.cashFlow)} COP / mes`, color: 'green' }
+		{ label: 'Inversión inicial:', value: `${formatCOP(deal.downPayment)} COP` },
+		{ label: 'Ganancia al mes:', value: `+${formatCOP(deal.cashFlow)} COP (${deal.roiPercent}% ganancia)`, color: 'green' }
 	];
 
 	const buttons = [];
@@ -1249,9 +1325,9 @@ function presentDeal(player, deal) {
 					headerClass: 'opportunity',
 					icon: '🎉',
 					title: deal.title,
-					detailedInfo: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> todos los meses en tu Día de Pago.`,
+					detailedInfo: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra (${deal.roiPercent}% de ganancia)</strong> todos los meses en tu Día de Pago.`,
 					stats: [
-						{ label: 'Ganancia agregada:', value: `+${formatCOP(deal.cashFlow)} COP/mes`, color: 'green' }
+						{ label: 'Ganancia agregada:', value: `+${formatCOP(deal.cashFlow)} COP/mes (${deal.roiPercent}%)`, color: 'green' }
 					],
 					buttons: [
 						{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
@@ -1270,19 +1346,21 @@ function presentDeal(player, deal) {
 	}
 
 	buttons.push({
-		text: 'Dejar Pasar ➔',
+		text: 'Pasar Oportunidad ➔',
 		class: 'secondary',
-		action: () => { closeModal(() => endTurn()); }
+		action: () => {
+			closeModal(() => endTurn());
+		}
 	});
 
 	showModal({
 		typeName: 'OPORTUNIDAD 🚀',
 		headerClass: 'opportunity',
-		icon: '🚀',
+		icon: '💼',
 		title: deal.title,
-		detailedInfo: deal.desc,
-		stats: stats,
-		buttons: buttons
+		desc: deal.desc,
+		stats,
+		buttons
 	});
 }
 
@@ -1311,6 +1389,21 @@ function showDoodadModal(player) {
 
 // 6. El Mercado / Venta
 function showMarketModal(player) {
+	if (!player.assets || player.assets.length === 0) {
+		showModal({
+			typeName: 'MERCADO 📈',
+			headerClass: 'market',
+			icon: '🛍️',
+			title: 'Compradores en la Ciudad',
+			detailedInfo: 'Hoy llegaron varios inversionistas con dinero buscando comprar negocios, pero aún no tienes ninguno.<br><br><em>¡Aprovecha las casillas verdes para comprar activos y venderlos aquí con grandes ganancias!</em>',
+			stats: [],
+			buttons: [
+				{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
+			]
+		});
+		return;
+	}
+
 	const event = pickRandom(MARKET_EVENTS);
 
 	if (!event.appliesTo) {
@@ -1330,9 +1423,9 @@ function showMarketModal(player) {
 
 	const eligibleIndex = player.assets.findIndex(a => {
 		if (event.appliesTo === 'Propiedad Raíz' && (a.category === 'Propiedad Raíz' || a.title?.includes('Habitación'))) return true;
-		if (event.appliesTo === 'Acciones' && (a.category === 'Acciones' || a.title?.includes('Sweet Lab'))) return true;
-		if (event.appliesTo === 'Emprendimiento' && (a.category === 'Emprendimiento' || a.title?.includes('Cupcakes'))) return true;
-		if (event.appliesTo === 'Negocio Automático' && (a.category === 'Negocio Automático' || a.title?.includes('Máquina'))) return true;
+		if (event.appliesTo === 'Acciones' && (a.category === 'Acciones' || a.category === 'Inversión Pasiva' || a.title?.includes('Sweet Lab') || a.title?.includes('Bono'))) return true;
+		if (event.appliesTo === 'Emprendimiento' && (a.category === 'Emprendimiento' || a.category === 'Negocio Propio' || a.title?.includes('Cupcakes') || a.title?.includes('Limonada') || a.title?.includes('Stickers') || a.title?.includes('Bicicletas') || a.title?.includes('Pulseras'))) return true;
+		if (event.appliesTo === 'Negocio Automático' && (a.category === 'Negocio Automático' || a.category === 'Alquiler de Equipos' || a.title?.includes('Máquina') || a.title?.includes('Lavadora') || a.title?.includes('Consolas'))) return true;
 		return false;
 	});
 
