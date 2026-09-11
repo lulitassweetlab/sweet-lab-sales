@@ -835,9 +835,10 @@ function updateHUDAndHeaders() {
 					${isMyTurn ? '<span class="p-turn-indicator">Turno</span>' : ''}
 				</div>
 				<div class="player-hud-stats-row">
-					<span class="p-cash">💵 ${formatCOP(p.cash)}</span>
+					<span class="p-te-quedan">Te quedan:</span>
+					<span class="p-cash">${formatCOP(p.cash)}</span>
 					<span class="p-divider">•</span>
-					<span class="p-flow ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">📈 ${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
+					<span class="p-flow ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
 				</div>
 			</div>
 		`;
@@ -1687,7 +1688,10 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	const titleEl = document.getElementById('modal-title');
 	const descEl = document.getElementById('modal-desc');
 	const statsEl = document.getElementById('modal-stats');
+	const balanceValEl = document.getElementById('modal-balance-val');
 	const footerEl = document.getElementById('modal-footer');
+
+	const current = gameState.players[gameState.currentPlayerIndex];
 
 	if (!wrapper || !flipper) return;
 
@@ -1734,6 +1738,12 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 		}
 	}
 
+	// Mostrar saldo restante del jugador: Te quedan: xxxx
+	if (balanceValEl && current) {
+		balanceValEl.textContent = `${formatCOP(current.cash)} COP`;
+		balanceValEl.className = `mini-balance-val ${current.cash < 0 ? 'red' : ''}`;
+	}
+
 	// Botones predominantes
 	if (footerEl) {
 		footerEl.innerHTML = '';
@@ -1758,7 +1768,6 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	}
 
 	// 1. Obtener la casilla activa del camino donde cayó el jugador
-	const current = gameState.players[gameState.currentPlayerIndex];
 	const isParallelTwo = gameState.players.length === 2;
 	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
@@ -1781,8 +1790,8 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 		const startY = rect.top + rect.height / 2 - startH / 2;
 
 		// Dimensiones destino en el centro de la pantalla (minimalista y proporcionada)
-		const targetW = Math.min(380, Math.floor(window.innerWidth * 0.9));
-		const targetH = Math.min(430, Math.floor(window.innerHeight * 0.86));
+		const targetW = Math.min(390, Math.floor(window.innerWidth * 0.92));
+		const targetH = Math.min(480, Math.floor(window.innerHeight * 0.88));
 		const targetX = Math.floor((window.innerWidth - targetW) / 2);
 		const targetY = Math.floor((window.innerHeight - targetH) / 2);
 
