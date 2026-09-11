@@ -447,41 +447,12 @@
 		.tile-color-crisis .tile-main-name { color: #6b21a8; }
 		.tile-color-crisis .tile-sub-badge { background: #e9d5ff; color: #6b21a8; }
 
-		/* ====================================================
-		   CONTROLES LATERALES PARA EXPLORAR LA PISTA
-		   ==================================================== */
-		.track-look-controls {
-			position: absolute;
-			right: 18px;
-			bottom: 110px;
-			z-index: 90;
-			display: flex;
-			flex-direction: column;
-			gap: 8px;
+		/* Cursor y pad para explorar la pista suavemente */
+		.stage-perspective-viewport {
+			cursor: grab;
 		}
-
-		.btn-look {
-			background: rgba(255, 255, 255, 0.95);
-			border: 1.5px solid var(--border-color);
-			color: var(--text-main);
-			width: 44px;
-			height: 44px;
-			border-radius: 50%;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			font-size: 1.2rem;
-			font-weight: 900;
-			cursor: pointer;
-			box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-			transition: all 0.2s;
-		}
-
-		.btn-look:hover {
-			transform: scale(1.1);
-			background: #ffffff;
-			border-color: #16a34a;
-			color: #16a34a;
+		.stage-perspective-viewport:active {
+			cursor: grabbing;
 		}
 
 		/* ====================================================
@@ -1056,15 +1027,8 @@
 
 		<!-- 2. Pantalla Principal de Juego (Caminos en Paralelo con Perspectiva Frontal 3D Profunda) -->
 		<section id="game-screen" class="hidden">
-			<!-- Controles para mirar adelante sin mover la ficha -->
-			<div class="track-look-controls">
-				<button id="btn-look-forward" class="btn-look" title="Mirar casillas siguientes hacia adelante">▲</button>
-				<button id="btn-look-reset" class="btn-look" title="Centrar en mi casilla actual" style="font-size:0.85rem;">🎯</button>
-				<button id="btn-look-backward" class="btn-look" title="Mirar hacia atrás">▼</button>
-			</div>
-
-			<!-- Pista con Sensación de Avanzar hacia el Horizonte (1 o 2 Caminos Paralelos) -->
-			<div class="stage-perspective-viewport">
+			<!-- Pista con Sensación de Avanzar hacia el Horizonte (Desplazable con Trackpad/Cursor) -->
+			<div class="stage-perspective-viewport" id="viewport-touch-track">
 				<div class="horizon-line"></div>
 				<div class="road-3d-scene" id="road-3d-scene-container"></div>
 			</div>

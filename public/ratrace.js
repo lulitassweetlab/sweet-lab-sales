@@ -558,22 +558,60 @@ function wireEventListeners() {
 		if (e.target.id === 'balance-drawer-overlay') closeBalanceDrawer();
 	});
 
-	// Explorar casillas adelante y atrás sin mover fichas
-	document.getElementById('btn-look-forward')?.addEventListener('click', () => {
-		gameState.cameraViewOffset += 3;
-		centerPerspective();
-	});
-	document.getElementById('btn-look-backward')?.addEventListener('click', () => {
-		const currentPos = gameState.players[gameState.currentPlayerIndex]?.position || 0;
-		if (currentPos + gameState.cameraViewOffset > 0) {
-			gameState.cameraViewOffset -= 3;
-			centerPerspective();
-		}
-	});
-	document.getElementById('btn-look-reset')?.addEventListener('click', () => {
-		gameState.cameraViewOffset = 0;
-		centerPerspective();
-	});
+	// Exploración directa con el Trackpad (scroll de 2 dedos) o arrastre con el cursor
+	const viewport = document.getElementById('viewport-touch-track');
+	if (viewport) {
+		// 1. Control con Trackpad (Gesto de dos dedos / rueda)
+		viewport.addEventListener('wheel', (e) => {
+			e.preventDefault();
+			// Invertir o adaptar dirección natural: deltaY > 0 rueda hacia adelante
+			const delta = Math.sign(e.deltaY) * 1.5;
+			const currentPos = gameState.players[gameState.currentPlayerIndex]?.position || 0;
+			const newOffset = gameState.cameraViewOffset + delta;
+
+			// No permitir ir más atrás de la casilla 0
+			if (currentPos + newOffset >= 0) {
+				gameState.cameraViewOffset = newOffset;
+				centerPerspective();
+			}
+		}, { passive: false });
+
+		// 2. Control con el Cursor (Arrastrar con el trackpad/mouse)
+		let isDragging = false;
+		let startY = 0;
+		let initialOffset = 0;
+
+		viewport.addEventListener('pointerdown', (e) => {
+			isDragging = true;
+			startY = e.clientY;
+			initialOffset = gameState.cameraViewOffset;
+			viewport.setPointerCapture(e.pointerId);
+		});
+
+		viewport.addEventListener('pointermove', (e) => {
+			if (!isDragging) return;
+			const diffY = e.clientY - startY;
+			// 1 casilla = 126px aprox
+			const tileDelta = -diffY / 50;
+			const currentPos = gameState.players[gameState.currentPlayerIndex]?.position || 0;
+			const candidateOffset = initialOffset + tileDelta;
+
+			if (currentPos + candidateOffset >= 0) {
+				gameState.cameraViewOffset = candidateOffset;
+				centerPerspective();
+			}
+		});
+
+		const stopDrag = (e) => {
+			if (isDragging) {
+				isDragging = false;
+				try { viewport.releasePointerCapture(e.pointerId); } catch(err) {}
+			}
+		};
+
+		viewport.addEventListener('pointerup', stopDrag);
+		viewport.addEventListener('pointercancel', stopDrag);
+	}
 
 	// Reglas
 	document.getElementById('btn-rules')?.addEventListener('click', () => {
