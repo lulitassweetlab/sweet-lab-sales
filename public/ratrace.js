@@ -414,119 +414,116 @@ const TILE_TYPES = {
 };
 
 // Barajas de cartas adaptadas al capital inicial ($100.000 COP)
-// Utilidades mensuales calibradas: Negocios propios 10%, Otros negocios/alquiler 5%, Inversiones/acciones 3%
+// Utilidades mensuales calibradas a solicitud: 0%, 1%, 2%, 3%, 4% y 5%
 const SMALL_DEALS = [
-	// --- 1. NEGOCIOS PROPIOS (10% de ganancia mensual) ---
+	// --- 0% DE GANANCIA MENSUAL (Bienes de colección / Lotes de engorde / Plusvalía futura) ---
 	{
-		title: 'Puesto de Cupcakes y Postres 🧁',
-		type: 'business',
-		desc: 'Vendes cajitas de postres a tus vecinos y amigos cada semana.',
-		cost: 50000,
-		downPayment: 50000,
-		cashFlow: 5000, // 10%
-		roiPercent: 10,
-		category: 'Negocio Propio'
-	},
-	{
-		title: 'Carrito de Limonada y Helados 🍦',
-		type: 'business',
-		desc: 'Un carrito móvil que vende en los días soleados del parque.',
-		cost: 80000,
-		downPayment: 80000,
-		cashFlow: 8000, // 10%
-		roiPercent: 10,
-		category: 'Negocio Propio'
-	},
-	{
-		title: 'Tienda de Stickers y Diseños 🎨',
-		type: 'business',
-		desc: 'Imprimes calcomanías geniales que compran jóvenes y estudiantes.',
-		cost: 60000,
-		downPayment: 60000,
-		cashFlow: 6000, // 10%
-		roiPercent: 10,
-		category: 'Negocio Propio'
-	},
-	{
-		title: 'Lavado Ecológico de Bicicletas 🚲',
-		type: 'business',
-		desc: 'Prestas servicio de limpieza y brillo de bicicletas en tu barrio.',
+		title: 'Lote de Terreno en Engorde 🏞️',
+		type: 'property',
+		propertyType: 'terreno',
+		desc: 'Un pequeño lote rural. No genera arriendo mensual, pero esperas venderlo más caro en el mercado.',
 		cost: 70000,
 		downPayment: 70000,
-		cashFlow: 7000, // 10%
-		roiPercent: 10,
-		category: 'Negocio Propio'
+		cashFlow: 0,
+		roiPercent: 0,
+		category: 'Tierra / Engorde'
 	},
 	{
-		title: 'Taller de Pulseras y Accesorios 💍',
+		title: 'Colección de Cartas Raras y Cómics 🃏',
 		type: 'business',
-		desc: 'Diseñas y vendes pulseras artesanales muy populares.',
+		desc: 'Artículos de colección vintage. No generan dinero mensual, pero los coleccionistas pagan fortunas.',
 		cost: 40000,
 		downPayment: 40000,
-		cashFlow: 4000, // 10%
-		roiPercent: 10,
-		category: 'Negocio Propio'
+		cashFlow: 0,
+		roiPercent: 0,
+		category: 'Coleccionables'
 	},
 	{
-		title: 'Canal de Videos y Reseñas 📱',
+		title: 'Patente de Invento Registrada 💡',
 		type: 'business',
-		desc: 'Creas videos entretenidos y las marcas te pagan publicidad mensual.',
-		cost: 100000,
-		downPayment: 100000,
-		cashFlow: 10000, // 10%
-		roiPercent: 10,
-		category: 'Negocio Propio'
-	},
-
-	// --- 2. OTROS NEGOCIOS Y ALQUILERES (5% de ganancia mensual) ---
-	{
-		title: 'Máquina de Dulces Automática 🍬',
-		type: 'business',
-		desc: 'Una máquina automática que vende solita en un centro comercial.',
+		desc: 'Registro de marca y diseño innovador. No deja flujo mensual aún, pero puedes venderla en el mercado.',
 		cost: 80000,
 		downPayment: 80000,
-		cashFlow: 4000, // 5%
-		roiPercent: 5,
-		category: 'Negocio Automático'
-	},
-	{
-		title: 'Alquiler de Consolas y Videojuegos 🎮',
-		type: 'business',
-		desc: 'Tus amigos pagan por jugar torneos los fines de semana.',
-		cost: 120000,
-		downPayment: 120000,
-		cashFlow: 6000, // 5%
-		roiPercent: 5,
-		category: 'Alquiler de Equipos'
-	},
-	{
-		title: 'Habitación para Alquilar 🏠',
-		type: 'property',
-		propertyType: 'apartaestudio',
-		desc: 'Una habitación pequeña que alquilas y te pagan arriendo puntual.',
-		cost: 200000,
-		downPayment: 200000,
-		cashFlow: 10000, // 5%
-		roiPercent: 5,
-		category: 'Propiedad Raíz'
-	},
-	{
-		title: 'Lavadora Automática de Ropa 🧺',
-		type: 'business',
-		desc: 'Una lavadora comunitaria que funciona con monedas en un edificio.',
-		cost: 140000,
-		downPayment: 140000,
-		cashFlow: 7000, // 5%
-		roiPercent: 5,
-		category: 'Negocio Automático'
+		cashFlow: 0,
+		roiPercent: 0,
+		category: 'Propiedad Intelectual'
 	},
 
-	// --- 3. INVERSIONES, ACCIONES Y FONDOS (3% de ganancia mensual) ---
+	// --- 1% DE GANANCIA MENSUAL (Renta fija conservadora y muy segura) ---
+	{
+		title: 'Cuenta de Ahorros con Rendimiento 🏦',
+		type: 'stock',
+		ticker: 'AHORRO',
+		desc: 'Dinero protegido en el banco que genera un rendimiento seguro y garantizado mes a mes.',
+		cost: 100000,
+		downPayment: 100000,
+		cashFlow: 1000, // 1%
+		roiPercent: 1,
+		category: 'Renta Fija'
+	},
+	{
+		title: 'Bono del Tesoro Seguro 📑',
+		type: 'stock',
+		ticker: 'TES',
+		desc: 'Inversión de bajo riesgo con respaldo financiero que te paga un interés mensual tranquilo.',
+		cost: 60000,
+		downPayment: 60000,
+		cashFlow: 600, // 1%
+		roiPercent: 1,
+		category: 'Bonos'
+	},
+	{
+		title: 'Fondo de Liquidez Inmediata 💳',
+		type: 'stock',
+		ticker: 'LIQ',
+		desc: 'Un fondo estable de retiro libre que suma un pequeño interés automático cada mes.',
+		cost: 80000,
+		downPayment: 80000,
+		cashFlow: 800, // 1%
+		roiPercent: 1,
+		category: 'Fondos'
+	},
+
+	// --- 2% DE GANANCIA MENSUAL (Fondos colectivos y participaciones tranquilas) ---
+	{
+		title: 'Fondo de Inversión Colectiva 📊',
+		type: 'stock',
+		ticker: 'FIC',
+		desc: 'Inversión diversificada en empresas estables con reparto mensual de utilidades.',
+		cost: 70000,
+		downPayment: 70000,
+		cashFlow: 1400, // 2%
+		roiPercent: 2,
+		category: 'Fondos'
+	},
+	{
+		title: 'Participación en Parqueadero Comunitario 🚗',
+		type: 'property',
+		propertyType: 'parqueadero',
+		desc: 'Socio en un espacio de parqueo en el barrio con ingresos mensuales recurrentes.',
+		cost: 100000,
+		downPayment: 100000,
+		cashFlow: 2000, // 2%
+		roiPercent: 2,
+		category: 'Alquiler de Espacio'
+	},
+	{
+		title: 'Puesto de Alquiler de Libros y Mangas 📚',
+		type: 'business',
+		desc: 'Pequeño club de lectura donde los jóvenes pagan suscripción mensual para leer novedades.',
+		cost: 50000,
+		downPayment: 50000,
+		cashFlow: 1000, // 2%
+		roiPercent: 2,
+		category: 'Alquiler'
+	},
+
+	// --- 3% DE GANANCIA MENSUAL (Acciones, bodegaje y microservicios) ---
 	{
 		title: 'Acciones Sweet Lab 📈',
 		type: 'stock',
 		ticker: 'SWT',
-		desc: 'Compraste una partecita de Sweet Lab y recibes ganancias cada mes.',
+		desc: 'Compraste una partecita de Sweet Lab y recibes dividendos constantes cada mes.',
 		cost: 100000,
 		downPayment: 100000,
 		cashFlow: 3000, // 3%
@@ -534,36 +531,99 @@ const SMALL_DEALS = [
 		category: 'Acciones'
 	},
 	{
-		title: 'Fondo de Ahorro con Interés 🏦',
-		type: 'stock',
-		ticker: 'FND',
-		desc: 'Guardas un capital que te genera un rendimiento seguro y tranquilo.',
-		cost: 50000,
-		downPayment: 50000,
-		cashFlow: 1500, // 3%
-		roiPercent: 3,
-		category: 'Inversión Pasiva'
-	},
-	{
-		title: 'Participación en Mini Market 🛒',
-		type: 'business',
-		desc: 'Inviertes como socio silencioso en la tienda de tu barrio.',
-		cost: 150000,
-		downPayment: 150000,
-		cashFlow: 4500, // 3%
-		roiPercent: 3,
-		category: 'Inversión Pasiva'
-	},
-	{
-		title: 'Bono Financiero Seguro 📑',
-		type: 'stock',
-		ticker: 'BND',
-		desc: 'Un bono que te paga un interés fijo todos los meses sin mover un dedo.',
+		title: 'Bodega de Almacenamiento Compartida 📦',
+		type: 'property',
+		propertyType: 'bodega',
+		desc: 'Espacio alquilado a comerciantes para guardar mercancía con pago mensual fijo.',
 		cost: 80000,
 		downPayment: 80000,
 		cashFlow: 2400, // 3%
 		roiPercent: 3,
-		category: 'Inversión Pasiva'
+		category: 'Alquiler de Espacio'
+	},
+	{
+		title: 'Tótem de Carga de Celulares 🔋',
+		type: 'business',
+		desc: 'Estación de recarga rápida instalada en una cafetería con pago por uso continuo.',
+		cost: 60000,
+		downPayment: 60000,
+		cashFlow: 1800, // 3%
+		roiPercent: 3,
+		category: 'Servicio Automático'
+	},
+
+	// --- 4% DE GANANCIA MENSUAL (Máquinas automáticas y talleres activos) ---
+	{
+		title: 'Máquina Vendedora de Café y Snacks ☕',
+		type: 'business',
+		desc: 'Expendedora automática en una sala de espera con alto consumo de café a diario.',
+		cost: 75000,
+		downPayment: 75000,
+		cashFlow: 3000, // 4%
+		roiPercent: 4,
+		category: 'Negocio Automático'
+	},
+	{
+		title: 'Taller de Joyería y Pulseras 💍',
+		type: 'business',
+		desc: 'Diseñas accesorios artesanales de moda con pedidos regulares todos los meses.',
+		cost: 50000,
+		downPayment: 50000,
+		cashFlow: 2000, // 4%
+		roiPercent: 4,
+		category: 'Negocio Propio'
+	},
+	{
+		title: 'Alquiler de Consola de Videojuegos 🎮',
+		type: 'business',
+		desc: 'Torneos juveniles los fines de semana que dejan un flujo mensual constante.',
+		cost: 90000,
+		downPayment: 90000,
+		cashFlow: 3600, // 4%
+		roiPercent: 4,
+		category: 'Entretenimiento'
+	},
+
+	// --- 5% DE GANANCIA MENSUAL (Negocios de alto rendimiento y autoservicios) ---
+	{
+		title: 'Puesto de Cupcakes y Postres 🧁',
+		type: 'business',
+		desc: 'Cajitas de postres deliciosos para cumpleaños y eventos pedidos con anticipación.',
+		cost: 50000,
+		downPayment: 50000,
+		cashFlow: 2500, // 5%
+		roiPercent: 5,
+		category: 'Negocio Propio'
+	},
+	{
+		title: 'Máquina de Dulces y Juguetes 🍬',
+		type: 'business',
+		desc: 'Máquina automática en un minimercado concurrido que vende solita día y noche.',
+		cost: 80000,
+		downPayment: 80000,
+		cashFlow: 4000, // 5%
+		roiPercent: 5,
+		category: 'Negocio Automático'
+	},
+	{
+		title: 'Lavadora Comunitaria de Ropa 🧺',
+		type: 'business',
+		desc: 'Servicio de lavado con monedas para estudiantes que deja un arriendo mensual garantizado.',
+		cost: 100000,
+		downPayment: 100000,
+		cashFlow: 5000, // 5%
+		roiPercent: 5,
+		category: 'Servicio Automático'
+	},
+	{
+		title: 'Carrito de Jugos y Limonadas 🍋',
+		type: 'business',
+		desc: 'Puesto móvil de bebidas naturales en la cancha deportiva del barrio.',
+		cost: 60000,
+		downPayment: 60000,
+		cashFlow: 3000, // 5%
+		roiPercent: 5,
+		category: 'Negocio Propio'
 	}
 ];
 
@@ -1063,8 +1123,8 @@ function startGame() {
 	// Configurar contenedor de pistas 3D (1 columna o 2 paralelas lado a lado)
 	setupRoad3DScene();
 
-	// Generar las primeras 35 casillas
-	extendPerspectiveRoad(35);
+	// Generar las primeras 40 casillas para garantizar visión profunda en el horizonte
+	extendPerspectiveRoad(40);
 
 	document.getElementById('setup-screen').classList.add('hidden');
 	document.getElementById('game-hud').classList.remove('hidden');
@@ -1274,14 +1334,18 @@ function updateHUDAndHeaders() {
 
 /**
  * Centra la perspectiva hacia el horizonte.
- * Toma en cuenta el avance de la ficha + el cameraViewOffset si el usuario está explorando adelante.
- * Sincroniza tanto los caminos como la escenografía 3D (árboles y playa).
+ * Muestra el recuadro anterior (pos - 1), el actual (pos) y los siguientes 12 recuadros (pos + 1 a pos + 12).
+ * Sincroniza tanto los caminos paralelos como la escenografía 3D lateral.
  */
 function centerPerspective(smooth = false) {
 	const current = gameState.players[gameState.currentPlayerIndex];
-	const targetTileIndex = Math.max(0, current.position + gameState.cameraViewOffset);
-	const stepHeight = 126;
-	const translateY = targetTileIndex * stepHeight;
+	if (!current) return;
+
+	const effectivePos = current.position + gameState.cameraViewOffset;
+	// Posiciona la cámara en (pos - 0.95) para que la casilla anterior quede visible en la base de la pantalla
+	const cameraTileIndex = Math.max(0, effectivePos - 0.95);
+	const stepHeight = 129; // 115px altura de casilla + 14px de separación
+	const translateY = cameraTileIndex * stepHeight;
 
 	const track0 = document.getElementById('road-lane-track-0');
 	const track1 = document.getElementById('road-lane-track-1');
@@ -1293,7 +1357,7 @@ function centerPerspective(smooth = false) {
 	[track0, track1, sceneryLeft, sceneryRight].forEach(el => {
 		if (el) {
 			el.style.transition = transitionStyle;
-			el.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
+			el.style.transform = `rotateX(44deg) translateY(${translateY}px)`;
 		}
 	});
 }
@@ -1384,9 +1448,9 @@ function stepForwardOnRoad(player, totalSteps) {
 
 		sounds.step();
 
-		// Cargar más casillas si se acerca al final
-		if (player.position >= gameState.generatedTiles.length - 8) {
-			extendPerspectiveRoad(20);
+		// Cargar más casillas si se acerca al final visible para mantener siempre 12+ hacia el horizonte
+		if (player.position >= gameState.generatedTiles.length - 18) {
+			extendPerspectiveRoad(25);
 		}
 
 		// La ficha salta hacia adelante sobre las casillas (las casillas permanecen quietas)
@@ -1768,7 +1832,11 @@ function presentDeal(player, deal) {
 
 	const stats = [
 		{ label: 'Inversión inicial:', value: `${formatCOP(deal.downPayment)} COP` },
-		{ label: 'Ganancia al mes:', value: `+${formatCOP(deal.cashFlow)} COP (${deal.roiPercent}% ganancia)`, color: 'green' }
+		{
+			label: 'Ganancia al mes:',
+			value: deal.cashFlow > 0 ? `+${formatCOP(deal.cashFlow)} COP (${deal.roiPercent}% ganancia)` : `$0 COP (${deal.roiPercent}% ganancia / plusvalía)`,
+			color: deal.cashFlow > 0 ? 'green' : 'blue'
+		}
 	];
 
 	const buttons = [];
@@ -1781,14 +1849,23 @@ function presentDeal(player, deal) {
 				player.assets.push({ ...deal });
 				sounds.cash();
 				updateHUDAndHeaders();
+
+				const successDesc = deal.cashFlow > 0
+					? `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra (${deal.roiPercent}% de ganancia)</strong> todos los meses en tu Día de Pago.`
+					: `¡Adquiriste este activo! Aunque su ganancia mensual es del <strong>0% ($0 COP/mes)</strong>, podrás venderlo por un precio mayor cuando caigas en casillas de Venta en el Mercado.`;
+
 				showModal({
 					typeName: '¡ÉXITO! 🎉',
 					headerClass: 'opportunity',
 					icon: '🎉',
 					title: deal.title,
-					detailedInfo: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra (${deal.roiPercent}% de ganancia)</strong> todos los meses en tu Día de Pago.`,
+					detailedInfo: successDesc,
 					stats: [
-						{ label: 'Ganancia agregada:', value: `+${formatCOP(deal.cashFlow)} COP/mes (${deal.roiPercent}%)`, color: 'green' }
+						{
+							label: 'Ganancia agregada:',
+							value: deal.cashFlow > 0 ? `+${formatCOP(deal.cashFlow)} COP/mes (${deal.roiPercent}%)` : `$0 COP/mes (${deal.roiPercent}%)`,
+							color: deal.cashFlow > 0 ? 'green' : 'blue'
+						}
 					],
 					buttons: [
 						{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
