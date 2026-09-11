@@ -1083,19 +1083,19 @@ function collectPayday(player, isLanding) {
 	if (isLanding) {
 		const isZeroFlow = fin.monthlyCashFlow === 0;
 		showModal({
+			typeName: 'DÍA DE PAGO 💰',
 			headerClass: 'payday',
 			icon: '💰',
-			title: '¡DÍA DE PAGO!',
-			subtitle: 'Fin de Mes',
-			desc: isZeroFlow
+			title: '¡Día de Pago!',
+			detailedInfo: isZeroFlow
 				? `Tus ingresos cubrieron exactamente tus gastos del mes.<br><br>💡 <em>¡Consigue un ascenso, cambia a un trabajo mejor o compra una oportunidad para empezar a guardar plata cada mes!</em>`
 				: `¡Llegó tu plata del mes! Cobraste tu sueldo y las ganancias de todas tus oportunidades.`,
 			stats: [
-				{ label: '💵 Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)} COP`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
-				{ label: '🏦 Total en tu bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
+				{ label: 'Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)} COP`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
+				{ label: 'Total en tu bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
 			],
 			buttons: [
-				{ text: '¡Guardar Plata y Seguir! ➔', action: () => { closeModal(() => endTurn()); } }
+				{ text: '¡Guardar Plata y Seguir! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 	}
@@ -1110,24 +1110,22 @@ function showJobModal(player) {
 	const diff = newJob.salary - currentSalary;
 
 	const stats = [
-		{ label: '💼 Empleo propuesto:', value: newJob.title },
-		{ label: '💵 Sueldo nuevo:', value: `${formatCOP(newJob.salary)} / mes` }
+		{ label: 'Empleo propuesto:', value: newJob.title },
+		{ label: 'Sueldo nuevo:', value: `${formatCOP(newJob.salary)} / mes` }
 	];
 
 	if (diff > 0) {
-		stats.push({ label: '📈 Tu ganancia mensual mejora:', value: `+${formatCOP(diff)} / mes más`, color: 'green' });
+		stats.push({ label: 'Ganancia mensual mejora:', value: `+${formatCOP(diff)} / mes más`, color: 'green' });
 	} else if (diff < 0) {
-		stats.push({ label: '📉 Tu ganancia mensual bajaría:', value: `-${formatCOP(Math.abs(diff))} / mes`, color: 'red' });
-	} else {
-		stats.push({ label: '⚖️ Ganancia mensual:', value: 'Mismo sueldo', color: '' });
+		stats.push({ label: 'Ganancia mensual bajaría:', value: `-${formatCOP(Math.abs(diff))} / mes`, color: 'red' });
 	}
 
 	showModal({
+		typeName: 'NUEVO EMPLEO 💼',
 		headerClass: 'job',
 		icon: '💼',
-		title: '¡OFERTA DE TRABAJO!',
-		subtitle: newJob.title,
-		desc: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)} COP/mes</strong>.`,
+		title: newJob.title,
+		detailedInfo: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)} COP/mes</strong>.`,
 		stats: stats,
 		buttons: [
 			{
@@ -1139,19 +1137,22 @@ function showJobModal(player) {
 					sounds.cash();
 					updateHUDAndHeaders();
 					showModal({
+						typeName: '¡ESTRENAS TRABAJO! 🎉',
 						headerClass: 'job',
 						icon: '🎉',
-						title: '¡ESTRENAS TRABAJO!',
-						subtitle: newJob.title,
-						desc: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)} COP</strong> al mes.`,
+						title: newJob.title,
+						detailedInfo: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)} COP</strong> al mes.`,
+						stats: [
+							{ label: 'Nuevo sueldo:', value: `${formatCOP(newJob.salary)} COP/mes`, color: 'green' }
+						],
 						buttons: [
-							{ text: '¡Continuar Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
+							{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
 						]
 					});
 				}
 			},
 			{
-				text: 'Quedarme en mi trabajo actual ➔',
+				text: 'Conservar Trabajo Actual ➔',
 				class: 'secondary',
 				action: () => { closeModal(() => endTurn()); }
 			}
@@ -1164,14 +1165,14 @@ function showPromotionModal(player) {
 	const promo = pickRandom(PROMOTIONS);
 
 	showModal({
+		typeName: 'ASCENSO LABORAL ⭐',
 		headerClass: 'promotion',
 		icon: '⭐',
-		title: '¡TE ASCENDIERON!',
-		subtitle: promo.title,
-		desc: `¡Felicitaciones! ${promo.desc}`,
+		title: promo.title,
+		detailedInfo: `¡Felicitaciones por tu esfuerzo y constancia! ${promo.desc}`,
 		stats: [
-			{ label: '📈 Tu sueldo sube:', value: `+${formatCOP(promo.raise)} / mes`, color: 'green' },
-			{ label: '🎁 Bono sorpresa en efectivo:', value: `+${formatCOP(promo.bonus)} en mano`, color: 'green' }
+			{ label: 'Tu sueldo sube:', value: `+${formatCOP(promo.raise)} / mes`, color: 'green' },
+			{ label: 'Bono sorpresa en mano:', value: `+${formatCOP(promo.bonus)} COP`, color: 'green' }
 		],
 		buttons: [
 			{
@@ -1199,8 +1200,8 @@ function presentDeal(player, deal) {
 	const canAfford = player.cash >= deal.downPayment;
 
 	const stats = [
-		{ label: '💰 Pagas hoy:', value: `${formatCOP(deal.downPayment)} COP` },
-		{ label: '📈 Ganas cada mes:', value: `+${formatCOP(deal.cashFlow)} COP / mes`, color: 'green' }
+		{ label: 'Inversión hoy:', value: `${formatCOP(deal.downPayment)} COP` },
+		{ label: 'Ganancia mensual:', value: `+${formatCOP(deal.cashFlow)} COP / mes`, color: 'green' }
 	];
 
 	const buttons = [];
@@ -1214,13 +1215,16 @@ function presentDeal(player, deal) {
 				sounds.cash();
 				updateHUDAndHeaders();
 				showModal({
+					typeName: '¡ÉXITO! 🎉',
 					headerClass: 'opportunity',
 					icon: '🎉',
-					title: '¡OPORTUNIDAD APROVECHADA!',
-					subtitle: deal.title,
-					desc: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> todos los meses en tu Día de Pago.`,
+					title: deal.title,
+					detailedInfo: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> todos los meses en tu Día de Pago.`,
+					stats: [
+						{ label: 'Ganancia agregada:', value: `+${formatCOP(deal.cashFlow)} COP/mes`, color: 'green' }
+					],
 					buttons: [
-						{ text: '¡Continuar Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
+						{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
 					]
 				});
 			}
@@ -1242,11 +1246,11 @@ function presentDeal(player, deal) {
 	});
 
 	showModal({
+		typeName: 'OPORTUNIDAD 🚀',
 		headerClass: 'opportunity',
 		icon: '🚀',
-		title: '¡OPORTUNIDAD!',
-		subtitle: deal.title,
-		desc: deal.desc,
+		title: deal.title,
+		detailedInfo: deal.desc,
 		stats: stats,
 		buttons: buttons
 	});
@@ -1260,17 +1264,17 @@ function showDoodadModal(player) {
 	updateHUDAndHeaders();
 
 	showModal({
+		typeName: 'ANTOJITO 🛍️',
 		headerClass: 'doodad',
 		icon: '🛍️',
-		title: '¡UN ANTOJITO!',
-		subtitle: doodad.title,
-		desc: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para los negocios te ayuda a ganar más rápido.</small>`,
+		title: doodad.title,
+		detailedInfo: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para los negocios te ayuda a ganar más rápido.</small>`,
 		stats: [
-			{ label: '💸 Pagaste en efectivo:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
-			{ label: '🏦 Te queda en bolsillo:', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
+			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
+			{ label: 'Te queda en bolsillo:', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
 		],
 		buttons: [
-			{ text: '¡Seguir Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
+			{ text: '¡Seguir Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
@@ -1281,13 +1285,14 @@ function showMarketModal(player) {
 
 	if (!event.appliesTo) {
 		showModal({
+			typeName: 'MERCADO 📈',
 			headerClass: 'market',
-			icon: '📈',
-			title: 'Noticias del Mercado 🌤️',
-			subtitle: 'El Mercado',
-			desc: 'La economía está tranquila este mes. ¡Sigue comprando negocios en las casillas verdes!',
+			icon: '🌤️',
+			title: 'Economía Estable',
+			detailedInfo: 'La economía está tranquila este mes. ¡Sigue comprando oportunidades en las casillas verdes!',
+			stats: [],
 			buttons: [
-				{ text: 'Continuar ➔', action: () => { closeModal(() => endTurn()); } }
+				{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 		return;
@@ -1303,13 +1308,14 @@ function showMarketModal(player) {
 
 	if (eligibleIndex === -1) {
 		showModal({
+			typeName: 'OFERTA DE MERCADO 📈',
 			headerClass: 'market',
 			icon: '📈',
 			title: event.title,
-			subtitle: 'Oferta de Compra',
-			desc: `Un comprador está buscando adquirir negocios, pero tú aún no tienes este activo.<br><br><em>¡Asegúrate de invertir en las casillas verdes para vender cuando haya compradores!</em>`,
+			detailedInfo: `Un comprador está buscando adquirir negocios, pero tú aún no tienes este activo.<br><br><em>¡Asegúrate de invertir en las casillas verdes para vender cuando haya compradores!</em>`,
+			stats: [],
 			buttons: [
-				{ text: '¡Entendido! ➔', action: () => { closeModal(() => endTurn()); } }
+				{ text: '¡Entendido! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 		return;
@@ -1317,17 +1323,17 @@ function showMarketModal(player) {
 
 	const asset = player.assets[eligibleIndex];
 	showModal({
+		typeName: 'OFERTA DE COMPRA 💰',
 		headerClass: 'market',
 		icon: '💰',
 		title: event.title,
-		subtitle: `¡Quieren comprar: ${asset.title}!`,
-		desc: `Hay un comprador interesado en tu negocio hoy mismo. ¿Quieres venderlo y recibir una buena plata en mano?`,
+		detailedInfo: `Hay un comprador interesado en adquirir tu negocio <strong>${asset.title}</strong> hoy mismo. ¿Deseas venderlo y recibir el pago en efectivo?`,
 		stats: [
-			{ label: '💰 Te pagan en efectivo:', value: `${formatCOP(event.salePrice)} COP`, color: 'green' }
+			{ label: 'Pago en efectivo:', value: `${formatCOP(event.salePrice)} COP`, color: 'green' }
 		],
 		buttons: [
 			{
-				text: '¡Vender y Cobrar! 💰',
+				text: `¡Vender por ${formatCOP(event.salePrice)} COP! 💰`,
 				class: 'primary',
 				action: () => {
 					player.assets.splice(eligibleIndex, 1);
@@ -1335,17 +1341,20 @@ function showMarketModal(player) {
 					sounds.cash();
 					updateHUDAndHeaders();
 					showModal({
+						typeName: '¡VENTA EXITOSA! 🎉',
 						headerClass: 'market',
 						icon: '🎉',
-						title: '¡VENTA EXITOSA!',
-						subtitle: asset.title,
-						desc: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)} COP</strong> en efectivo para comprar nuevos negocios.`,
-						buttons: [{ text: 'Continuar ➔', action: () => { closeModal(() => endTurn()); } }]
+						title: asset.title,
+						detailedInfo: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)} COP</strong> en efectivo para comprar nuevas oportunidades.`,
+						stats: [
+							{ label: 'Cobraste:', value: `+${formatCOP(event.salePrice)} COP`, color: 'green' }
+						],
+						buttons: [{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }]
 					});
 				}
 			},
 			{
-				text: 'Conservar mi Negocio ➔',
+				text: 'Conservar mi Oportunidad ➔',
 				class: 'secondary',
 				action: () => { closeModal(() => endTurn()); }
 			}
@@ -1353,35 +1362,33 @@ function showMarketModal(player) {
 	});
 }
 
-// 7. Regalo / Solidaridad
+// 7. Regalo / Solidaridad (Ultra-Minimalista: Botones Predominantes y Botón de Info Alejado)
 function showCharityModal(player) {
 	const donation = 20000;
+	const reward = 30000;
 	const canAfford = player.cash >= donation;
 
 	showModal({
+		typeName: 'DONACIÓN 💛',
 		headerClass: 'charity',
 		icon: '🎁',
-		title: '¡BUENA ONDA Y SOLIDARIDAD!',
-		subtitle: 'Ayudar a los Demás',
-		desc: `Donas <strong>${formatCOP(donation)} COP</strong> para apoyar a una fundación y te devuelven una sorpresa de agradecimiento.`,
-		stats: [
-			{ label: 'Donación voluntaria:', value: `${formatCOP(donation)} COP` },
-			{ label: '🎁 Bono de agradecimiento:', value: `+${formatCOP(30000)} COP`, color: 'green' }
-		],
+		title: 'Donación Solidaria',
+		detailedInfo: `Donas <strong>${formatCOP(donation)} COP</strong> para apoyar a una fundación benéfica. Como agradecimiento por tu solidaridad, recibes una sorpresa de <strong>+${formatCOP(reward)} COP</strong>.`,
+		stats: [], // Sin lista de texto central para máxima limpieza visual
 		buttons: [
 			...(canAfford ? [{
-				text: `¡Donar con Alegría! 🎁 (${formatCOP(donation)})`,
+				text: `Donar $20.000 COP 💛`,
 				class: 'primary',
 				action: () => {
 					player.cash -= donation;
-					player.cash += 30000;
+					player.cash += reward;
 					sounds.cash();
 					updateHUDAndHeaders();
 					closeModal(() => endTurn());
 				}
 			}] : []),
 			{
-				text: 'Paso por ahora ➔',
+				text: 'Pasar ➔',
 				class: 'secondary',
 				action: () => { closeModal(() => endTurn()); }
 			}
@@ -1396,17 +1403,17 @@ function showCrisisModal(player) {
 	updateHUDAndHeaders();
 
 	showModal({
+		typeName: 'PAUSA / DESCANSO ⏸️',
 		headerClass: 'crisis',
-		icon: '⏸️',
-		title: '¡PAUSA DE UN TURNO!',
-		subtitle: 'Descanso Merecido',
-		desc: `Te tomas unos días de vacaciones para recargar pilas, compartir con amigos y pensar nuevas metas.`,
+		icon: '🏖️',
+		title: 'Pausa de un Turno',
+		detailedInfo: `Te tomas unos días de vacaciones para recargar pilas, compartir con amigos y pensar nuevas metas financieras.`,
 		stats: [
-			{ label: '⏳ Descanso:', value: '1 turno de pausa' },
-			{ label: '🏦 Tu plata sigue a salvo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
+			{ label: 'Descanso:', value: 'Pausas 1 turno' },
+			{ label: 'Tu plata en bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
 		],
 		buttons: [
-			{ text: '¡Descansar y Continuar! ➔', action: () => { closeModal(() => endTurn()); } }
+			{ text: '¡Descansar y Continuar! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
@@ -1421,19 +1428,19 @@ function showLoanModal(callbackAfterLoan) {
 	const interest = 5000;
 
 	showModal({
+		typeName: 'BANCO SWEET LAB 🏦',
 		headerClass: 'opportunity',
 		icon: '🏦',
-		title: 'BANCO SWEET LAB 🏦',
-		subtitle: 'Préstamo Amigo',
-		desc: `Pide dinero prestado para comprar un negocio que te dé ganancias. Pagas una pequeña cuota mensual de $5.000 COP por cada $100.000 COP prestados.`,
+		title: 'Préstamo Bancario',
+		detailedInfo: `Pides dinero prestado para comprar una oportunidad que te dé ganancias mensuales. Por cada $100.000 COP prestados, sumas una cuota mensual de $5.000 COP.`,
 		stats: [
-			{ label: '💵 Dinero que te entregan:', value: '+100.000 COP', color: 'green' },
-			{ label: '💸 Cuota mensual que pagas:', value: '$5.000 COP / mes', color: 'red' },
-			{ label: 'Tu deuda total:', value: formatCOP(player.totalDebt) }
+			{ label: 'Dinero prestado:', value: '+100.000 COP', color: 'green' },
+			{ label: 'Cuota mensual:', value: '$5.000 COP / mes', color: 'red' },
+			{ label: 'Tu deuda acumulada:', value: `${formatCOP(player.totalDebt)} COP` }
 		],
 		buttons: [
 			{
-				text: 'Pedir $100.000 COP al Banco',
+				text: 'Pedir $100.000 COP al Banco 🏦',
 				class: 'primary',
 				action: () => {
 					player.cash += loanBlock;
@@ -1446,7 +1453,7 @@ function showLoanModal(callbackAfterLoan) {
 				}
 			},
 			{
-				text: 'Pedir $200.000 COP al Banco',
+				text: 'Pedir $200.000 COP al Banco 🏦',
 				class: 'primary',
 				action: () => {
 					const block2 = loanBlock * 2;
@@ -1482,14 +1489,14 @@ function showPayDebtModal() {
 	const canAfford = player.cash >= payAmount;
 
 	showModal({
+		typeName: 'PAGAR DEUDA 💳',
 		headerClass: 'opportunity',
 		icon: '💳',
-		title: 'PAGAR DEUDA DEL BANCO',
-		subtitle: 'Bajar Gastos Mensuales',
-		desc: `Pagar <strong>${formatCOP(payAmount)} COP</strong> de tu deuda te quitará $5.000 COP/mes de cuota, dejando más plata libre para tu bolsillo.`,
+		title: 'Abonar a tu Deuda',
+		detailedInfo: `Pagar <strong>${formatCOP(payAmount)} COP</strong> de tu deuda bancaria reduce tus gastos en $5.000 COP al mes, aumentando tu plata libre.`,
 		stats: [
-			{ label: 'Deuda que debes:', value: formatCOP(player.totalDebt) },
-			{ label: 'Tu Plata en Mano:', value: formatCOP(player.cash), color: canAfford ? 'green' : 'red' }
+			{ label: 'Deuda que debes:', value: `${formatCOP(player.totalDebt)} COP` },
+			{ label: 'Tu Plata en Mano:', value: `${formatCOP(player.cash)} COP`, color: canAfford ? 'green' : 'red' }
 		],
 		buttons: [
 			{
@@ -1668,38 +1675,66 @@ function endTurn() {
 // 13. MODALES DE TARJETAS (Efecto 3D Levantar, Voltear y Regresar)
 // ==========================================
 
-function showModal({ headerClass, icon, title, subtitle, desc, stats = [], buttons = [] }) {
+function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '' }) {
 	const overlay = document.getElementById('flying-card-overlay');
 	const wrapper = document.getElementById('flying-card-wrapper');
 	const flipper = document.getElementById('flying-card-flipper');
 	const frontFace = document.getElementById('flying-card-front');
 
-	const header = document.getElementById('modal-header');
+	const badgeEl = document.getElementById('modal-badge');
+	const infoToggleEl = document.getElementById('modal-info-toggle');
 	const iconEl = document.getElementById('modal-icon');
 	const titleEl = document.getElementById('modal-title');
-	const subEl = document.getElementById('modal-subtitle');
 	const descEl = document.getElementById('modal-desc');
 	const statsEl = document.getElementById('modal-stats');
 	const footerEl = document.getElementById('modal-footer');
 
 	if (!wrapper || !flipper) return;
 
-	// Configurar contenido de la cara posterior (revelada al voltear)
-	if (header) header.className = `card-header-cf ${headerClass || 'opportunity'}`;
-	if (iconEl) iconEl.textContent = icon || 'ℹ️';
-	if (titleEl) titleEl.textContent = title;
-	if (subEl) subEl.textContent = subtitle || '';
-	if (descEl) descEl.innerHTML = desc;
+	// Configurar contenido de la tarjeta minimalista (blanco y gris 1%)
+	const defaultType = typeName || (headerClass ? headerClass.toUpperCase() : 'OPORTUNIDAD');
+	if (badgeEl) badgeEl.textContent = defaultType;
+	if (iconEl) iconEl.textContent = icon || '🚀';
+	if (titleEl) titleEl.textContent = title || '';
 
-	if (statsEl) {
-		statsEl.innerHTML = stats.map(s => `
-			<div class="card-stat-line">
-				<span class="lbl">${s.label}</span>
-				<span class="val ${s.color || ''}">${s.value}</span>
-			</div>
-		`).join('');
+	// Botón de información alejado (Top-Right) y descripción oculta por defecto
+	const detailText = detailedInfo || desc || '';
+	if (descEl) {
+		descEl.innerHTML = detailText;
+		descEl.classList.add('hidden');
+	}
+	if (infoToggleEl) {
+		if (detailText) {
+			infoToggleEl.classList.remove('hidden');
+			infoToggleEl.textContent = 'ℹ️ Info';
+			infoToggleEl.onclick = (e) => {
+				e.stopPropagation();
+				const isHidden = descEl.classList.toggle('hidden');
+				infoToggleEl.textContent = isHidden ? 'ℹ️ Info' : '✕ Cerrar';
+			};
+		} else {
+			infoToggleEl.classList.add('hidden');
+			infoToggleEl.onclick = null;
+		}
 	}
 
+	// Estadísticas minimalistas
+	if (statsEl) {
+		if (stats && stats.length > 0) {
+			statsEl.innerHTML = stats.map(s => `
+				<div class="mini-stat-line">
+					<span class="lbl">${s.label}</span>
+					<span class="val ${s.color || ''}">${s.value}</span>
+				</div>
+			`).join('');
+			statsEl.style.display = 'flex';
+		} else {
+			statsEl.innerHTML = '';
+			statsEl.style.display = 'none';
+		}
+	}
+
+	// Botones predominantes
 	if (footerEl) {
 		footerEl.innerHTML = '';
 		buttons.forEach(b => {
@@ -1745,9 +1780,9 @@ function showModal({ headerClass, icon, title, subtitle, desc, stats = [], butto
 		const startX = rect.left + rect.width / 2 - startW / 2;
 		const startY = rect.top + rect.height / 2 - startH / 2;
 
-		// Dimensiones destino en el centro de la pantalla
-		const targetW = Math.min(460, Math.floor(window.innerWidth * 0.92));
-		const targetH = Math.min(520, Math.floor(window.innerHeight * 0.88));
+		// Dimensiones destino en el centro de la pantalla (minimalista y proporcionada)
+		const targetW = Math.min(380, Math.floor(window.innerWidth * 0.9));
+		const targetH = Math.min(430, Math.floor(window.innerHeight * 0.86));
 		const targetX = Math.floor((window.innerWidth - targetW) / 2);
 		const targetY = Math.floor((window.innerHeight - targetH) / 2);
 
@@ -1790,7 +1825,6 @@ function showModal({ headerClass, icon, title, subtitle, desc, stats = [], butto
 	} else {
 		// Modo de respaldo
 		overlay.classList.add('active');
-		wrapper.style.display = 'block';
 		wrapper.style.pointerEvents = 'auto';
 	}
 }
