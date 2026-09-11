@@ -1420,6 +1420,9 @@ function applyAuthVisibility() {
 	const visitsBtn = document.getElementById('visits-button');
 	const canVisits = isSuper || isAdminUser || feats.has('nav.visits');
 	if (visitsBtn) visitsBtn.style.display = canVisits ? 'inline-block' : 'none';
+
+	const ratraceBtn = document.getElementById('ratrace-button');
+	if (ratraceBtn) ratraceBtn.style.display = 'inline-block';
 }
 
 // Load desserts from API (runs once per session)
@@ -5253,6 +5256,12 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
 		window.location.href = '/visitas.html';
+	});
+
+	const ratraceBtn = document.getElementById('ratrace-button');
+	ratraceBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		window.location.href = '/ratrace.html';
 	});
 
 	const globalDbBackBtn = document.getElementById('global-clients-back');

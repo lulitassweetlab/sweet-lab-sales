@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+	<title>RatRace - Sweet Lab Finanzas</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="/styles.css" />
+	<style>
+		:root {
+			--rr-primary: #059669;
+			--rr-primary-dark: #047857;
+			--rr-primary-light: #10b981;
+			--rr-bg: #0f172a;
+			--rr-card-bg: #1e293b;
+			--rr-text: #f8fafc;
+			--rr-text-muted: #94a3b8;
+			--rr-accent-gold: #f59e0b;
+			--rr-accent-red: #ef4444;
+			--rr-accent-blue: #3b82f6;
+			--rr-accent-purple: #8b5cf6;
+		}
+
+		* {
+			box-sizing: border-box;
+			user-select: none;
+		}
+
+		html, body {
+			margin: 0;
+			padding: 0;
+			width: 100%;
+			min-height: 100vh;
+			font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+			background: radial-gradient(circle at top center, #1e293b 0%, #0f172a 100%);
+			color: var(--rr-text);
+			overflow-x: hidden;
+		}
+
+		/* Barra Superior */
+		.rr-header {
+			background: rgba(15, 23, 42, 0.9);
+			backdrop-filter: blur(12px);
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+			padding: 12px 20px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			position: sticky;
+			top: 0;
+			z-index: 100;
+		}
+
+		.rr-brand {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.rr-brand img {
+			height: 38px;
+			width: auto;
+			border-radius: 8px;
+		}
+
+		.rr-brand h1 {
+			margin: 0;
+			font-size: 1.3rem;
+			font-weight: 800;
+			background: linear-gradient(135deg, #10b981, #34d399, #fbbf24);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.rr-actions {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.rr-btn {
+			border: none;
+			border-radius: 10px;
+			padding: 8px 16px;
+			font-size: 0.9rem;
+			font-weight: 700;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.rr-btn:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		}
+
+		.rr-btn-primary {
+			background: linear-gradient(135deg, #10b981, #059669);
+			color: white;
+		}
+
+		.rr-btn-secondary {
+			background: rgba(255, 255, 255, 0.1);
+			color: var(--rr-text);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+		}
+
+		.rr-btn-gold {
+			background: linear-gradient(135deg, #f59e0b, #d97706);
+			color: white;
+		}
+
+		/* Contenedor Principal */
+		.rr-main {
+			max-width: 1400px;
+			margin: 0 auto;
+			padding: 20px;
+		}
+
+		/* Pantalla de Inicio / Configuración */
+		#setup-screen {
+			max-width: 650px;
+			margin: 30px auto;
+			background: var(--rr-card-bg);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 20px;
+			padding: 30px;
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+		}
+
+		.setup-title {
+			text-align: center;
+			margin-bottom: 25px;
+		}
+
+		.setup-title h2 {
+			margin: 0 0 8px 0;
+			font-size: 2rem;
+			font-weight: 900;
+			color: #34d399;
+		}
+
+		.setup-title p {
+			margin: 0;
+			color: var(--rr-text-muted);
+			font-size: 0.95rem;
+		}
+
+		.setup-group {
+			margin-bottom: 22px;
+		}
+
+		.setup-group label {
+			display: block;
+			font-weight: 700;
+			margin-bottom: 8px;
+			font-size: 0.95rem;
+			color: #cbd5e1;
+		}
+
+		.player-count-selector {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 10px;
+		}
+
+		.player-count-btn {
+			background: rgba(255, 255, 255, 0.05);
+			border: 2px solid rgba(255, 255, 255, 0.15);
+			color: white;
+			padding: 12px;
+			border-radius: 12px;
+			font-size: 1.1rem;
+			font-weight: 800;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.player-count-btn.active {
+			background: #10b981;
+			border-color: #34d399;
+			box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+		}
+
+		.player-configs {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			margin-top: 15px;
+		}
+
+		.player-config-row {
+			background: rgba(15, 23, 42, 0.6);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			padding: 12px 16px;
+			border-radius: 12px;
+			display: flex;
+			align-items: center;
+			gap: 14px;
+		}
+
+		.player-badge {
+			width: 42px;
+			height: 42px;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 1.4rem;
+			flex-shrink: 0;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+		}
+
+		.player-name-input {
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 8px;
+			color: white;
+			padding: 8px 12px;
+			font-size: 1rem;
+			flex: 1;
+			outline: none;
+		}
+
+		.player-name-input:focus {
+			border-color: #10b981;
+		}
+
+		.start-game-btn {
+			width: 100%;
+			padding: 16px;
+			font-size: 1.2rem;
+			font-weight: 900;
+			margin-top: 25px;
+			border-radius: 14px;
+			background: linear-gradient(135deg, #10b981, #059669);
+			color: white;
+			border: none;
+			cursor: pointer;
+			box-shadow: 0 10px 25px rgba(16, 185, 129, 0.35);
+			transition: all 0.2s;
+		}
+
+		.start-game-btn:hover {
+			transform: scale(1.02);
+		}
+
+		/* Vista del Juego Activo */
+		#game-screen {
+			display: grid;
+			grid-template-columns: 1fr 390px;
+			gap: 20px;
+		}
+
+		@media (max-width: 1100px) {
+			#game-screen {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		/* Tablero */
+		.board-container {
+			background: var(--rr-card-bg);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 20px;
+			padding: 16px;
+			box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+			display: flex;
+			flex-direction: column;
+		}
+
+		.board-grid {
+			display: grid;
+			grid-template-columns: repeat(7, 1fr);
+			grid-template-rows: repeat(7, 95px);
+			gap: 8px;
+			position: relative;
+			background: rgba(15, 23, 42, 0.7);
+			padding: 12px;
+			border-radius: 16px;
+			border: 2px solid rgba(255, 255, 255, 0.05);
+		}
+
+		@media (max-width: 768px) {
+			.board-grid {
+				grid-template-rows: repeat(7, 72px);
+				gap: 4px;
+				padding: 6px;
+			}
+		}
+
+		/* Casillas */
+		.tile {
+			background: #1e293b;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			border-radius: 10px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 4px 6px;
+			position: relative;
+			font-size: 0.75rem;
+			font-weight: 700;
+			transition: all 0.2s ease;
+			overflow: hidden;
+		}
+
+		.tile-num {
+			position: absolute;
+			top: 3px;
+			left: 5px;
+			font-size: 0.65rem;
+			opacity: 0.5;
+		}
+
+		.tile-icon {
+			font-size: 1.4rem;
+			margin-bottom: 2px;
+		}
+
+		.tile-title {
+			line-height: 1.1;
+			word-break: break-word;
+		}
+
+		/* Tipos de casillas */
+		.tile-payday {
+			background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35));
+			border-color: #10b981;
+			color: #6ee7b7;
+		}
+
+		.tile-opportunity {
+			background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.3));
+			border-color: #3b82f6;
+			color: #93c5fd;
+		}
+
+		.tile-doodad {
+			background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.3));
+			border-color: #ef4444;
+			color: #fca5a5;
+		}
+
+		.tile-market {
+			background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.3));
+			border-color: #f59e0b;
+			color: #fcd34d;
+		}
+
+		.tile-charity {
+			background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.3));
+			border-color: #8b5cf6;
+			color: #c4b5fd;
+		}
+
+		.tile-crisis {
+			background: linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(190, 18, 60, 0.4));
+			border-color: #f43f5e;
+			color: #fda4af;
+		}
+
+		.tile-active-highlight {
+			box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+			border-color: white !important;
+			transform: scale(1.04);
+			z-index: 5;
+		}
+
+		/* Fichas de jugadores sobre las casillas */
+		.tile-pawns {
+			position: absolute;
+			bottom: 3px;
+			left: 0;
+			right: 0;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 3px;
+		}
+
+		.pawn {
+			width: 22px;
+			height: 22px;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.85rem;
+			box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+			border: 2px solid white;
+			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+		}
+
+		/* Centro del Tablero (Hub central) */
+		.board-center {
+			grid-column: 2 / 7;
+			grid-row: 2 / 7;
+			background: radial-gradient(circle, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+			border-radius: 16px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 20px;
+			text-align: center;
+			position: relative;
+			box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+		}
+
+		.center-turn-indicator {
+			font-size: 1.1rem;
+			font-weight: 800;
+			margin-bottom: 15px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			background: rgba(255, 255, 255, 0.08);
+			padding: 8px 18px;
+			border-radius: 25px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+		}
+
+		/* Dado 3D Animado */
+		.dice-area {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 12px;
+			margin: 10px 0;
+		}
+
+		.dice {
+			width: 70px;
+			height: 70px;
+			background: white;
+			border-radius: 16px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 2.5rem;
+			font-weight: 900;
+			color: #0f172a;
+			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), inset 0 -4px 0 #cbd5e1;
+			cursor: pointer;
+			transition: transform 0.2s;
+			user-select: none;
+		}
+
+		.dice.rolling {
+			animation: dice-roll 0.6s infinite ease-in-out;
+		}
+
+		@keyframes dice-roll {
+			0% { transform: rotate(0deg) scale(0.9); }
+			25% { transform: rotate(90deg) scale(1.1); }
+			50% { transform: rotate(180deg) scale(0.9); }
+			75% { transform: rotate(270deg) scale(1.1); }
+			100% { transform: rotate(360deg) scale(1); }
+		}
+
+		.roll-btn {
+			background: linear-gradient(135deg, #f59e0b, #d97706);
+			color: white;
+			border: none;
+			padding: 12px 28px;
+			border-radius: 12px;
+			font-size: 1.1rem;
+			font-weight: 800;
+			cursor: pointer;
+			box-shadow: 0 6px 15px rgba(245, 158, 11, 0.35);
+			transition: all 0.2s;
+		}
+
+		.roll-btn:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			transform: none !important;
+		}
+
+		.roll-btn:not(:disabled):hover {
+			transform: translateY(-2px);
+			box-shadow: 0 8px 20px rgba(245, 158, 11, 0.5);
+		}
+
+		.center-log {
+			margin-top: 12px;
+			font-size: 0.9rem;
+			color: #94a3b8;
+			max-width: 90%;
+			line-height: 1.3;
+			min-height: 38px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		/* Panel Lateral de Jugadores / Hoja Financiera */
+		.sidebar-panel {
+			display: flex;
+			flex-direction: column;
+			gap: 16px;
+		}
+
+		/* Pestañas de Jugadores */
+		.player-tabs {
+			display: flex;
+			gap: 6px;
+			background: var(--rr-card-bg);
+			padding: 8px;
+			border-radius: 14px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.player-tab {
+			flex: 1;
+			background: rgba(15, 23, 42, 0.6);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 10px;
+			padding: 8px 4px;
+			color: white;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 4px;
+			cursor: pointer;
+			font-size: 0.75rem;
+			font-weight: 700;
+			transition: all 0.2s;
+		}
+
+		.player-tab.active {
+			background: rgba(16, 185, 129, 0.2);
+			border-color: #10b981;
+			color: #34d399;
+		}
+
+		.player-tab.is-turn {
+			position: relative;
+		}
+
+		.player-tab.is-turn::after {
+			content: '🎲';
+			position: absolute;
+			top: -8px;
+			right: -4px;
+			font-size: 0.8rem;
+		}
+
+		/* Tarjeta de Estado Financiero */
+		.financial-sheet {
+			background: var(--rr-card-bg);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 20px;
+			padding: 20px;
+			box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+			display: flex;
+			flex-direction: column;
+			gap: 16px;
+		}
+
+		.sheet-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+			padding-bottom: 12px;
+		}
+
+		.sheet-player-info h3 {
+			margin: 0 0 4px 0;
+			font-size: 1.25rem;
+			font-weight: 800;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.sheet-player-info .profession {
+			font-size: 0.85rem;
+			color: #94a3b8;
+			font-weight: 600;
+		}
+
+		.sheet-cash {
+			text-align: right;
+		}
+
+		.sheet-cash .label {
+			font-size: 0.75rem;
+			color: #94a3b8;
+			text-transform: uppercase;
+			font-weight: 700;
+		}
+
+		.sheet-cash .amount {
+			font-size: 1.5rem;
+			font-weight: 900;
+			color: #34d399;
+		}
+
+		/* Barra de Progreso de Libertad Financiera */
+		.freedom-progress-box {
+			background: rgba(15, 23, 42, 0.7);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 12px;
+			padding: 12px 14px;
+		}
+
+		.freedom-label-row {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.8rem;
+			font-weight: 700;
+			margin-bottom: 6px;
+		}
+
+		.freedom-progress-bar {
+			height: 12px;
+			background: rgba(255, 255, 255, 0.1);
+			border-radius: 6px;
+			overflow: hidden;
+			position: relative;
+		}
+
+		.freedom-progress-fill {
+			height: 100%;
+			background: linear-gradient(90deg, #3b82f6, #10b981, #f59e0b);
+			border-radius: 6px;
+			transition: width 0.4s ease;
+		}
+
+		.freedom-help {
+			font-size: 0.75rem;
+			color: #94a3b8;
+			margin-top: 6px;
+			line-height: 1.2;
+		}
+
+		/* Desglose Financiero (Ingresos vs Gastos) */
+		.finance-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 12px;
+		}
+
+		.finance-col {
+			background: rgba(15, 23, 42, 0.6);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			border-radius: 12px;
+			padding: 12px;
+		}
+
+		.finance-col-title {
+			font-size: 0.8rem;
+			font-weight: 800;
+			text-transform: uppercase;
+			margin-bottom: 8px;
+			display: flex;
+			justify-content: space-between;
+		}
+
+		.finance-col-title.green { color: #34d399; }
+		.finance-col-title.red { color: #f87171; }
+
+		.finance-item {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.8rem;
+			padding: 4px 0;
+			border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+		}
+
+		.finance-item .name { color: #cbd5e1; }
+		.finance-item .val { font-weight: 700; }
+
+		/* Cash Flow Resumen */
+		.cashflow-box {
+			background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.25));
+			border: 1px solid #10b981;
+			border-radius: 12px;
+			padding: 12px 16px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.cashflow-box .label {
+			font-size: 0.85rem;
+			font-weight: 800;
+			color: #6ee7b7;
+		}
+
+		.cashflow-box .amount {
+			font-size: 1.3rem;
+			font-weight: 900;
+			color: #34d399;
+		}
+
+		/* Acciones Financieras (Préstamo, Pagar deuda) */
+		.sheet-actions {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 10px;
+		}
+
+		/* Lista de Activos */
+		.assets-section {
+			background: rgba(15, 23, 42, 0.5);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			border-radius: 12px;
+			padding: 12px;
+		}
+
+		.assets-section h4 {
+			margin: 0 0 8px 0;
+			font-size: 0.85rem;
+			font-weight: 800;
+			color: #cbd5e1;
+		}
+
+		.assets-list {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+			max-height: 130px;
+			overflow-y: auto;
+		}
+
+		.asset-card {
+			background: rgba(255, 255, 255, 0.05);
+			border-radius: 8px;
+			padding: 6px 10px;
+			font-size: 0.75rem;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.asset-name { font-weight: 700; color: #93c5fd; }
+		.asset-flow { font-weight: 800; color: #34d399; }
+
+		/* Modales de Tarjetas de Evento */
+		.rr-modal-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100vw;
+			height: 100vh;
+			background: rgba(15, 23, 42, 0.85);
+			backdrop-filter: blur(8px);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 1000;
+			padding: 20px;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.25s ease;
+		}
+
+		.rr-modal-overlay.open {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.rr-card-modal {
+			background: #1e293b;
+			border: 2px solid rgba(255, 255, 255, 0.15);
+			border-radius: 24px;
+			width: 100%;
+			max-width: 500px;
+			box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+			overflow: hidden;
+			transform: translateY(20px) scale(0.95);
+			transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+		}
+
+		.rr-modal-overlay.open .rr-card-modal {
+			transform: translateY(0) scale(1);
+		}
+
+		.card-header {
+			padding: 20px;
+			text-align: center;
+			color: white;
+		}
+
+		.card-header.opportunity { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+		.card-header.payday { background: linear-gradient(135deg, #059669, #047857); }
+		.card-header.doodad { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+		.card-header.market { background: linear-gradient(135deg, #d97706, #b45309); }
+		.card-header.charity { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+		.card-header.crisis { background: linear-gradient(135deg, #be123c, #9f1239); }
+
+		.card-header .icon { font-size: 2.5rem; margin-bottom: 6px; }
+		.card-header h3 { margin: 0; font-size: 1.4rem; font-weight: 800; }
+		.card-header .subtitle { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
+
+		.card-body {
+			padding: 24px;
+			color: var(--rr-text);
+		}
+
+		.card-description {
+			font-size: 1.05rem;
+			line-height: 1.4;
+			margin-bottom: 20px;
+			color: #e2e8f0;
+			text-align: center;
+		}
+
+		.card-stats {
+			background: rgba(15, 23, 42, 0.6);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 14px;
+			padding: 14px;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			margin-bottom: 20px;
+		}
+
+		.card-stat-row {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.95rem;
+		}
+
+		.card-stat-row .stat-label { color: #94a3b8; }
+		.card-stat-row .stat-value { font-weight: 800; }
+		.card-stat-row .stat-value.green { color: #34d399; }
+		.card-stat-row .stat-value.red { color: #f87171; }
+
+		.card-footer {
+			padding: 0 24px 24px;
+			display: flex;
+			gap: 12px;
+		}
+
+		.card-btn {
+			flex: 1;
+			padding: 14px;
+			font-size: 1rem;
+			font-weight: 800;
+			border-radius: 12px;
+			border: none;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.card-btn.primary {
+			background: linear-gradient(135deg, #10b981, #059669);
+			color: white;
+		}
+
+		.card-btn.secondary {
+			background: rgba(255, 255, 255, 0.1);
+			color: white;
+		}
+
+		/* Modal de Victoria / Libertad Financiera */
+		#victory-modal .card-header {
+			background: linear-gradient(135deg, #f59e0b, #10b981);
+		}
+
+		.victory-trophy {
+			font-size: 4rem;
+			animation: bounce 1s infinite alternate ease-in-out;
+		}
+
+		@keyframes bounce {
+			from { transform: translateY(0); }
+			to { transform: translateY(-10px); }
+		}
+
+		.hidden { display: none !important; }
+	</style>
+</head>
+
+<body>
+	<!-- Barra Superior de Navegación -->
+	<header class="rr-header">
+		<div class="rr-brand">
+			<img src="/logo.png" alt="Sweet Lab" />
+			<h1>🐭 RatRace <span>Finanzas</span></h1>
+		</div>
+		<div class="rr-actions">
+			<button id="btn-rules" class="rr-btn rr-btn-secondary">📖 ¿Cómo Jugar?</button>
+			<button id="btn-new-game" class="rr-btn rr-btn-gold">🔄 Nueva Partida</button>
+			<button id="btn-exit" class="rr-btn rr-btn-secondary">⬅ Volver</button>
+		</div>
+	</header>
+
+	<main class="rr-main">
+		<!-- Pantalla 1: Configuración de Jugadores -->
+		<section id="setup-screen">
+			<div class="setup-title">
+				<h2>¡Bienvenido a RatRace!</h2>
+				<p>Aprende a ahorrar, invertir y escapar de la carrera de la rata hacia tu libertad financiera.</p>
+			</div>
+
+			<div class="setup-group">
+				<label>¿Cuántos jugadores participarán? (1 a 4)</label>
+				<div class="player-count-selector">
+					<button class="player-count-btn" data-count="1">1</button>
+					<button class="player-count-btn active" data-count="2">2</button>
+					<button class="player-count-btn" data-count="3">3</button>
+					<button class="player-count-btn" data-count="4">4</button>
+				</div>
+			</div>
+
+			<div class="setup-group">
+				<label>Nombres y personajes:</label>
+				<div id="player-configs" class="player-configs">
+					<!-- Generado dinámicamente con JS -->
+				</div>
+			</div>
+
+			<button id="btn-start" class="start-game-btn">🚀 ¡Comenzar Juego!</button>
+		</section>
+
+		<!-- Pantalla 2: Tablero de Juego Activo -->
+		<section id="game-screen" class="hidden">
+			<!-- Columna Izquierda: Tablero de 24 casillas con centro interactivo -->
+			<div class="board-container">
+				<div id="board-grid" class="board-grid">
+					<!-- Casillas 0 a 23 generadas por JS en el perímetro -->
+
+					<!-- Centro del Tablero -->
+					<div class="board-center">
+						<div id="center-turn" class="center-turn-indicator">
+							<span id="turn-avatar">🐭</span>
+							<span id="turn-name">Turno de Jugador</span>
+						</div>
+
+						<div class="dice-area">
+							<div id="dice-display" class="dice">🎲</div>
+							<button id="btn-roll" class="roll-btn">Tirar Dado 🎲</button>
+						</div>
+
+						<div id="center-log" class="center-log">
+							¡Lanza el dado para comenzar tu turno!
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Columna Derecha: Estado Financiero / Balance Sheet del Jugador -->
+			<div class="sidebar-panel">
+				<!-- Selector de pestaña de jugador -->
+				<div id="player-tabs" class="player-tabs">
+					<!-- Pestañas generadas por JS -->
+				</div>
+
+				<!-- Tarjeta de Estado Financiero -->
+				<div class="financial-sheet">
+					<div class="sheet-header">
+						<div class="sheet-player-info">
+							<h3 id="sheet-name">🐭 Jugador 1</h3>
+							<div id="sheet-profession" class="profession">Chef de Repostería</div>
+						</div>
+						<div class="sheet-cash">
+							<div class="label">Efectivo</div>
+							<div id="sheet-cash-val" class="amount">$1,500</div>
+						</div>
+					</div>
+
+					<!-- Barra de Progreso hacia la Libertad Financiera -->
+					<div class="freedom-progress-box">
+						<div class="freedom-label-row">
+							<span>Progreso hacia la Libertad Financiera</span>
+							<span id="freedom-percentage">0%</span>
+						</div>
+						<div class="freedom-progress-bar">
+							<div id="freedom-fill" class="freedom-progress-fill" style="width: 0%;"></div>
+						</div>
+						<div class="freedom-help">
+							🎯 <strong>Meta:</strong> Ingresos Pasivos (<span id="freedom-passive">$0</span>) &gt; Gastos Totales (<span id="freedom-expenses">$1,800</span>).
+						</div>
+					</div>
+
+					<!-- Cash Flow Resumen -->
+					<div class="cashflow-box">
+						<div>
+							<div class="label">Flujo de Caja Mensual</div>
+							<small style="color:#94a3b8; font-size:0.7rem;">Lo que cobras en Día de Pago</small>
+						</div>
+						<div id="sheet-cashflow-val" class="amount">+$1,000</div>
+					</div>
+
+					<!-- Desglose de Ingresos y Gastos -->
+					<div class="finance-grid">
+						<div class="finance-col">
+							<div class="finance-col-title green">
+								<span>Ingresos</span>
+								<span id="sheet-total-income">$2,800</span>
+							</div>
+							<div class="finance-item">
+								<span class="name">Sueldo:</span>
+								<span id="sheet-salary" class="val green">$2,800</span>
+							</div>
+							<div class="finance-item">
+								<span class="name">Pasivos:</span>
+								<span id="sheet-passive" class="val green">$0</span>
+							</div>
+						</div>
+
+						<div class="finance-col">
+							<div class="finance-col-title red">
+								<span>Gastos</span>
+								<span id="sheet-total-expenses">$1,800</span>
+							</div>
+							<div class="finance-item">
+								<span class="name">Fijos:</span>
+								<span id="sheet-fixed-exp" class="val red">$1,800</span>
+							</div>
+							<div class="finance-item">
+								<span class="name">Deudas:</span>
+								<span id="sheet-debt-exp" class="val red">$0</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Activos / Inversiones -->
+					<div class="assets-section">
+						<h4>Tus Activos (Negocios / Propiedades)</h4>
+						<div id="sheet-assets-list" class="assets-list">
+							<div style="color:#64748b; font-size:0.75rem; text-align:center; padding:10px;">
+								Aún no tienes activos. ¡Aprovecha las casillas de Oportunidad!
+							</div>
+						</div>
+					</div>
+
+					<!-- Botones de Acción Financiera -->
+					<div class="sheet-actions">
+						<button id="btn-request-loan" class="rr-btn rr-btn-secondary" style="font-size:0.8rem; justify-content:center;">
+							🏦 Préstamo Bancario
+						</button>
+						<button id="btn-pay-debt" class="rr-btn rr-btn-secondary" style="font-size:0.8rem; justify-content:center;">
+							💳 Pagar Préstamos
+						</button>
+					</div>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<!-- MODAL INTERACTIVO DE TARJETAS DE CASILLA -->
+	<div id="card-modal" class="rr-modal-overlay">
+		<div class="rr-card-modal">
+			<div id="modal-header" class="card-header opportunity">
+				<div id="modal-icon" class="icon">🚀</div>
+				<h3 id="modal-title">Oportunidad de Negocio</h3>
+				<div id="modal-subtitle" class="subtitle">Pequeño Negocio</div>
+			</div>
+			<div class="card-body">
+				<div id="modal-desc" class="card-description">
+					Descripción del evento...
+				</div>
+				<div id="modal-stats" class="card-stats">
+					<!-- Generado dinámicamente -->
+				</div>
+			</div>
+			<div id="modal-footer" class="card-footer">
+				<!-- Botones dinámicos: Comprar, Pasar, etc. -->
+			</div>
+		</div>
+	</div>
+
+	<!-- MODAL DE REGLAS / GUÍA EDUCATIVA -->
+	<div id="rules-modal" class="rr-modal-overlay">
+		<div class="rr-card-modal" style="max-width: 580px;">
+			<div class="card-header opportunity" style="background: linear-gradient(135deg, #059669, #10b981);">
+				<div class="icon">🎓</div>
+				<h3>Reglas de RatRace</h3>
+				<div class="subtitle">Tu camino a la Libertad Financiera</div>
+			</div>
+			<div class="card-body" style="font-size: 0.95rem; line-height: 1.5; color: #e2e8f0; max-height: 400px; overflow-y: auto;">
+				<p><strong>1. ¿Cómo se gana el juego?</strong><br>
+				Ganas cuando logras que tus <strong>Ingresos Pasivos</strong> (dinero generado por negocios o rentas sin necesidad de trabajar) sean mayores a tus <strong>Gastos Totales</strong>. ¡En ese momento escapas de la Carrera de la Rata!</p>
+
+				<p><strong>2. ¿Qué es un Activo vs un Pasivo?</strong><br>
+				• <strong>Activo:</strong> Algo que mete dinero en tu bolsillo (casas en renta, acciones con dividendos, máquinas expendedoras).<br>
+				• <strong>Pasivo / Deuda:</strong> Algo que saca dinero de tu bolsillo todos los meses (préstamos caros, tarjetas, compras a crédito).</p>
+
+				<p><strong>3. Casillas del Tablero:</strong><br>
+				• 💰 <strong>Día de Pago:</strong> Cobras tu Flujo de Caja Mensual (Ingresos - Gastos).<br>
+				• 🚀 <strong>Oportunidad:</strong> Compra activos pequeños o grandes para aumentar tu ingreso pasivo.<br>
+				• 🛍️ <strong>Caprichos:</strong> Gastos imprevistos o compras compulsivas.<br>
+				• 📈 <strong>Mercado:</strong> La economía cambia; puedes vender tus propiedades o acciones con gran ganancia.<br>
+				• 🚨 <strong>Crisis:</strong> Pierdes 1 turno y debes afrontar tus gastos con ahorros.<br>
+				• 🎁 <strong>Donación:</strong> Donar te permite tirar con 2 dados durante varios turnos.</p>
+			</div>
+			<div class="card-footer">
+				<button id="btn-close-rules" class="card-btn primary">¡Entendido, a jugar!</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- MODAL DE VICTORIA -->
+	<div id="victory-modal" class="rr-modal-overlay">
+		<div class="rr-card-modal" style="text-align: center;">
+			<div class="card-header">
+				<div class="victory-trophy">🏆</div>
+				<h3 style="font-size: 1.8rem; margin: 10px 0 5px;">¡LIBERTAD FINANCIERA!</h3>
+				<div class="subtitle">¡Has escapado de la Carrera de la Rata!</div>
+			</div>
+			<div class="card-body">
+				<p id="victory-message" style="font-size: 1.15rem; line-height: 1.4; color: #e2e8f0;">
+					¡Felicidades! Tus ingresos pasivos ahora cubren el 100% de tus gastos mensuales.
+				</p>
+				<div id="victory-summary" class="card-stats"></div>
+			</div>
+			<div class="card-footer">
+				<button id="btn-victory-restart" class="card-btn primary">Jugar de Nuevo 🔄</button>
+				<button id="btn-victory-exit" class="card-btn secondary">Volver al Menú Principal 🏠</button>
+			</div>
+		</div>
+	</div>
+
+	<script type="module" src="/ratrace.js?v=2026-09-11"></script>
+</body>
+
+</html>
