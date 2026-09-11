@@ -409,9 +409,21 @@ async function showSellerSelection(forceShow = false) {
             }
 
             const container = document.getElementById('seller-buttons-container');
-            if (container) {
+            const searchWrapper = document.getElementById('seller-search-wrapper');
+            const searchInput = document.getElementById('seller-search-input');
+            const footer = document.getElementById('seller-modal-footer');
+
+            function renderSuperButtons(list) {
+                if (!container) return;
                 container.innerHTML = '';
-                allSellers.forEach(s => {
+                if (list.length === 0) {
+                    const emptyMsg = document.createElement('p');
+                    emptyMsg.style.cssText = 'color: var(--text-muted); font-size: 0.85rem; padding: 14px 0; margin: 0;';
+                    emptyMsg.textContent = 'No se encontraron vendedores';
+                    container.appendChild(emptyMsg);
+                    return;
+                }
+                list.forEach(s => {
                     const isCurrent = storeActiveSeller && (Number(s.id) === Number(storeActiveSeller.id) || s.name === storeActiveSeller.name);
                     const btn = document.createElement('button');
                     btn.className = 'internal-checkout-btn';
@@ -422,18 +434,35 @@ async function showSellerSelection(forceShow = false) {
                     btn.style.display = 'flex';
                     btn.style.justifyContent = 'space-between';
                     btn.style.alignItems = 'center';
+                    btn.style.minHeight = '42px';
                     btn.innerHTML = `<span>${s.name}</span> ${isCurrent ? '<span style="color:#be185d; font-size:0.8rem; font-weight:800;">✓ Activo</span>' : ''}`;
                     btn.addEventListener('click', () => setSeller(s));
                     container.appendChild(btn);
                 });
+            }
 
-                const logoutDiv = document.createElement('div');
-                logoutDiv.style.cssText = 'margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px;';
-                logoutDiv.innerHTML = `
-                    <button type="button" id="btnSuperCancelModal" style="flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-weight:700; cursor:pointer;">Cancelar</button>
-                    <button type="button" id="btnSuperLogoutModal" style="flex:1; padding:10px; border-radius:10px; border:none; background:#fee2e2; color:#b91c1c; font-weight:700; cursor:pointer;">Cerrar Sesión</button>
+            if (searchWrapper && searchInput) {
+                if (allSellers.length > 5) {
+                    searchWrapper.style.display = 'block';
+                    searchInput.value = '';
+                    searchInput.oninput = () => {
+                        const q = searchInput.value.toLowerCase().trim();
+                        renderSuperButtons(allSellers.filter(s => (s.name || '').toLowerCase().includes(q)));
+                    };
+                } else {
+                    searchWrapper.style.display = 'none';
+                }
+            }
+
+            renderSuperButtons(allSellers);
+
+            if (footer) {
+                footer.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; gap:10px; width:100%;">
+                        <button type="button" id="btnSuperCancelModal" style="flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-weight:700; cursor:pointer;">Cancelar</button>
+                        <button type="button" id="btnSuperLogoutModal" style="flex:1; padding:10px; border-radius:10px; border:none; background:#fee2e2; color:#b91c1c; font-weight:700; cursor:pointer;">Cerrar Sesión</button>
+                    </div>
                 `;
-                container.appendChild(logoutDiv);
                 document.getElementById('btnSuperCancelModal')?.addEventListener('click', () => {
                     document.getElementById('store-seller-modal').style.display = 'none';
                 });
@@ -446,6 +475,7 @@ async function showSellerSelection(forceShow = false) {
                     window.location.reload();
                 });
             }
+
             document.getElementById('store-seller-modal').style.display = 'flex';
             return;
         }
@@ -500,17 +530,58 @@ async function showSellerSelection(forceShow = false) {
             setSeller(allSellers[0]);
         } else {
             const container = document.getElementById('seller-buttons-container');
-            container.innerHTML = '';
-            allSellers.forEach(s => {
-                const btn = document.createElement('button');
-                btn.className = 'internal-checkout-btn';
-                btn.style.background = 'var(--surface)';
-                btn.style.color = 'var(--text)';
-                btn.style.border = '1px solid var(--border)';
-                btn.textContent = s.name;
-                btn.addEventListener('click', () => setSeller(s));
-                container.appendChild(btn);
-            });
+            const searchWrapper = document.getElementById('seller-search-wrapper');
+            const searchInput = document.getElementById('seller-search-input');
+            const footer = document.getElementById('seller-modal-footer');
+
+            function renderRegularButtons(list) {
+                if (!container) return;
+                container.innerHTML = '';
+                if (list.length === 0) {
+                    const emptyMsg = document.createElement('p');
+                    emptyMsg.style.cssText = 'color: var(--text-muted); font-size: 0.85rem; padding: 14px 0; margin: 0;';
+                    emptyMsg.textContent = 'No se encontraron vendedores';
+                    container.appendChild(emptyMsg);
+                    return;
+                }
+                list.forEach(s => {
+                    const btn = document.createElement('button');
+                    btn.className = 'internal-checkout-btn';
+                    btn.style.background = 'var(--surface)';
+                    btn.style.color = 'var(--text)';
+                    btn.style.border = '1px solid var(--border)';
+                    btn.style.minHeight = '42px';
+                    btn.textContent = s.name;
+                    btn.addEventListener('click', () => setSeller(s));
+                    container.appendChild(btn);
+                });
+            }
+
+            if (searchWrapper && searchInput) {
+                if (allSellers.length > 5) {
+                    searchWrapper.style.display = 'block';
+                    searchInput.value = '';
+                    searchInput.oninput = () => {
+                        const q = searchInput.value.toLowerCase().trim();
+                        renderRegularButtons(allSellers.filter(s => (s.name || '').toLowerCase().includes(q)));
+                    };
+                } else {
+                    searchWrapper.style.display = 'none';
+                }
+            }
+
+            renderRegularButtons(allSellers);
+
+            if (footer) {
+                footer.innerHTML = `
+                    <button type="button" id="close-seller-modal" class="internal-checkout-btn"
+                        style="width: 100%; padding: 10px; font-weight: 700; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); border-radius: 10px;">Cancelar</button>
+                `;
+                document.getElementById('close-seller-modal')?.addEventListener('click', () => {
+                    document.getElementById('store-seller-modal').style.display = 'none';
+                });
+            }
+
             document.getElementById('store-seller-modal').style.display = 'flex';
         }
     } catch (err) {
