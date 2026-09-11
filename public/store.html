@@ -1796,8 +1796,12 @@
             fetch('/api/sellers').then(r => r.json()).then(all => {
                 if (Array.isArray(all) && all.length > 0) {
                     const username = (storeAuthUser && (storeAuthUser.username || storeAuthUser.name) || '').toLowerCase();
+                    const isSuper = storeAuthUser && (storeAuthUser.role === 'superadmin' || ['jorge', 'marcela'].includes(username));
                     let fresh = null;
-                    if (username) {
+                    if (isSuper && storeActiveSeller) {
+                        fresh = all.find(s => s.id === storeActiveSeller.id || (s.name && s.name.toLowerCase() === (storeActiveSeller.name || '').toLowerCase()));
+                    }
+                    if (!fresh && username) {
                         fresh = all.find(s => s.name && s.name.toLowerCase() === username);
                     }
                     if (!fresh && storeActiveSeller) {
@@ -1923,13 +1927,21 @@
                     window.location.reload();
                 }
             } else if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
-                // Fully active: offer logout
-                if (confirm(`¿Deseas cerrar sesión de ${storeActiveSeller.name}?`)) {
-                    storeAuthUser = null;
-                    storeActiveSeller = null;
-                    safeLS.removeItem('storeAuthUser');
-                    safeLS.removeItem('storeActiveSeller');
-                    window.location.reload();
+                const username = (storeAuthUser.username || storeAuthUser.name || '').toLowerCase();
+                const isSuper = storeAuthUser.role === 'superadmin' || ['jorge', 'marcela'].includes(username);
+                if (isSuper) {
+                    if (typeof showSellerSelection === 'function') {
+                        showSellerSelection(true);
+                    }
+                } else {
+                    // Fully active: offer logout
+                    if (confirm(`¿Deseas cerrar sesión de ${storeActiveSeller.name}?`)) {
+                        storeAuthUser = null;
+                        storeActiveSeller = null;
+                        safeLS.removeItem('storeAuthUser');
+                        safeLS.removeItem('storeActiveSeller');
+                        window.location.reload();
+                    }
                 }
             } else if (storeAuthUser && storeAuthUser.username) {
                 // Logged in but no seller — show seller picker
@@ -1990,13 +2002,14 @@
                 const hasProductionAccess = storeAuthUser.role === 'produccion' || (storeAuthUser.features && storeAuthUser.features.includes('produccion'));
                 const hasSalesAccess = ['user', 'admin', 'superadmin'].includes(storeAuthUser.role);
 
-                if (hasProductionAccess) {
+                const isSuper = storeAuthUser.role === 'superadmin' || ['jorge', 'marcela'].includes((storeAuthUser.username || '').toLowerCase());
+                if (hasProductionAccess || isSuper) {
                     const authUser = {
                         name: storeAuthUser.username,
-                        role: storeAuthUser.role,
+                        role: isSuper ? 'superadmin' : storeAuthUser.role,
                         features: storeAuthUser.features || [],
-                        isAdmin: storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin',
-                        isSuperAdmin: storeAuthUser.role === 'superadmin'
+                        isAdmin: isSuper || storeAuthUser.role === 'admin' || storeAuthUser.role === 'superadmin',
+                        isSuperAdmin: isSuper
                     };
                     safeLS.setItem('authUser', JSON.stringify(authUser));
                 }
