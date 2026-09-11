@@ -279,8 +279,8 @@
 			align-items: center;
 			justify-content: flex-end;
 			background: linear-gradient(180deg, #e0f2fe 0%, #f0fdf4 30%, #ffffff 70%, #f8fafc 100%);
-			perspective: 620px;
-			perspective-origin: 50% 26%;
+			perspective: 780px; /* Perspectiva más lejana para ver más recuadros hacia el horizonte */
+			perspective-origin: 50% 20%;
 			cursor: grab;
 		}
 
@@ -335,6 +335,9 @@
 			align-items: flex-end;
 			gap: 30px;
 			transform-style: preserve-3d;
+			transform-origin: 50% 88%;
+			transform: scale(0.83) translateY(28px); /* Vista un poco más de lejos antes de tirar */
+			transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 		}
 
 		/* Cada columna de pista */
@@ -835,21 +838,7 @@
 		}
 
 		.floating-turn-pill {
-			position: fixed;
-			top: 115px;
-			left: 50%;
-			transform: translateX(-50%);
-			background: rgba(15, 23, 42, 0.88);
-			backdrop-filter: blur(8px);
-			color: white;
-			padding: 6px 18px;
-			border-radius: 20px;
-			font-size: 0.82rem;
-			font-weight: 700;
-			z-index: 120;
-			pointer-events: none;
-			box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-			transition: opacity 0.3s;
+			display: none !important;
 		}
 
 		/* ====================================================
@@ -1404,19 +1393,19 @@
 		}
 
 		/* ----------------------------------------------------
-		   WIDGET LATERAL DE BALANCE (A Mano Derecha)
+		   WIDGET LATERAL DE BALANCE ESTILO CASHFLOW (A Mano Derecha)
 		   ---------------------------------------------------- */
 		.modal-side-balance {
 			position: fixed;
-			right: 28px;
+			right: 24px;
 			top: 50%;
 			transform: translateY(-50%) translateX(35px);
-			width: 270px;
+			width: 330px; /* Un poco más grande para los 4 cuadrantes estilo Cashflow */
 			background: #ffffff;
 			background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
 			border: 1.5px solid #e2e8f0;
-			border-radius: 22px;
-			box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12), 0 4px 14px rgba(0, 0, 0, 0.04);
+			border-radius: 24px;
+			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.14), 0 4px 16px rgba(0, 0, 0, 0.05);
 			padding: 16px 14px;
 			z-index: 120;
 			display: flex;
@@ -1446,13 +1435,13 @@
 		}
 
 		.side-bal-avatar {
-			width: 38px;
-			height: 38px;
+			width: 40px;
+			height: 40px;
 			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 1.35rem;
+			font-size: 1.45rem;
 			border: 2px solid white;
 			box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 			flex-shrink: 0;
@@ -1465,7 +1454,7 @@
 		}
 
 		.side-bal-name {
-			font-size: 0.96rem;
+			font-size: 1.02rem;
 			font-weight: 800;
 			color: var(--text-main);
 			white-space: nowrap;
@@ -1474,7 +1463,7 @@
 		}
 
 		.side-bal-job {
-			font-size: 0.72rem;
+			font-size: 0.74rem;
 			font-weight: 600;
 			color: #64748b;
 			white-space: nowrap;
@@ -1482,113 +1471,148 @@
 			overflow: hidden;
 		}
 
-		.side-bal-tabs {
-			display: flex;
-			gap: 5px;
-			margin-top: -4px;
+		.side-bal-summary-bar {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+			background: #f8fafc;
+			border: 1px solid #f1f5f9;
+			border-radius: 14px;
+			padding: 8px 10px;
 		}
 
-		.side-bal-tab-btn {
-			flex: 1;
-			padding: 4px 8px;
-			border-radius: 999px;
-			border: 1px solid #e2e8f0;
-			background: #f8fafc;
-			font-size: 0.72rem;
+		.side-bal-metric {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.side-bal-metric .lbl {
+			font-size: 0.68rem;
 			font-weight: 700;
 			color: #64748b;
-			cursor: pointer;
-			transition: all 0.2s ease;
-			text-align: center;
-			font-family: 'Outfit', sans-serif;
+			text-transform: uppercase;
 		}
 
-		.side-bal-tab-btn.active {
-			background: #0f172a;
-			color: #ffffff;
-			border-color: #0f172a;
+		.side-bal-metric .val {
+			font-size: 1.05rem;
+			font-weight: 900;
+			margin-top: 1px;
+			white-space: nowrap;
+			transition: all 0.3s ease;
 		}
 
-		.side-bal-grid {
+		.side-bal-metric .val.cash { color: #16a34a; }
+		.side-bal-metric .val.flow { color: #2563eb; }
+		.side-bal-metric .val.flow.red { color: #dc2626; }
+
+		/* 4 Cuadrantes Cashflow */
+		.kiyosaki-4-quadrants {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
 			gap: 8px;
 		}
 
-		.side-bal-stat-card {
-			background: #f8fafc;
-			border: 1px solid #f1f5f9;
-			border-radius: 12px;
-			padding: 7px 9px;
-			display: flex;
-			flex-direction: column;
-		}
-
-		.side-bal-stat-card .lbl {
-			font-size: 0.66rem;
-			font-weight: 700;
-			color: #64748b;
-			text-transform: uppercase;
-			letter-spacing: 0.3px;
-		}
-
-		.side-bal-stat-card .val {
-			font-size: 0.95rem;
-			font-weight: 900;
-			margin-top: 2px;
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-		}
-
-		.side-bal-stat-card .val.cash { color: #16a34a; }
-		.side-bal-stat-card .val.flow { color: #2563eb; }
-		.side-bal-stat-card .val.flow.red { color: #dc2626; }
-
-		.side-bal-detail-box {
+		.k-quadrant {
 			background: #f8fafc;
 			border: 1px solid #f1f5f9;
 			border-radius: 14px;
-			padding: 8px 10px;
+			padding: 8px 9px;
 			display: flex;
 			flex-direction: column;
-			gap: 5px;
-			font-size: 0.78rem;
+			gap: 4px;
 		}
 
-		.side-bal-line {
+		.k-q-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			border-bottom: 1px solid #e2e8f0;
+			padding-bottom: 4px;
+		}
+
+		.k-q-title {
+			font-size: 0.68rem;
+			font-weight: 800;
+			letter-spacing: 0.4px;
+			color: #475569;
+			text-transform: uppercase;
+		}
+
+		.k-q-total {
+			font-size: 0.78rem;
+			font-weight: 900;
+		}
+
+		.k-q-total.green { color: #16a34a; }
+		.k-q-total.red { color: #dc2626; }
+
+		.k-q-count {
+			font-size: 0.7rem;
+			font-weight: 700;
+			color: #64748b;
+		}
+
+		.k-q-body {
+			display: flex;
+			flex-direction: column;
+			gap: 3px;
+			font-size: 0.76rem;
+		}
+
+		.k-item {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
 		}
 
-		.side-bal-line .lbl {
+		.k-item .lbl {
 			color: #64748b;
 			font-weight: 600;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			max-width: 82px;
 		}
 
-		.side-bal-line .num {
+		.k-item .val {
 			font-weight: 800;
 			color: var(--text-main);
+			white-space: nowrap;
 		}
 
-		.side-bal-line .num.green { color: #16a34a; }
-		.side-bal-line .num.red { color: #dc2626; }
+		.k-item .val.green { color: #16a34a; }
+		.k-item .val.red { color: #dc2626; }
 
-		.side-bal-divider {
-			height: 1px;
-			background: #e2e8f0;
-			margin: 2px 0;
+		.k-scroll-list {
+			max-height: 52px;
+			overflow-y: auto;
 		}
 
-		.side-bal-footer-info {
+		.k-empty {
+			color: #94a3b8;
+			font-style: italic;
 			font-size: 0.72rem;
-			font-weight: 700;
-			color: #64748b;
-			text-align: center;
-			padding: 4px;
-			background: #f1f5f9;
-			border-radius: 8px;
+		}
+
+		/* Destellos visuales al actualizar sueldo en Día de Pago */
+		@keyframes paydayPillFlash {
+			0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+			40% { transform: scale(1.08); box-shadow: 0 0 18px 5px rgba(22, 163, 74, 0.45); background: #dcfce7; }
+			100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+		}
+
+		.pill-payday-flash {
+			animation: paydayPillFlash 0.9s ease;
+		}
+
+		@keyframes paydayValFlash {
+			0% { transform: scale(1); color: #16a34a; }
+			40% { transform: scale(1.22); color: #15803d; font-weight: 900; }
+			100% { transform: scale(1); color: #16a34a; }
+		}
+
+		.value-payday-flash {
+			animation: paydayValFlash 0.9s ease;
 		}
 
 		/* Animación de salto de ficha */
@@ -1608,11 +1632,11 @@
 				right: auto;
 				left: 50%;
 				top: auto;
-				bottom: 12px;
+				bottom: 10px;
 				transform: translateX(-50%) translateY(20px);
 				width: calc(100vw - 24px);
-				max-width: 380px;
-				padding: 10px 12px;
+				max-width: 360px;
+				padding: 12px;
 			}
 			.modal-side-balance.active {
 				transform: translateX(-50%) translateY(0);
@@ -1837,53 +1861,95 @@
 			</div>
 		</div>
 
-		<!-- WIDGET LATERAL DE BALANCE (A Mano Derecha Durante la Tarjeta Central) -->
+		<!-- WIDGET LATERAL DE BALANCE ESTILO CASHFLOW (A Mano Derecha Durante la Tarjeta Central) -->
 		<div id="modal-side-balance" class="modal-side-balance">
+			<!-- Encabezado Jugador en Turno (Solo el jugador activo) -->
 			<div class="side-bal-header">
 				<div id="side-bal-avatar" class="side-bal-avatar">👤</div>
 				<div class="side-bal-titles">
-					<div id="side-bal-name" class="side-bal-name">Jugador</div>
+					<div id="side-bal-name" class="side-bal-name">Jugador (Turno)</div>
 					<div id="side-bal-job" class="side-bal-job">Profesión</div>
 				</div>
 			</div>
 
-			<!-- Selector de Jugador si son 2 -->
-			<div id="side-bal-tabs" class="side-bal-tabs hidden"></div>
-
-			<!-- Métricas Clave -->
-			<div class="side-bal-grid">
-				<div class="side-bal-stat-card">
+			<!-- Resumen Superior: Efectivo y Flujo Libre Mensual -->
+			<div class="side-bal-summary-bar">
+				<div class="side-bal-metric">
 					<span class="lbl">💵 En Mano</span>
 					<span id="side-bal-cash" class="val cash">$100.000 COP</span>
 				</div>
-				<div class="side-bal-stat-card">
-					<span class="lbl">📈 Flujo Mes</span>
-					<span id="side-bal-flow" class="val flow">+$0/m</span>
+				<div class="side-bal-metric">
+					<span class="lbl">📈 Flujo Libre</span>
+					<span id="side-bal-flow" class="val flow">+$0 / mes</span>
 				</div>
 			</div>
 
-			<div class="side-bal-detail-box">
-				<div class="side-bal-line">
-					<span class="lbl">💼 Sueldo:</span>
-					<span id="side-bal-salary" class="num">$400.000</span>
+			<!-- 4 Cuadrantes Estilo Cashflow de Robert Kiyosaki -->
+			<div class="kiyosaki-4-quadrants">
+				<!-- 1. INGRESOS -->
+				<div class="k-quadrant k-income">
+					<div class="k-q-head">
+						<span class="k-q-title">1. INGRESOS</span>
+						<span id="side-bal-total-income" class="k-q-total green">$400.000</span>
+					</div>
+					<div class="k-q-body">
+						<div class="k-item">
+							<span class="lbl">Sueldo:</span>
+							<span id="side-bal-salary" class="val">$400.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Pasivo:</span>
+							<span id="side-bal-passive" class="val green">+$0</span>
+						</div>
+					</div>
 				</div>
-				<div class="side-bal-line">
-					<span class="lbl">🌟 Negocios:</span>
-					<span id="side-bal-passive" class="num green">+$0</span>
-				</div>
-				<div class="side-bal-divider"></div>
-				<div class="side-bal-line">
-					<span class="lbl">🧾 Gastos Fijos:</span>
-					<span id="side-bal-expenses" class="num red">-$400.000</span>
-				</div>
-				<div class="side-bal-line">
-					<span class="lbl">🏦 Deuda Banco:</span>
-					<span id="side-bal-debt" class="num red">$0</span>
-				</div>
-			</div>
 
-			<div class="side-bal-footer-info">
-				<span id="side-bal-assets-count">0 negocios activos</span>
+				<!-- 2. SALIDAS / GASTOS -->
+				<div class="k-quadrant k-expenses">
+					<div class="k-q-head">
+						<span class="k-q-title">2. SALIDAS</span>
+						<span id="side-bal-total-exp" class="k-q-total red">-$400.000</span>
+					</div>
+					<div class="k-q-body">
+						<div class="k-item">
+							<span class="lbl">Fijos:</span>
+							<span id="side-bal-fixed-exp" class="val">-$400.000</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Deudas:</span>
+							<span id="side-bal-debt-exp" class="val red">$0</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- 3. ACTIVOS -->
+				<div class="k-quadrant k-assets">
+					<div class="k-q-head">
+						<span class="k-q-title">3. ACTIVOS</span>
+						<span id="side-bal-assets-count" class="k-q-count">0 negocios</span>
+					</div>
+					<div id="side-bal-assets-list" class="k-q-body k-scroll-list">
+						<span class="k-empty">Sin negocios aún</span>
+					</div>
+				</div>
+
+				<!-- 4. PASIVOS -->
+				<div class="k-quadrant k-liabilities">
+					<div class="k-q-head">
+						<span class="k-q-title">4. PASIVOS</span>
+						<span id="side-bal-total-debt" class="k-q-total">$0</span>
+					</div>
+					<div class="k-q-body">
+						<div class="k-item">
+							<span class="lbl">Deuda banco:</span>
+							<span id="side-bal-debt-val" class="val">$0</span>
+						</div>
+						<div class="k-item">
+							<span class="lbl">Cuota mes:</span>
+							<span id="side-bal-debt-payment" class="val red">$0/m</span>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>

@@ -1080,6 +1080,31 @@ function collectPayday(player, isLanding) {
 	sounds.cash();
 	updateHUDAndHeaders();
 
+	// Destello visual al actualizar el saldo en la casilla del jugador
+	const playerPills = document.querySelectorAll('.player-hud-pill');
+	if (playerPills[gameState.currentPlayerIndex]) {
+		const targetPill = playerPills[gameState.currentPlayerIndex];
+		targetPill.classList.remove('pill-payday-flash');
+		void targetPill.offsetWidth;
+		targetPill.classList.add('pill-payday-flash');
+	}
+
+	// Si el balance lateral o modal están visibles, actualizarlos en tiempo real con destello
+	renderModalSideBalance();
+	const sideCash = document.getElementById('side-bal-cash');
+	if (sideCash) {
+		sideCash.classList.remove('value-payday-flash');
+		void sideCash.offsetWidth;
+		sideCash.classList.add('value-payday-flash');
+	}
+	const modalBalance = document.getElementById('modal-balance-val');
+	if (modalBalance) {
+		modalBalance.textContent = `${formatCOP(player.cash)} COP`;
+		modalBalance.classList.remove('value-payday-flash');
+		void modalBalance.offsetWidth;
+		modalBalance.classList.add('value-payday-flash');
+	}
+
 	// Efecto visual flotante del valor del pago sobre la casilla física
 	const isParallelTwo = gameState.players.length === 2;
 	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
@@ -1679,12 +1704,12 @@ function endTurn() {
 /**
  * Renderiza el widget de balance a mano derecha mientras se muestra la tarjeta central
  */
-function renderModalSideBalance(targetPlayerIndex = null) {
+function renderModalSideBalance() {
 	const sideBalanceEl = document.getElementById('modal-side-balance');
 	if (!sideBalanceEl) return;
 
-	const pIndex = targetPlayerIndex !== null ? targetPlayerIndex : gameState.currentPlayerIndex;
-	const player = gameState.players[pIndex];
+	// Solo el balance del jugador activo en turno, sin opciones de cambio
+	const player = gameState.players[gameState.currentPlayerIndex];
 	if (!player) return;
 
 	const fin = getPlayerFinancials(player);
@@ -1697,34 +1722,10 @@ function renderModalSideBalance(targetPlayerIndex = null) {
 		avatarEl.textContent = player.avatar;
 		avatarEl.style.background = player.bg;
 	}
-	if (nameEl) {
-		nameEl.textContent = player.name + (pIndex === gameState.currentPlayerIndex ? ' (En Turno)' : '');
-	}
+	if (nameEl) nameEl.textContent = `${player.name} (Turno)`;
 	if (jobEl) jobEl.textContent = player.profession;
 
-	// Tabs si hay más de 1 jugador
-	const tabsEl = document.getElementById('side-bal-tabs');
-	if (tabsEl) {
-		if (gameState.players.length > 1) {
-			tabsEl.classList.remove('hidden');
-			tabsEl.innerHTML = gameState.players.map((p, idx) => `
-				<button type="button" class="side-bal-tab-btn ${idx === pIndex ? 'active' : ''}" data-idx="${idx}">
-					${p.avatar} ${p.name}
-				</button>
-			`).join('');
-			tabsEl.querySelectorAll('.side-bal-tab-btn').forEach(btn => {
-				btn.onclick = (e) => {
-					e.stopPropagation();
-					const idx = parseInt(btn.dataset.idx, 10);
-					renderModalSideBalance(idx);
-				};
-			});
-		} else {
-			tabsEl.classList.add('hidden');
-		}
-	}
-
-	// Métricas Clave
+	// Resumen Superior: Efectivo y Flujo Libre
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
 	if (cashEl) {
@@ -1736,23 +1737,49 @@ function renderModalSideBalance(targetPlayerIndex = null) {
 		flowEl.className = `val flow ${fin.monthlyCashFlow < 0 ? 'red' : ''}`;
 	}
 
-	// Detalle
+	// 1. INGRESOS
 	const salaryEl = document.getElementById('side-bal-salary');
 	const passiveEl = document.getElementById('side-bal-passive');
-	const expensesEl = document.getElementById('side-bal-expenses');
-	const debtEl = document.getElementById('side-bal-debt');
-	const assetsCountEl = document.getElementById('side-bal-assets-count');
-
+	const totalIncomeEl = document.getElementById('side-bal-total-income');
 	if (salaryEl) salaryEl.textContent = formatCOP(player.salary);
 	if (passiveEl) passiveEl.textContent = `+${formatCOP(fin.passiveIncome)}`;
-	if (expensesEl) expensesEl.textContent = `-${formatCOP(fin.totalExpenses)}`;
-	if (debtEl) {
-		debtEl.textContent = player.totalDebt > 0 ? `${formatCOP(player.totalDebt)}` : '$0';
-	}
+	if (totalIncomeEl) totalIncomeEl.textContent = formatCOP(fin.totalIncome);
+
+	// 2. SALIDAS / GASTOS
+	const fixedExpEl = document.getElementById('side-bal-fixed-exp');
+	const debtExpEl = document.getElementById('side-bal-debt-exp');
+	const totalExpEl = document.getElementById('side-bal-total-exp');
+	if (fixedExpEl) fixedExpEl.textContent = `-${formatCOP(player.fixedExpenses)}`;
+	if (debtExpEl) debtExpEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
+	if (totalExpEl) totalExpEl.textContent = `-${formatCOP(fin.totalExpenses)}`;
+
+	// 3. ACTIVOS
+	const assetsCountEl = document.getElementById('side-bal-assets-count');
+	const assetsListEl = document.getElementById('side-bal-assets-list');
 	if (assetsCountEl) {
 		const count = player.assets.length;
-		assetsCountEl.textContent = count === 1 ? '1 oportunidad activa' : `${count} oportunidades activas`;
+		assetsCountEl.textContent = count === 1 ? '1 negocio' : `${count} negocios`;
 	}
+	if (assetsListEl) {
+		if (player.assets.length > 0) {
+			assetsListEl.innerHTML = player.assets.map(a => `
+				<div class="k-item">
+					<span class="lbl" title="${a.title}">${a.title}</span>
+					<span class="val green">+${formatCOP(a.cashFlow || 0)}/m</span>
+				</div>
+			`).join('');
+		} else {
+			assetsListEl.innerHTML = `<span class="k-empty">Sin negocios aún</span>`;
+		}
+	}
+
+	// 4. PASIVOS
+	const totalDebtEl = document.getElementById('side-bal-total-debt');
+	const debtValEl = document.getElementById('side-bal-debt-val');
+	const debtPayEl = document.getElementById('side-bal-debt-payment');
+	if (totalDebtEl) totalDebtEl.textContent = player.totalDebt > 0 ? `${formatCOP(player.totalDebt)}` : '$0';
+	if (debtValEl) debtValEl.textContent = player.totalDebt > 0 ? `${formatCOP(player.totalDebt)}` : '$0';
+	if (debtPayEl) debtPayEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}/m` : '$0/m';
 
 	sideBalanceEl.classList.add('active');
 }
