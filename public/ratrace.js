@@ -28,241 +28,245 @@ const AVATARS = [
 	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#e11d48', bg: 'rgba(225, 29, 72, 0.12)' }
 ];
 
-// Profesiones en Colombia (Base: Salario Mínimo $1.750.000 COP)
-const PROFESSIONS = [
-	{
-		title: 'Chef de Repostería',
-		salary: 2800000,
-		fixedExpenses: 1800000,
-		savings: 1400000,
-		icon: '👨‍🍳'
-	},
-	{
-		title: 'Profesor(a) de Colegio',
-		salary: 2400000,
-		fixedExpenses: 1600000,
-		savings: 1200000,
-		icon: '👩‍🏫'
-	},
-	{
-		title: 'Ingeniero(a) de Software',
-		salary: 4800000,
-		fixedExpenses: 3100000,
-		savings: 2500000,
-		icon: '💻'
-	},
-	{
-		title: 'Diseñador(a) Gráfico',
-		salary: 2900000,
-		fixedExpenses: 1950000,
-		savings: 1300000,
-		icon: '🎨'
-	},
-	{
-		title: 'Administrador(a) de Empresas',
-		salary: 3500000,
-		fixedExpenses: 2300000,
-		savings: 1800000,
-		icon: '📊'
-	},
-	{
-		title: 'Especialista en Ventas',
-		salary: 3100000,
-		fixedExpenses: 2050000,
-		savings: 1500000,
-		icon: '🛍️'
-	}
+// Trabajos iniciales para los jugadores
+// Sueldo base: $400.000 COP, Gastos básicos: $400.000 COP -> ¡El flujo mensual empieza en exactamente 0!
+const STARTER_JOBS = [
+	{ title: 'Ayudante de Repostería 👨‍🍳', salary: 400000, icon: '👨‍🍳' },
+	{ title: 'Asistente de Tienda 🏪', salary: 400000, icon: '🏪' },
+	{ title: 'Aprendiz de Diseño 🎨', salary: 400000, icon: '🎨' },
+	{ title: 'Auxiliar de Oficina 💻', salary: 400000, icon: '💻' },
+	{ title: 'Atención al Cliente 🎧', salary: 400000, icon: '🎧' },
+	{ title: 'Asistente de Bodega 📦', salary: 400000, icon: '📦' }
 ];
 
-// Tipos de casillas oficiales CashFlow
+// Opciones de Nuevo Trabajo para cambiar de empleo con diferentes sueldos
+const NEW_JOBS = [
+	{ title: 'Barista en Cafetería ☕', salary: 520000, desc: 'Preparando cafés especiales y malteadas deliciosas.' },
+	{ title: 'Pastelero en Sweet Lab 🍰', salary: 600000, desc: 'Creando tortas decoradas y postres para eventos.' },
+	{ title: 'Programador Junior 💻', salary: 750000, desc: 'Creando aplicaciones móviles y páginas web modernas.' },
+	{ title: 'Fotógrafo de Moda 📸', salary: 580000, desc: 'Tomando fotos para marcas juveniles y redes sociales.' },
+	{ title: 'Técnico de Celulares 📱', salary: 650000, desc: 'Arreglando pantallas y repuestos de teléfonos.' },
+	{ title: 'Diseñador Digital 🎨', salary: 700000, desc: 'Diseñando marcas, logos y publicidad para internet.' },
+	{ title: 'Administrador de Local 🏪', salary: 680000, desc: 'Coordinando el equipo y las ventas de la tienda.' },
+	{ title: 'Entrenador Deportivo ⚽', salary: 550000, desc: 'Guiando entrenamientos y partidos de fútbol juvenil.' },
+	{ title: 'Profesor de Música 🎸', salary: 500000, desc: 'Enseñando guitarra, piano y canto a nuevos talentos.' },
+	{ title: 'Repartidor Express 🛵', salary: 480000, desc: 'Entregando pedidos rápidos por toda la ciudad.' },
+	{ title: 'Auxiliar Veterinario 🐾', salary: 530000, desc: 'Cuidando perritos, gatos y animales en la clínica.' },
+	{ title: 'Piloto de Drones 🛸', salary: 800000, desc: 'Grabando tomas aéreas para películas y comerciales.' }
+];
+
+// Ascensos dentro del trabajo con mejor pago y bono sorpresa
+const PROMOTIONS = [
+	{ title: '¡Coordinador de Turno! ⭐', desc: 'Te nombraron líder de tu turno por tu compromiso y puntualidad.', raise: 80000, bonus: 40000 },
+	{ title: '¡Empleado del Mes! 🏆', desc: 'Recibes reconocimiento oficial con aumento de sueldo.', raise: 100000, bonus: 50000 },
+	{ title: '¡Subiste de Nivel! 🚀', desc: 'Superaste las metas del mes y te asignaron mejor categoría laboral.', raise: 120000, bonus: 60000 },
+	{ title: '¡Especialista Senior! 🎖️', desc: 'Tus clientes te calificaron con 5 estrellas y tu jefe te subió el sueldo.', raise: 150000, bonus: 80000 },
+	{ title: '¡Mano Derecha del Jefe! 💼', desc: 'Ahora ayudas en la toma de decisiones con un pago mucho mayor.', raise: 90000, bonus: 45000 }
+];
+
+// Tipos de casillas físicas del camino (Pocas palabras, lenguaje familiar y juvenil)
 const TILE_TYPES = {
 	payday: {
 		type: 'payday',
 		styleClass: 'tile-color-payday',
 		name: 'DÍA DE PAGO',
 		icon: '💰',
-		sub: '+Flujo de Caja',
-		badge: 'Cobro Mensual'
+		sub: 'Cobras tu plata',
+		badge: 'Cobro'
 	},
 	opportunity: {
 		type: 'opportunity',
 		styleClass: 'tile-color-opportunity',
-		name: 'OPORTUNIDAD',
+		name: 'NEGOCIO',
 		icon: '🚀',
-		sub: 'Comprar Activos',
+		sub: 'Gana más al mes',
 		badge: 'Inversión'
+	},
+	job: {
+		type: 'job',
+		styleClass: 'tile-color-job',
+		name: 'NUEVO EMPLEO',
+		icon: '💼',
+		sub: 'Cambiar de trabajo',
+		badge: 'Empleo'
+	},
+	promotion: {
+		type: 'promotion',
+		styleClass: 'tile-color-promotion',
+		name: 'ASCENSO',
+		icon: '⭐',
+		sub: '¡Mejor sueldo!',
+		badge: 'Aumento'
 	},
 	doodad: {
 		type: 'doodad',
 		styleClass: 'tile-color-doodad',
-		name: 'CAPRICHO',
+		name: 'ANTOJO',
 		icon: '🛍️',
-		sub: 'Gasto Imprevisto',
-		badge: 'Gasto Pasivo'
+		sub: 'Gasto de salida',
+		badge: 'Capricho'
 	},
 	market: {
 		type: 'market',
 		styleClass: 'tile-color-market',
-		name: 'EL MERCADO',
+		name: 'VENTA',
 		icon: '📈',
-		sub: 'Vender con Ganancia',
-		badge: 'Liquidación'
+		sub: 'Compran tu negocio',
+		badge: 'Ganancia'
 	},
 	charity: {
 		type: 'charity',
 		styleClass: 'tile-color-charity',
-		name: 'CARIDAD',
+		name: 'REGALO',
 		icon: '🎁',
-		sub: 'Donar / Impulso',
+		sub: 'Buena energía',
 		badge: 'Solidaridad'
 	},
 	crisis: {
 		type: 'crisis',
 		styleClass: 'tile-color-crisis',
-		name: 'DESPIDO',
-		icon: '🚨',
-		sub: 'Pérdida de Turno',
-		badge: 'Cesantía'
+		name: 'PAUSA',
+		icon: '⏸️',
+		sub: 'Descansas 1 turno',
+		badge: 'Pausa'
 	}
 };
 
-// Barajas de cartas
+// Barajas de cartas adaptadas al capital inicial ($100.000 COP)
 const SMALL_DEALS = [
 	{
-		title: 'Máquina de Dulces y Snacks 🍬',
+		title: 'Máquina de Dulces y Chicles 🍬',
 		type: 'business',
-		desc: 'Una máquina automática que vende postres solita en un centro comercial.',
-		cost: 2500000,
-		downPayment: 2500000,
-		cashFlow: 380000,
+		desc: 'Una máquina automática que vende solita en un centro comercial.',
+		cost: 80000,
+		downPayment: 80000,
+		cashFlow: 25000,
 		category: 'Negocio Automático'
 	},
 	{
-		title: 'Tienda Online de Tortas y Postres 🍰',
+		title: 'Puesto de Cupcakes y Postres 🧁',
 		type: 'business',
-		desc: 'Una página web que recibe pedidos de postres a domicilio todos los días.',
-		cost: 2000000,
-		downPayment: 2000000,
-		cashFlow: 320000,
+		desc: 'Vendes cajitas de postres a tus vecinos y amigos cada semana.',
+		cost: 50000,
+		downPayment: 50000,
+		cashFlow: 18000,
 		category: 'Emprendimiento'
 	},
 	{
-		title: 'Acciones Sweet Lab Colombia 📈',
+		title: 'Acciones Sweet Lab 📈',
 		type: 'stock',
 		ticker: 'SWT',
-		desc: 'Compras una partecita de una empresa y recibes ganancias cada mes.',
-		cost: 1500000,
-		downPayment: 1500000,
-		cashFlow: 220000,
+		desc: 'Compraste una partecita de Sweet Lab y recibes ganancias cada mes.',
+		cost: 100000,
+		downPayment: 100000,
+		cashFlow: 30000,
 		category: 'Acciones'
 	},
 	{
-		title: 'Ahorro con Intereses Seguros 🏦',
-		type: 'fund',
-		desc: 'Dinero guardado en el banco que te genera una ganancia fija mensual.',
-		cost: 3000000,
-		downPayment: 3000000,
-		cashFlow: 350000,
-		category: 'Ahorro Seguro'
-	},
-	{
-		title: 'Monedas de Oro de Colección 🪙',
-		type: 'precious_metal',
-		desc: 'Monedas de oro fino para guardar y vender más caras cuando suba El Mercado.',
-		cost: 1800000,
-		downPayment: 1800000,
-		cashFlow: 0,
-		category: 'Oro y Ahorro'
-	},
-	{
-		title: 'Carrito de Helados y Café 🍦',
+		title: 'Carrito de Limonada y Helados 🍦',
 		type: 'business',
-		desc: 'Un carrito móvil que atiende en el parque y te entrega ganancias todos los meses.',
-		cost: 3200000,
-		downPayment: 3200000,
-		cashFlow: 450000,
+		desc: 'Un carrito móvil que vende en los días soleados del parque.',
+		cost: 120000,
+		downPayment: 120000,
+		cashFlow: 40000,
 		category: 'Negocio Local'
 	},
 	{
-		title: 'Club de Recetas Gourmet ⭐',
+		title: 'Tienda de Stickers y Diseños 🎨',
 		type: 'business',
-		desc: 'Personas que pagan una cuota mensual por recibir recetas y postres sorpresa.',
-		cost: 1800000,
-		downPayment: 1800000,
-		cashFlow: 290000,
-		category: 'Club Digital'
+		desc: 'Imprimes calcomanías geniales que compran jóvenes y estudiantes.',
+		cost: 60000,
+		downPayment: 60000,
+		cashFlow: 22000,
+		category: 'Diseño'
 	},
 	{
-		title: 'Apartaestudio para Alquilar 🏠',
+		title: 'Alquiler de Consolas y Juegos 🎮',
+		type: 'business',
+		desc: 'Tus amigos pagan por jugar torneos de videojuegos los fines de semana.',
+		cost: 150000,
+		downPayment: 150000,
+		cashFlow: 50000,
+		category: 'Entretenimiento'
+	},
+	{
+		title: 'Canal de Videos y Reseñas 📱',
+		type: 'business',
+		desc: 'Creas videos entretenidos y las marcas te pagan publicidad mensual.',
+		cost: 180000,
+		downPayment: 180000,
+		cashFlow: 65000,
+		category: 'Redes Sociales'
+	},
+	{
+		title: 'Habitación para Alquilar 🏠',
 		type: 'property',
 		propertyType: 'apartaestudio',
-		desc: 'Un apartamento pequeño que alquilas a un estudiante y te paga arriendo fijo.',
-		cost: 4000000,
-		downPayment: 4000000,
-		cashFlow: 520000,
+		desc: 'Una habitación pequeña que alquilas y te pagan arriendo puntual.',
+		cost: 250000,
+		downPayment: 250000,
+		cashFlow: 85000,
 		category: 'Propiedad Raíz'
 	}
 ];
 
 const DOODADS = [
 	{
-		title: 'Nuevo Teléfono Inteligente 📱',
-		desc: 'Compraste un celular nuevo de moda para estrenar con amigos.',
-		cost: 1500000
+		title: 'Salida de Helados con Amigos 🍨',
+		desc: 'Fuiste por unos helados gigantes después de clase.',
+		cost: 20000
 	},
 	{
-		title: 'Salida de Helados y Cine en Familia 🍨',
-		desc: 'Invitaste a todos a comer postres gigantes y ver una película.',
-		cost: 350000
+		title: 'Entrada a Cine con Crispetas 🍿',
+		desc: 'Fuiste a ver la película de moda en pantalla gigante.',
+		cost: 30000
 	},
 	{
-		title: 'Mantenimiento del Carro o Moto 🚗',
-		desc: 'Tuviste que arreglarle una llanta y hacer mantenimiento de urgencia.',
-		cost: 650000
+		title: 'Audífonos Bluetooth Nuevos 🎧',
+		desc: 'Se te dañaron los viejos y te compraste unos de tu color favorito.',
+		cost: 45000
 	},
 	{
-		title: 'Televisor Gigante en Promoción 📺',
-		desc: 'Viste una pantalla enorme en descuento y decidiste comprarla hoy.',
-		cost: 1800000
+		title: 'Hamburguesa y Malteada Especial 🍔',
+		desc: 'Un antojito delicioso de fin de semana para celebrar.',
+		cost: 25000
 	},
 	{
-		title: 'Muchos Cafés y Dulces en la Calle ☕',
-		desc: 'Compras pequeñas diarias de café y snacks acumuladas en la semana.',
-		cost: 250000
+		title: 'Gorra o Camiseta con Estilo 🧢',
+		desc: 'Viste una prenda en descuento que te combinaba perfecto.',
+		cost: 35000
 	},
 	{
-		title: 'Zapatos y Ropa de Moda 👟',
-		desc: 'Compraste unos tenis nuevos que te gustaron en el centro comercial.',
-		cost: 550000
+		title: 'Snacks y Chocolates de la Semana 🍫',
+		desc: 'Pequeñas compras dulces que se sumaron día a día.',
+		cost: 15000
 	}
 ];
 
 const MARKET_EVENTS = [
 	{
-		title: '¡Comprador para tu Apartaestudio! 🏠',
-		desc: 'Un fondo busca apartamentos pequeños y te paga una gran ganancia en efectivo.',
-		appliesTo: 'apartaestudio',
-		salePrice: 15000000,
-		netGain: 11000000
+		title: '¡Compran tu Habitación en Alquiler! 🏠',
+		desc: 'Un inversionista te compra la habitación por el doble de lo que te costó.',
+		appliesTo: 'Propiedad Raíz',
+		salePrice: 500000
 	},
 	{
 		title: '¡Suben las Acciones de Sweet Lab! 📈',
-		desc: 'La empresa crece mucho en Colombia y puedes vender tus acciones por el triple.',
-		appliesTo: 'stock_SWT',
-		salePrice: 4500000,
-		netGain: 3000000
+		desc: 'La empresa abrió nuevas tiendas y tus acciones valen el triple.',
+		appliesTo: 'Acciones',
+		salePrice: 300000
 	},
 	{
-		title: '¡Subasta de Oro de Colección! 🪙',
-		desc: 'Coleccionistas pagan una fortuna por monedas de oro fino hoy.',
-		appliesTo: 'precious_metal',
-		salePrice: 4500000,
-		netGain: 2700000
+		title: '¡Compran tu Negocio de Cupcakes! 🧁',
+		desc: 'Una cafetería vecina te ofrece una excelente oferta para quedarse con tu puesto.',
+		appliesTo: 'Emprendimiento',
+		salePrice: 150000
 	},
 	{
-		title: 'Mercado Estable y Tranquilo 🌤️',
-		desc: 'La economía está en calma. ¡Sigue comprando negocios en las casillas verdes!',
-		appliesTo: null
+		title: '¡Compran tu Máquina de Dulces! 🍬',
+		desc: 'Un centro comercial te compra la máquina con todo y dulces.',
+		appliesTo: 'Negocio Automático',
+		salePrice: 220000
 	}
 ];
 
@@ -390,7 +394,7 @@ function extendPerspectiveRoad(countToAdd = 25) {
 
 function pickTileForIndex(index) {
 	if (index === 0) {
-		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • DÍA DE PAGO', badge: 'Inicio' };
+		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • PAGO', badge: 'Inicio' };
 	}
 
 	if (index % 6 === 0) {
@@ -403,15 +407,15 @@ function pickTileForIndex(index) {
 
 	switch (cycle) {
 		case 1: typeKey = 'opportunity'; break;
-		case 2: typeKey = 'doodad'; break;
-		case 3: typeKey = 'market'; break;
-		case 4: typeKey = 'opportunity'; break;
-		case 5: typeKey = 'charity'; break;
-		case 7: typeKey = 'doodad'; break;
-		case 8: typeKey = 'opportunity'; break;
-		case 9: typeKey = 'crisis'; break;
-		case 10: typeKey = 'market'; break;
-		case 11: typeKey = 'opportunity'; break;
+		case 2: typeKey = 'job'; break;
+		case 3: typeKey = 'doodad'; break;
+		case 4: typeKey = 'promotion'; break;
+		case 5: typeKey = 'opportunity'; break;
+		case 7: typeKey = 'market'; break;
+		case 8: typeKey = 'job'; break;
+		case 9: typeKey = 'opportunity'; break;
+		case 10: typeKey = 'promotion'; break;
+		case 11: typeKey = 'charity'; break;
 		default: typeKey = 'opportunity';
 	}
 
@@ -621,13 +625,13 @@ function closeBalanceDrawer() {
 function startGame() {
 	const count = parseInt(document.querySelector('.setup-count-btn.active')?.dataset.count || '2', 10);
 	const players = [];
-	const shuffledProfessions = [...PROFESSIONS].sort(() => 0.5 - Math.random());
+	const shuffledJobs = [...STARTER_JOBS].sort(() => 0.5 - Math.random());
 
 	for (let i = 0; i < count; i++) {
 		const nameInput = document.getElementById(`player-input-${i}`);
 		const name = (nameInput?.value || `Jugador ${i + 1}`).trim();
 		const avatar = AVATARS[i];
-		const prof = shuffledProfessions[i % shuffledProfessions.length];
+		const job = shuffledJobs[i % shuffledJobs.length];
 
 		players.push({
 			id: i,
@@ -635,12 +639,12 @@ function startGame() {
 			avatar: avatar.emoji,
 			color: avatar.color,
 			bg: avatar.bg,
-			profession: prof.title,
-			salary: prof.salary,
-			fixedExpenses: prof.fixedExpenses,
+			profession: job.title,
+			salary: job.salary,
+			fixedExpenses: job.salary, // Igual al sueldo para que el flujo neto mensual comience exactamente en 0!
 			debtExpenses: 0,
 			totalDebt: 0,
-			cash: prof.savings,
+			cash: 100000, // ¡Efectivo inicial en exactamente 100.000 COP!
 			position: 0,
 			assets: [],
 			skipTurns: 0
@@ -836,7 +840,7 @@ function updateHUDAndHeaders() {
 	const current = gameState.players[gameState.currentPlayerIndex];
 	const pill = document.getElementById('floating-status-pill');
 	const monthNum = Math.floor(current.position / 6) + 1;
-	pill.textContent = `Turno de ${current.name} • Casilla de ${current.profession} (Mes ${monthNum})`;
+	pill.textContent = `Turno de ${current.name} • ${current.profession} (Mes ${monthNum})`;
 
 	// Resaltar casilla activa
 	document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
@@ -848,11 +852,11 @@ function updateHUDAndHeaders() {
 	const btnRoll = document.getElementById('btn-roll-dice');
 	if (current.skipTurns > 0) {
 		btnRoll.disabled = true;
-		pill.textContent = `⚠️ ${current.name} en cesantía temporal. Pierde el turno.`;
+		pill.textContent = `⏸️ ${current.name} está descansando este turno.`;
 		setTimeout(() => {
 			current.skipTurns--;
 			endTurn();
-		}, 2000);
+		}, 1800);
 	} else {
 		btnRoll.disabled = false;
 	}
@@ -999,6 +1003,12 @@ function handleLanding(player, tile) {
 		case 'opportunity':
 			showOpportunityModal(player);
 			break;
+		case 'job':
+			showJobModal(player);
+			break;
+		case 'promotion':
+			showPromotionModal(player);
+			break;
 		case 'doodad':
 			showDoodadModal(player);
 			break;
@@ -1024,24 +1034,115 @@ function collectPayday(player, isLanding) {
 	updateHUDAndHeaders();
 
 	if (isLanding) {
+		const isZeroFlow = fin.monthlyCashFlow === 0;
 		showModal({
 			headerClass: 'payday',
 			icon: '💰',
 			title: '¡DÍA DE PAGO!',
-			subtitle: '¡Llegó tu dinero del mes!',
-			desc: `Recibes tu sueldo mensual y las ganancias de todos tus negocios juntos.`,
+			subtitle: 'Fin de Mes',
+			desc: isZeroFlow
+				? `Tus ingresos cubrieron exactamente tus gastos del mes.<br><br>💡 <em>¡Consigue un ascenso, cambia a un trabajo mejor o compra un negocio para empezar a guardar plata cada mes!</em>`
+				: `¡Llegó tu plata del mes! Cobraste tu sueldo y las ganancias de todos tus negocios.`,
 			stats: [
-				{ label: '💵 Ganancia que cobras hoy:', value: `+${formatCOP(fin.monthlyCashFlow)} COP`, color: 'green' },
-				{ label: '🏦 Tu dinero total en el bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
+				{ label: '💵 Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)} COP`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
+				{ label: '🏦 Total en tu bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
 			],
 			buttons: [
-				{ text: '¡Cobrar y Continuar! ➔', action: () => { closeModal(() => endTurn()); } }
+				{ text: '¡Guardar Plata y Seguir! ➔', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 	}
 }
 
-// 2. Oportunidad Directa (Solo Oportunidades Pequeñas)
+// 2. Nuevo Trabajo / Cambio de Empleo
+function showJobModal(player) {
+	const eligible = NEW_JOBS.filter(j => j.title !== player.profession);
+	const newJob = pickRandom(eligible.length ? eligible : NEW_JOBS);
+
+	const currentSalary = player.salary;
+	const diff = newJob.salary - currentSalary;
+
+	const stats = [
+		{ label: '💼 Empleo propuesto:', value: newJob.title },
+		{ label: '💵 Sueldo nuevo:', value: `${formatCOP(newJob.salary)} / mes` }
+	];
+
+	if (diff > 0) {
+		stats.push({ label: '📈 Tu ganancia mensual mejora:', value: `+${formatCOP(diff)} / mes más`, color: 'green' });
+	} else if (diff < 0) {
+		stats.push({ label: '📉 Tu ganancia mensual bajaría:', value: `-${formatCOP(Math.abs(diff))} / mes`, color: 'red' });
+	} else {
+		stats.push({ label: '⚖️ Ganancia mensual:', value: 'Mismo sueldo', color: '' });
+	}
+
+	showModal({
+		headerClass: 'job',
+		icon: '💼',
+		title: '¡OFERTA DE TRABAJO!',
+		subtitle: newJob.title,
+		desc: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)} COP/mes</strong>.`,
+		stats: stats,
+		buttons: [
+			{
+				text: '¡Aceptar este Trabajo! 💼',
+				class: 'primary',
+				action: () => {
+					player.profession = newJob.title;
+					player.salary = newJob.salary;
+					sounds.cash();
+					updateHUDAndHeaders();
+					showModal({
+						headerClass: 'job',
+						icon: '🎉',
+						title: '¡ESTRENAS TRABAJO!',
+						subtitle: newJob.title,
+						desc: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)} COP</strong> al mes.`,
+						buttons: [
+							{ text: '¡Continuar Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
+						]
+					});
+				}
+			},
+			{
+				text: 'Quedarme en mi trabajo actual ➔',
+				class: 'secondary',
+				action: () => { closeModal(() => endTurn()); }
+			}
+		]
+	});
+}
+
+// 3. Ascenso en el Trabajo
+function showPromotionModal(player) {
+	const promo = pickRandom(PROMOTIONS);
+
+	showModal({
+		headerClass: 'promotion',
+		icon: '⭐',
+		title: '¡TE ASCENDIERON!',
+		subtitle: promo.title,
+		desc: `¡Felicitaciones! ${promo.desc}`,
+		stats: [
+			{ label: '📈 Tu sueldo sube:', value: `+${formatCOP(promo.raise)} / mes`, color: 'green' },
+			{ label: '🎁 Bono sorpresa en efectivo:', value: `+${formatCOP(promo.bonus)} en mano`, color: 'green' }
+		],
+		buttons: [
+			{
+				text: '¡Celebrar y Recibir Aumento! 🎉',
+				class: 'primary',
+				action: () => {
+					player.salary += promo.raise;
+					player.cash += promo.bonus;
+					sounds.cash();
+					updateHUDAndHeaders();
+					closeModal(() => endTurn());
+				}
+			}
+		]
+	});
+}
+
+// 4. Negocio / Inversión
 function showOpportunityModal(player) {
 	const deal = pickRandom(SMALL_DEALS);
 	presentDeal(player, deal);
@@ -1051,14 +1152,9 @@ function presentDeal(player, deal) {
 	const canAfford = player.cash >= deal.downPayment;
 
 	const stats = [
-		{ label: '💰 Pagas hoy (Inversión):', value: `${formatCOP(deal.downPayment)} COP` }
+		{ label: '💰 Pagas hoy:', value: `${formatCOP(deal.downPayment)} COP` },
+		{ label: '📈 Ganas cada mes:', value: `+${formatCOP(deal.cashFlow)} COP / mes`, color: 'green' }
 	];
-
-	if (deal.cashFlow > 0) {
-		stats.push({ label: '📈 Ganancia extra cada mes:', value: `+${formatCOP(deal.cashFlow)} COP / mes`, color: 'green' });
-	} else {
-		stats.push({ label: '✨ Plusvalía esperada:', value: '¡Véndelo en El Mercado con gran ganancia!', color: 'green' });
-	}
 
 	const buttons = [];
 	if (canAfford) {
@@ -1073,9 +1169,9 @@ function presentDeal(player, deal) {
 				showModal({
 					headerClass: 'opportunity',
 					icon: '🎉',
-					title: '¡FELICITACIONES!',
+					title: '¡NUEVO NEGOCIO!',
 					subtitle: deal.title,
-					desc: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> cada mes en tu Día de Pago.`,
+					desc: `¡Excelente compra! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> todos los meses en tu Día de Pago.`,
 					buttons: [
 						{ text: '¡Continuar Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
 					]
@@ -1100,16 +1196,16 @@ function presentDeal(player, deal) {
 
 	showModal({
 		headerClass: 'opportunity',
-		icon: '💼',
-		title: deal.title,
-		subtitle: deal.category || 'Oportunidad',
+		icon: '🚀',
+		title: '¡BUEN NEGOCIO!',
+		subtitle: deal.title,
 		desc: deal.desc,
 		stats: stats,
 		buttons: buttons
 	});
 }
 
-// 3. Caprichos (Doodads)
+// 5. Antojos (Doodads)
 function showDoodadModal(player) {
 	const doodad = pickRandom(DOODADS);
 	player.cash -= doodad.cost;
@@ -1119,20 +1215,20 @@ function showDoodadModal(player) {
 	showModal({
 		headerClass: 'doodad',
 		icon: '🛍️',
-		title: '¡GASTO IMPREVISTO!',
+		title: '¡UN ANTOJITO!',
 		subtitle: doodad.title,
-		desc: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Cuidar los gastos pequeños te ayuda a tener más dinero para comprar negocios.</small>`,
+		desc: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para los negocios te ayuda a ganar más rápido.</small>`,
 		stats: [
-			{ label: '💸 Dinero pagado hoy:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
-			{ label: '🏦 Te queda en efectivo:', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
+			{ label: '💸 Pagaste en efectivo:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
+			{ label: '🏦 Te queda en bolsillo:', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
 		],
 		buttons: [
-			{ text: 'Entendido y Continuar ➔', action: () => { closeModal(() => endTurn()); } }
+			{ text: '¡Seguir Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
 
-// 4. El Mercado
+// 6. El Mercado / Venta
 function showMarketModal(player) {
 	const event = pickRandom(MARKET_EVENTS);
 
@@ -1151,9 +1247,10 @@ function showMarketModal(player) {
 	}
 
 	const eligibleIndex = player.assets.findIndex(a => {
-		if (event.appliesTo === 'apartaestudio' && (a.category === 'Propiedad Raíz' || a.title?.includes('Apartaestudio') || a.propertyType === 'apartaestudio')) return true;
-		if (event.appliesTo === 'stock_SWT' && (a.category === 'Acciones' || a.ticker === 'SWT')) return true;
-		if (event.appliesTo === 'precious_metal' && (a.category === 'Oro y Ahorro' || a.type === 'precious_metal' || a.title?.includes('Oro'))) return true;
+		if (event.appliesTo === 'Propiedad Raíz' && (a.category === 'Propiedad Raíz' || a.title?.includes('Habitación'))) return true;
+		if (event.appliesTo === 'Acciones' && (a.category === 'Acciones' || a.title?.includes('Sweet Lab'))) return true;
+		if (event.appliesTo === 'Emprendimiento' && (a.category === 'Emprendimiento' || a.title?.includes('Cupcakes'))) return true;
+		if (event.appliesTo === 'Negocio Automático' && (a.category === 'Negocio Automático' || a.title?.includes('Máquina'))) return true;
 		return false;
 	});
 
@@ -1162,8 +1259,8 @@ function showMarketModal(player) {
 			headerClass: 'market',
 			icon: '📈',
 			title: event.title,
-			subtitle: 'Oportunidad de Venta',
-			desc: `Un comprador está buscando negocios o propiedades, pero tú aún no tienes este activo.<br><br><em>¡Asegúrate de comprar en las casillas verdes para vender cuando haya auge!</em>`,
+			subtitle: 'Oferta de Compra',
+			desc: `Un comprador está buscando adquirir negocios, pero tú aún no tienes este activo.<br><br><em>¡Asegúrate de invertir en las casillas verdes para vender cuando haya compradores!</em>`,
 			buttons: [
 				{ text: '¡Entendido! ➔', action: () => { closeModal(() => endTurn()); } }
 			]
@@ -1176,15 +1273,14 @@ function showMarketModal(player) {
 		headerClass: 'market',
 		icon: '💰',
 		title: event.title,
-		subtitle: `¡Alguien quiere comprarte: ${asset.title}!`,
-		desc: `Hay un comprador interesado en comprar tu negocio hoy mismo. ¿Quieres venderlo y recibir una buena suma de dinero?`,
+		subtitle: `¡Quieren comprar: ${asset.title}!`,
+		desc: `Hay un comprador interesado en tu negocio hoy mismo. ¿Quieres venderlo y recibir una buena plata en mano?`,
 		stats: [
-			{ label: '💰 Te pagan en efectivo:', value: `${formatCOP(event.salePrice)} COP`, color: 'green' },
-			{ label: '✨ Tu ganancia libre:', value: `+${formatCOP(event.netGain)} COP`, color: 'green' }
+			{ label: '💰 Te pagan en efectivo:', value: `${formatCOP(event.salePrice)} COP`, color: 'green' }
 		],
 		buttons: [
 			{
-				text: '¡Vender y Recibir Dinero! 💰',
+				text: '¡Vender y Cobrar! 💰',
 				class: 'primary',
 				action: () => {
 					player.assets.splice(eligibleIndex, 1);
@@ -1195,8 +1291,8 @@ function showMarketModal(player) {
 						headerClass: 'market',
 						icon: '🎉',
 						title: '¡VENTA EXITOSA!',
-						subtitle: `Ganancia: +${formatCOP(event.netGain)} COP`,
-						desc: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)} COP</strong> en efectivo para invertir en cosas mayores.`,
+						subtitle: asset.title,
+						desc: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)} COP</strong> en efectivo para comprar nuevos negocios.`,
 						buttons: [{ text: 'Continuar ➔', action: () => { closeModal(() => endTurn()); } }]
 					});
 				}
@@ -1210,39 +1306,35 @@ function showMarketModal(player) {
 	});
 }
 
-// 5. Caridad
+// 7. Regalo / Solidaridad
 function showCharityModal(player) {
-	const donation = Math.round(player.salary * 0.1);
+	const donation = 20000;
 	const canAfford = player.cash >= donation;
 
 	showModal({
 		headerClass: 'charity',
 		icon: '🎁',
-		title: '¡BUENA ACCIÓN Y CARIDAD!',
+		title: '¡BUENA ONDA Y SOLIDARIDAD!',
 		subtitle: 'Ayudar a los Demás',
-		desc: `Donas un 10% de tu sueldo (<strong>${formatCOP(donation)} COP</strong>) a una causa noble. Por tu generosidad, recibes una bonificación inmediata de agradecimiento.`,
+		desc: `Donas <strong>${formatCOP(donation)} COP</strong> para apoyar a una fundación y te devuelven una sorpresa de agradecimiento.`,
 		stats: [
-			{ label: 'Donación que aportas:', value: `${formatCOP(donation)} COP` },
-			{ label: '🎁 Regalo que recibes de vuelta:', value: `+${formatCOP(Math.round(donation * 1.5))} COP`, color: 'green' }
+			{ label: 'Donación voluntaria:', value: `${formatCOP(donation)} COP` },
+			{ label: '🎁 Bono de agradecimiento:', value: `+${formatCOP(30000)} COP`, color: 'green' }
 		],
 		buttons: [
-			{
+			...(canAfford ? [{
 				text: `¡Donar con Alegría! 🎁 (${formatCOP(donation)})`,
 				class: 'primary',
 				action: () => {
-					if (!canAfford) {
-						alert('No tienes suficiente efectivo para donar en este momento.');
-						return;
-					}
 					player.cash -= donation;
-					player.cash += Math.round(donation * 1.5);
+					player.cash += 30000;
 					sounds.cash();
 					updateHUDAndHeaders();
 					closeModal(() => endTurn());
 				}
-			},
+			}] : []),
 			{
-				text: 'Esta vez no ➔',
+				text: 'Paso por ahora ➔',
 				class: 'secondary',
 				action: () => { closeModal(() => endTurn()); }
 			}
@@ -1250,26 +1342,24 @@ function showCharityModal(player) {
 	});
 }
 
-// 6. Despido / Crisis
+// 8. Pausa / Descanso
 function showCrisisModal(player) {
-	const cost = player.fixedExpenses;
-	player.cash -= cost;
 	player.skipTurns = 1;
 	sounds.loss();
 	updateHUDAndHeaders();
 
 	showModal({
 		headerClass: 'crisis',
-		icon: '🚨',
-		title: '¡PAUSA TEMPORAL!',
-		subtitle: 'Pérdida de un Turno',
-		desc: `Tomas un descanso este mes para buscar nuevos clientes y reorganizarte.`,
+		icon: '⏸️',
+		title: '¡PAUSA DE UN TURNO!',
+		subtitle: 'Descanso Merecido',
+		desc: `Te tomas unos días de vacaciones para recargar pilas, compartir con amigos y pensar nuevas metas.`,
 		stats: [
-			{ label: '💸 Gastos del mes cubiertos:', value: `-${formatCOP(cost)} COP`, color: 'red' },
-			{ label: '🏦 Efectivo que te queda:', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
+			{ label: '⏳ Descanso:', value: '1 turno de pausa' },
+			{ label: '🏦 Tu plata sigue a salvo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
 		],
 		buttons: [
-			{ text: '¡Seguimos Adelante! ➔', action: () => { closeModal(() => endTurn()); } }
+			{ text: '¡Descansar y Continuar! ➔', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
@@ -1280,23 +1370,23 @@ function showCrisisModal(player) {
 
 function showLoanModal(callbackAfterLoan) {
 	const player = gameState.players[gameState.currentPlayerIndex];
-	const loanBlock = 1000000;
-	const interest = loanBlock * 0.03;
+	const loanBlock = 100000;
+	const interest = 5000;
 
 	showModal({
 		headerClass: 'opportunity',
 		icon: '🏦',
 		title: 'BANCO SWEET LAB 🏦',
-		subtitle: 'Préstamo de Inversión',
-		desc: `Pide dinero prestado al banco para comprar un negocio que te dé ganancias. Pagas un pequeño interés mensual de $30.000 COP por cada millón prestado.`,
+		subtitle: 'Préstamo Amigo',
+		desc: `Pide dinero prestado para comprar un negocio que te dé ganancias. Pagas una pequeña cuota mensual de $5.000 COP por cada $100.000 COP prestados.`,
 		stats: [
-			{ label: '💵 Dinero que te entregan hoy:', value: '+$1.000.000 COP', color: 'green' },
-			{ label: 'Interés mensual que pagarás:', value: '$30.000 COP / mes', color: 'red' },
-			{ label: 'Tu deuda bancaria total:', value: formatCOP(player.totalDebt) }
+			{ label: '💵 Dinero que te entregan:', value: '+100.000 COP', color: 'green' },
+			{ label: '💸 Cuota mensual que pagas:', value: '$5.000 COP / mes', color: 'red' },
+			{ label: 'Tu deuda total:', value: formatCOP(player.totalDebt) }
 		],
 		buttons: [
 			{
-				text: 'Pedir $1.000.000 COP al Banco',
+				text: 'Pedir $100.000 COP al Banco',
 				class: 'primary',
 				action: () => {
 					player.cash += loanBlock;
@@ -1309,13 +1399,13 @@ function showLoanModal(callbackAfterLoan) {
 				}
 			},
 			{
-				text: 'Pedir $5.000.000 COP al Banco',
+				text: 'Pedir $200.000 COP al Banco',
 				class: 'primary',
 				action: () => {
-					const block5 = loanBlock * 5;
-					player.cash += block5;
-					player.totalDebt += block5;
-					player.debtExpenses += (interest * 5);
+					const block2 = loanBlock * 2;
+					player.cash += block2;
+					player.totalDebt += block2;
+					player.debtExpenses += (interest * 2);
 					sounds.cash();
 					updateHUDAndHeaders();
 					if (callbackAfterLoan) callbackAfterLoan();
@@ -1337,42 +1427,42 @@ function showLoanModal(callbackAfterLoan) {
 function showPayDebtModal() {
 	const player = gameState.players[gameState.currentPlayerIndex];
 	if (player.totalDebt <= 0) {
-		alert('¡No tienes deudas bancarias activas!');
+		alert('¡No tienes deudas activas!');
 		return;
 	}
 
-	const payAmount = Math.min(player.totalDebt, 1000000);
+	const payAmount = Math.min(player.totalDebt, 100000);
 	const canAfford = player.cash >= payAmount;
 
 	showModal({
 		headerClass: 'opportunity',
 		icon: '💳',
-		title: 'AMORTIZACIÓN DE CRÉDITO',
-		subtitle: 'Pagar Deudas para Bajar Gastos',
-		desc: `Pagar <strong>${formatCOP(payAmount)} COP</strong> de tu crédito reducirá tus gastos fijos en $30.000 COP/mes, aumentando de inmediato tu Flujo de Caja mensual.`,
+		title: 'PAGAR DEUDA DEL BANCO',
+		subtitle: 'Bajar Gastos Mensuales',
+		desc: `Pagar <strong>${formatCOP(payAmount)} COP</strong> de tu deuda te quitará $5.000 COP/mes de cuota, dejando más plata libre para tu bolsillo.`,
 		stats: [
-			{ label: 'Deuda Total', value: formatCOP(player.totalDebt) },
-			{ label: 'Tu Efectivo', value: formatCOP(player.cash), color: canAfford ? 'green' : 'red' }
+			{ label: 'Deuda que debes:', value: formatCOP(player.totalDebt) },
+			{ label: 'Tu Plata en Mano:', value: formatCOP(player.cash), color: canAfford ? 'green' : 'red' }
 		],
 		buttons: [
 			{
-				text: `Abonar ${formatCOP(payAmount)} COP`,
+				text: `Pagar cuota de ${formatCOP(payAmount)} COP`,
 				class: 'primary',
 				action: () => {
 					if (!canAfford) {
-						alert('No tienes suficiente efectivo para abonar.');
+						alert('No tienes suficiente plata en mano para pagar esta cuota.');
 						return;
 					}
 					player.cash -= payAmount;
 					player.totalDebt -= payAmount;
-					player.debtExpenses -= (payAmount * 0.03);
+					player.debtExpenses = Math.max(0, player.debtExpenses - 5000);
 					sounds.cash();
 					closeModal();
 					updateHUDAndHeaders();
 				}
 			},
 			{
-				text: 'Cerrar',
+				text: 'Cerrar ➔',
 				class: 'secondary',
 				action: () => closeModal()
 			}
