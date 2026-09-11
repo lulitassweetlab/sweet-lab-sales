@@ -397,12 +397,13 @@ function pickTileForIndex(index) {
 		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • PAGO', badge: 'Inicio' };
 	}
 
-	if (index % 6 === 0) {
-		const monthNum = Math.floor(index / 6) + 1;
+	// Día de Pago aparece espaciado (cada 24 casillas, aprox. cada 3 minutos de juego)
+	if (index % 24 === 0) {
+		const monthNum = Math.floor(index / 24) + 1;
 		return { ...TILE_TYPES.payday, id: index, badge: `Mes ${monthNum}` };
 	}
 
-	const cycle = index % 12;
+	const cycle = index % 24;
 	let typeKey = 'opportunity';
 
 	switch (cycle) {
@@ -411,11 +412,24 @@ function pickTileForIndex(index) {
 		case 3: typeKey = 'doodad'; break;
 		case 4: typeKey = 'promotion'; break;
 		case 5: typeKey = 'opportunity'; break;
-		case 7: typeKey = 'market'; break;
-		case 8: typeKey = 'job'; break;
+		case 6: typeKey = 'market'; break;
+		case 7: typeKey = 'job'; break;
+		case 8: typeKey = 'charity'; break;
 		case 9: typeKey = 'opportunity'; break;
 		case 10: typeKey = 'promotion'; break;
-		case 11: typeKey = 'charity'; break;
+		case 11: typeKey = 'doodad'; break;
+		case 12: typeKey = 'opportunity'; break;
+		case 13: typeKey = 'job'; break;
+		case 14: typeKey = 'market'; break;
+		case 15: typeKey = 'promotion'; break;
+		case 16: typeKey = 'opportunity'; break;
+		case 17: typeKey = 'doodad'; break;
+		case 18: typeKey = 'crisis'; break;
+		case 19: typeKey = 'opportunity'; break;
+		case 20: typeKey = 'job'; break;
+		case 21: typeKey = 'promotion'; break;
+		case 22: typeKey = 'market'; break;
+		case 23: typeKey = 'opportunity'; break;
 		default: typeKey = 'opportunity';
 	}
 
@@ -660,8 +674,8 @@ function startGame() {
 	// Configurar contenedor de pistas 3D (1 columna o 2 paralelas lado a lado)
 	setupRoad3DScene();
 
-	// Generar las primeras 25 casillas
-	extendPerspectiveRoad(25);
+	// Generar las primeras 35 casillas
+	extendPerspectiveRoad(35);
 
 	document.getElementById('setup-screen').classList.add('hidden');
 	document.getElementById('game-hud').classList.remove('hidden');
@@ -839,7 +853,7 @@ function updateHUDAndHeaders() {
 	// Actualizar pill flotante
 	const current = gameState.players[gameState.currentPlayerIndex];
 	const pill = document.getElementById('floating-status-pill');
-	const monthNum = Math.floor(current.position / 6) + 1;
+	const monthNum = Math.floor(current.position / 24) + 1;
 	pill.textContent = `Turno de ${current.name} • ${current.profession} (Mes ${monthNum})`;
 
 	// Resaltar casilla activa
@@ -1026,12 +1040,45 @@ function handleLanding(player, tile) {
 	}
 }
 
+/**
+ * Muestra el valor del pago flotando directamente sobre la casilla de Día de Pago y desapareciendo en 1 segundo
+ */
+function showFloatingPaydayBubble(tileIndex, laneIndex, amount) {
+	const tileEl = document.getElementById(`lane-tile-${laneIndex}-${tileIndex}`);
+	if (!tileEl) return;
+
+	const bubble = document.createElement('div');
+	bubble.className = 'floating-payday-bubble';
+
+	if (amount > 0) {
+		bubble.innerHTML = `+${formatCOP(amount)} COP 💵`;
+	} else if (amount < 0) {
+		bubble.innerHTML = `-${formatCOP(Math.abs(amount))} COP 💸`;
+		bubble.classList.add('negative');
+	} else {
+		bubble.innerHTML = `+$0 COP ⚖️`;
+		bubble.classList.add('neutral');
+	}
+
+	tileEl.appendChild(bubble);
+
+	// Se desvanece y desaparece exactamente en 1 segundo (1000ms)
+	setTimeout(() => {
+		bubble.remove();
+	}, 1050);
+}
+
 // 1. Día de Pago
 function collectPayday(player, isLanding) {
 	const fin = getPlayerFinancials(player);
 	player.cash += fin.monthlyCashFlow;
 	sounds.cash();
 	updateHUDAndHeaders();
+
+	// Efecto visual flotante del valor del pago sobre la casilla física
+	const isParallelTwo = gameState.players.length === 2;
+	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
+	showFloatingPaydayBubble(player.position, laneIndex, fin.monthlyCashFlow);
 
 	if (isLanding) {
 		const isZeroFlow = fin.monthlyCashFlow === 0;
@@ -1041,8 +1088,8 @@ function collectPayday(player, isLanding) {
 			title: '¡DÍA DE PAGO!',
 			subtitle: 'Fin de Mes',
 			desc: isZeroFlow
-				? `Tus ingresos cubrieron exactamente tus gastos del mes.<br><br>💡 <em>¡Consigue un ascenso, cambia a un trabajo mejor o compra un negocio para empezar a guardar plata cada mes!</em>`
-				: `¡Llegó tu plata del mes! Cobraste tu sueldo y las ganancias de todos tus negocios.`,
+				? `Tus ingresos cubrieron exactamente tus gastos del mes.<br><br>💡 <em>¡Consigue un ascenso, cambia a un trabajo mejor o compra una oportunidad para empezar a guardar plata cada mes!</em>`
+				: `¡Llegó tu plata del mes! Cobraste tu sueldo y las ganancias de todas tus oportunidades.`,
 			stats: [
 				{ label: '💵 Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)} COP`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
 				{ label: '🏦 Total en tu bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }

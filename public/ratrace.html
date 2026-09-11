@@ -602,8 +602,54 @@
 		.stage-perspective-viewport {
 			cursor: grab;
 		}
-		.stage-perspective-viewport:active {
-			cursor: grabbing;
+		/* Burbuja de pago flotante que sale de la casilla y desaparece en 1 segundo */
+		.floating-payday-bubble {
+			position: absolute;
+			top: -16px;
+			left: 50%;
+			transform: translateX(-50%) translateZ(60px);
+			background: linear-gradient(135deg, #16a34a, #15803d);
+			color: #ffffff;
+			padding: 7px 18px;
+			border-radius: 999px;
+			font-family: 'Outfit', sans-serif;
+			font-weight: 900;
+			font-size: 1.15rem;
+			box-shadow: 0 10px 25px rgba(22, 163, 74, 0.4), 0 0 0 2.5px rgba(255, 255, 255, 0.95);
+			pointer-events: none;
+			z-index: 200;
+			white-space: nowrap;
+			transform-style: preserve-3d;
+			animation: floatUpFadePayday 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+		}
+
+		.floating-payday-bubble.neutral {
+			background: linear-gradient(135deg, #64748b, #475569);
+			box-shadow: 0 8px 20px rgba(100, 116, 139, 0.3), 0 0 0 2.5px rgba(255, 255, 255, 0.95);
+		}
+
+		.floating-payday-bubble.negative {
+			background: linear-gradient(135deg, #dc2626, #b91c1c);
+			box-shadow: 0 8px 20px rgba(220, 38, 38, 0.35), 0 0 0 2.5px rgba(255, 255, 255, 0.95);
+		}
+
+		@keyframes floatUpFadePayday {
+			0% {
+				opacity: 0;
+				transform: translateX(-50%) translateY(10px) translateZ(30px) scale(0.75);
+			}
+			20% {
+				opacity: 1;
+				transform: translateX(-50%) translateY(-15px) translateZ(80px) scale(1.18);
+			}
+			70% {
+				opacity: 1;
+				transform: translateX(-50%) translateY(-45px) translateZ(110px) scale(1.05);
+			}
+			100% {
+				opacity: 0;
+				transform: translateX(-50%) translateY(-75px) translateZ(130px) scale(0.85);
+			}
 		}
 
 		/* ====================================================
