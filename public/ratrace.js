@@ -754,9 +754,38 @@ function pickTileForIndex(index) {
 		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • PAGO', badge: 'Inicio' };
 	}
 
+	// Casilla 1: "Nada" (paso libre / descanso para que los 12 empleos inicien desde la 2 hasta la 13)
+	if (index === 1) {
+		return {
+			type: 'nothing',
+			styleClass: 'tile-color-nothing',
+			name: 'NADA',
+			icon: '⚪',
+			sub: 'Paso libre',
+			badge: 'Libre',
+			id: index
+		};
+	}
+
+	// Casillas 2 a 13: Los 12 empleos básicos de inicio visibles directamente en el tablero
+	if (index >= 2 && index <= 13) {
+		const job = STARTER_JOBS[index - 2];
+		return {
+			type: 'job',
+			isStarterJob: true,
+			starterJob: job,
+			styleClass: 'tile-color-job',
+			name: job.title.toUpperCase(),
+			icon: job.icon,
+			sub: `${formatCOP(job.salary)} / mes`,
+			badge: `#${index} Empleo`,
+			id: index
+		};
+	}
+
 	// Día de Pago aparece espaciado (cada 24 casillas, aprox. cada 3 minutos de juego)
 	if (index % 24 === 0) {
-		const monthNum = Math.floor(index / 24) + 1;
+		const monthNum = Math.floor(index / 24);
 		return { ...TILE_TYPES.payday, id: index, badge: `Mes ${monthNum}` };
 	}
 
@@ -764,6 +793,17 @@ function pickTileForIndex(index) {
 	let typeKey = 'opportunity';
 
 	switch (cycle) {
+		case 14: typeKey = 'market'; break;
+		case 15: typeKey = 'promotion'; break;
+		case 16: typeKey = 'opportunity'; break;
+		case 17: typeKey = 'doodad'; break;
+		case 18: typeKey = 'crisis'; break;
+		case 19: typeKey = 'opportunity'; break;
+		case 20: typeKey = 'job'; break;
+		case 21: typeKey = 'promotion'; break;
+		case 22: typeKey = 'market'; break;
+		case 23: typeKey = 'charity'; break;
+		// Para siguientes vueltas de la pista (después del Mes 1):
 		case 1: typeKey = 'opportunity'; break;
 		case 2: typeKey = 'job'; break;
 		case 3: typeKey = 'doodad'; break;
@@ -777,16 +817,6 @@ function pickTileForIndex(index) {
 		case 11: typeKey = 'doodad'; break;
 		case 12: typeKey = 'opportunity'; break;
 		case 13: typeKey = 'job'; break;
-		case 14: typeKey = 'market'; break;
-		case 15: typeKey = 'promotion'; break;
-		case 16: typeKey = 'opportunity'; break;
-		case 17: typeKey = 'doodad'; break;
-		case 18: typeKey = 'crisis'; break;
-		case 19: typeKey = 'opportunity'; break;
-		case 20: typeKey = 'job'; break;
-		case 21: typeKey = 'promotion'; break;
-		case 22: typeKey = 'market'; break;
-		case 23: typeKey = 'opportunity'; break;
 		default: typeKey = 'opportunity';
 	}
 
@@ -1278,86 +1308,9 @@ function setDiceFace(diceNumber, faceValue) {
 	grid.className = `dice-face-grid face-${faceValue}`;
 }
 
-function showStarterJobRaffle(player) {
-	const jobsListHTML = STARTER_JOBS.map(j => `
-		<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-radius:10px; background:#f8fafc; font-size:0.86rem; font-weight:700;">
-			<span><strong>#${j.id}</strong> ${j.title}</span>
-			<span style="color:#16a34a; font-weight:900;">${formatCOP(j.salary)}</span>
-		</div>
-	`).join('');
-
-	showModal({
-		typeName: '🎯 SORTEO DE EMPLEO INICIAL',
-		headerClass: 'job',
-		icon: '🎲',
-		title: 'Consigue tu Primer Empleo',
-		detailedInfo: `¡Hola <strong>${player.name}</strong>! Todos los participantes comienzan buscando trabajo.<br><br>Tira los dados para obtener al azar uno de los <strong>12 empleos básicos</strong> disponibles.<br><br><div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:165px; overflow-y:auto; margin-top:6px; border:1.5px solid #e2e8f0; border-radius:14px; padding:8px;">${jobsListHTML}</div>`,
-		stats: [],
-		buttons: [
-			{
-				text: '¡Tirar Dados para mi Empleo! 🎲 (1 al 12)',
-				class: 'primary',
-				action: () => {
-					// Sorteo aleatorio 1 al 12
-					const rollNum = Math.floor(Math.random() * 12) + 1;
-					const job = STARTER_JOBS[rollNum - 1];
-
-					// Configurar caras visuales de los dados según el número obtenido
-					if (rollNum === 1) {
-						setDiceFace(1, 1);
-						setDiceFace(2, 1);
-					} else {
-						const d1 = Math.min(6, Math.max(1, Math.floor(rollNum / 2)));
-						const d2 = rollNum - d1;
-						setDiceFace(1, d1);
-						setDiceFace(2, d2);
-					}
-
-					sounds.genieMagic();
-					player.hasJob = true;
-					player.profession = job.title;
-					player.salary = job.salary;
-					player.fixedExpenses = job.salary; // Flujo neto mensual = 0
-					player.salariesCollected = 0;
-					player.jobTier = 1;
-
-					updateHUDAndHeaders();
-
-					showModal({
-						typeName: '🎉 ¡CONTRATADO!',
-						headerClass: 'job',
-						icon: '🎉',
-						title: job.title,
-						detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Sacaste el <strong>#${rollNum}</strong> en los dados y fuiste contratado como <strong>${job.title}</strong>.<br><br>⏱️ <em>Recuerda: Tu salario de <strong>${formatCOP(job.salary)} COP</strong> no se cobra de inmediato. Se cobrará cada 3 minutos cuando pases o caigas en el Día de Pago.</em>`,
-						stats: [
-							{ label: 'Empleo obtenido:', value: job.title },
-							{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' }
-						],
-						buttons: [
-							{
-								text: '¡Comenzar a Jugar y Avanzar! 🚀',
-								class: 'primary',
-								action: () => {
-									closeModal();
-								}
-							}
-						]
-					});
-				}
-			}
-		]
-	});
-}
-
 function rollTwoDice() {
 	if (gameState.isRolling || gameState.isCardFlying) return;
 	const player = gameState.players[gameState.currentPlayerIndex];
-
-	// Si el participante aún no tiene empleo, sortear primero su empleo inicial
-	if (!player.hasJob) {
-		showStarterJobRaffle(player);
-		return;
-	}
 
 	const btnRoll = document.getElementById('btn-roll-dice');
 	const dice1 = document.getElementById('hud-dice-3d-1');
@@ -1386,16 +1339,32 @@ function rollTwoDice() {
 			dice1?.classList.remove('aladdin-magic');
 			dice2?.classList.remove('aladdin-magic');
 
-			const d1 = Math.floor(Math.random() * 6) + 1;
-			const d2 = Math.floor(Math.random() * 6) + 1;
-			const totalSteps = d1 + d2;
+			let d1, d2, totalSteps;
 
-			setDiceFace(1, d1);
-			setDiceFace(2, d2);
+			if (!player.hasJob) {
+				// Primer turno: conseguir empleo avanzando por el camino a las casillas 2 a 13 (posibilidad equitativa 1/12)
+				totalSteps = Math.floor(Math.random() * 12) + 2; // Rango exacto: 2 a 13
+				if (totalSteps <= 12) {
+					d1 = Math.min(6, Math.max(1, Math.floor(totalSteps / 2)));
+					d2 = totalSteps - d1;
+				} else {
+					d1 = 6;
+					d2 = 7;
+				}
+				setDiceFace(1, d1);
+				setDiceFace(2, d2);
+				pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Avanzando a la casilla #${totalSteps} para conseguir empleo...`;
+			} else {
+				// Tiros regulares con 2 dados estándar
+				d1 = Math.floor(Math.random() * 6) + 1;
+				d2 = Math.floor(Math.random() * 6) + 1;
+				totalSteps = d1 + d2;
+				setDiceFace(1, d1);
+				setDiceFace(2, d2);
+				pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Preparando avance...`;
+			}
 
-			pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Preparando avance...`;
-
-			// 1 SEGUNDO DE ESPERA antes de que empiece el movimiento de las tarjetas
+			// 1 SEGUNDO DE ESPERA antes de que empiece el movimiento de la ficha
 			setTimeout(() => {
 				stepForwardOnRoad(player, totalSteps);
 			}, 1000);
@@ -1457,6 +1426,68 @@ function stepForwardOnRoad(player, totalSteps) {
 function handleLanding(player, tile) {
 	const pill = document.getElementById('floating-status-pill');
 	pill.textContent = `${player.name} llegó a: ${tile.name} ${tile.icon}`;
+
+	// Si cae en una de las 12 casillas de empleo inicial (casillas 2 a 13)
+	if (tile.isStarterJob || (tile.globalIndex >= 2 && tile.globalIndex <= 13 && tile.starterJob)) {
+		const job = tile.starterJob || STARTER_JOBS[tile.globalIndex - 2];
+
+		if (!player.hasJob) {
+			player.hasJob = true;
+			player.profession = job.title;
+			player.salary = job.salary;
+			player.fixedExpenses = job.salary; // Flujo neto mensual = 0 COP al inicio
+			player.salariesCollected = 0;
+			player.jobTier = 1;
+
+			sounds.genieMagic();
+			updateHUDAndHeaders();
+
+			showModal({
+				typeName: '🎉 ¡CONTRATADO EN TU PRIMER EMPLEO!',
+				headerClass: 'job',
+				icon: job.icon,
+				title: `¡Eres ${job.title}!`,
+				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te llevaron a la casilla <strong>#${tile.globalIndex}</strong> y has conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)} COP</strong>. Recuerda que no se cobra de inmediato: se cobrará periódicamente cada 3 minutos cuando cruces o caigas en las casillas de Día de Pago.</em>`,
+				stats: [
+					{ label: 'Empleo obtenido:', value: job.title },
+					{ label: 'Casilla alcanzada:', value: `#${tile.globalIndex}` },
+					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' }
+				],
+				buttons: [
+					{
+						text: '¡Comenzar mi Carrera! 🚀',
+						class: 'primary',
+						action: () => {
+							closeModal(() => endTurn());
+						}
+					}
+				]
+			});
+			return;
+		}
+	}
+
+	// Casilla 1: "Nada" (paso libre / descanso)
+	if (tile.type === 'nothing') {
+		showModal({
+			typeName: 'CASILLA VACÍA ⚪',
+			headerClass: 'neutral',
+			icon: '⚪',
+			title: 'Paso Libre',
+			detailedInfo: `¡Hola <strong>${player.name}</strong>! En la casilla <strong>#1</strong> no hay ningún empleo ni costo. Puedes descansar y prepararte para tu próximo turno.`,
+			stats: [],
+			buttons: [
+				{
+					text: 'Continuar ➔',
+					class: 'primary',
+					action: () => {
+						closeModal(() => endTurn());
+					}
+				}
+			]
+		});
+		return;
+	}
 
 	switch (tile.type) {
 		case 'payday':
