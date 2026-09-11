@@ -1,7 +1,8 @@
 /**
  * RatRace - Carrera de la Rata (CashFlow)
  * Edición Sweet Lab Finanzas - Versión Colombia (Pesos Colombianos COP)
- * Salario Mínimo de referencia: $1.750.000 COP
+ * Camino Lineal Continuo (Una casilla a la vez, una delante de la otra)
+ * Paleta: Blanco y 1% Gris
  */
 
 // ==========================================
@@ -18,13 +19,13 @@ function formatCOP(amount) {
 // ==========================================
 
 const AVATARS = [
-	{ id: 'rat-blue', name: 'Quesito Veloz', emoji: '🐭', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.25)' },
-	{ id: 'rat-purple', name: 'Don Inversor', emoji: '🐹', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.25)' },
-	{ id: 'rat-amber', name: 'Ahorrador Feliz', emoji: '🐰', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.25)' },
-	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.25)' }
+	{ id: 'rat-blue', name: 'Quesito Veloz', emoji: '🐭', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.12)' },
+	{ id: 'rat-purple', name: 'Don Inversor', emoji: '🐹', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.12)' },
+	{ id: 'rat-amber', name: 'Ahorrador Feliz', emoji: '🐰', color: '#d97706', bg: 'rgba(217, 119, 6, 0.12)' },
+	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#e11d48', bg: 'rgba(225, 29, 72, 0.12)' }
 ];
 
-// Profesiones calibradas a la economía de Colombia (Base: Salario Mínimo $1.750.000)
+// Profesiones en Colombia (Base: Salario Mínimo $1.750.000 COP)
 const PROFESSIONS = [
 	{
 		title: 'Chef de Repostería',
@@ -70,49 +71,49 @@ const PROFESSIONS = [
 	}
 ];
 
-// Tipos de casillas (Paleta Oficial CashFlow)
+// Tipos de casillas
 const TILE_TYPES = {
 	payday: {
 		type: 'payday',
-		styleClass: 'tile-style-payday',
+		styleClass: 'tile-color-payday',
 		name: 'DÍA DE PAGO',
 		icon: '💰',
-		sub: '+Flujo de Caja'
+		sub: '+Cobro de Flujo de Caja'
 	},
 	opportunity: {
 		type: 'opportunity',
-		styleClass: 'tile-style-opportunity',
+		styleClass: 'tile-color-opportunity',
 		name: 'OPORTUNIDAD',
 		icon: '🚀',
-		sub: 'Inversiones'
+		sub: 'Comprar Negocios o Inmuebles'
 	},
 	doodad: {
 		type: 'doodad',
-		styleClass: 'tile-style-doodad',
+		styleClass: 'tile-color-doodad',
 		name: 'CAPRICHO',
 		icon: '🛍️',
-		sub: 'Gasto Sorpresa'
+		sub: 'Gasto Imprevisto'
 	},
 	market: {
 		type: 'market',
-		styleClass: 'tile-style-market',
+		styleClass: 'tile-color-market',
 		name: 'EL MERCADO',
 		icon: '📈',
-		sub: 'Compra y Venta'
+		sub: 'Vender Activos con Ganancia'
 	},
 	charity: {
 		type: 'charity',
-		styleClass: 'tile-style-charity',
+		styleClass: 'tile-color-charity',
 		name: 'CARIDAD',
 		icon: '🎁',
-		sub: 'Donar / 2 Dados'
+		sub: 'Donar para tirar 2 Dados'
 	},
 	crisis: {
 		type: 'crisis',
-		styleClass: 'tile-style-crisis',
+		styleClass: 'tile-color-crisis',
 		name: 'DESPIDO',
 		icon: '🚨',
-		sub: 'Pérdida de Turno'
+		sub: 'Pérdida de Turno y Gastos'
 	}
 };
 
@@ -121,7 +122,7 @@ const SMALL_DEALS = [
 	{
 		title: 'Máquina Expendedora Sweet Lab',
 		type: 'business',
-		desc: 'Instalas una máquina automática de postres y snacks en una torre corporativa con alto tráfico.',
+		desc: 'Instalas una máquina automática de postres y snacks en una torre de oficinas con alto flujo.',
 		cost: 3500000,
 		downPayment: 3500000,
 		cashFlow: 450000,
@@ -132,7 +133,7 @@ const SMALL_DEALS = [
 		title: 'Acciones de Sweet Tech Colombia',
 		type: 'stock',
 		ticker: 'SWT',
-		desc: 'Acciones de una empresa tecnológica colombiana a $25.000 c/u. Adquieres un paquete de 80 acciones.',
+		desc: 'Acciones de una empresa tecnológica colombiana a $25.000 c/u. Compras 80 acciones con dividendos.',
 		cost: 2000000,
 		downPayment: 2000000,
 		shares: 80,
@@ -144,7 +145,7 @@ const SMALL_DEALS = [
 	{
 		title: 'Tienda Online de Galletas y Postres',
 		type: 'business',
-		desc: 'Creas una tienda digital automatizada de regalos y tortas artesanales con servicio de mensajería.',
+		desc: 'Creas una tienda digital automatizada de regalos y tortas artesanales con mensajería.',
 		cost: 2200000,
 		downPayment: 2200000,
 		cashFlow: 340000,
@@ -154,7 +155,7 @@ const SMALL_DEALS = [
 	{
 		title: 'CDT Digital de Alto Rendimiento',
 		type: 'fund',
-		desc: 'Inviertes en un fondo de renta fija regulado que reparte rendimientos mensuales asegurados.',
+		desc: 'Inversión en renta fija que genera intereses mensuales asegurados.',
 		cost: 4000000,
 		downPayment: 4000000,
 		cashFlow: 380000,
@@ -164,7 +165,7 @@ const SMALL_DEALS = [
 	{
 		title: 'Monedas de Oro y Joyería Fina',
 		type: 'precious_metal',
-		desc: 'Compras 2 monedas de oro raras a precio de liquidación para venderlas en El Mercado cuando suba la cotización.',
+		desc: 'Compras 2 monedas de oro raras a precio de ganga para venderlas en El Mercado con alta plusvalía.',
 		cost: 1800000,
 		downPayment: 1800000,
 		cashFlow: 0,
@@ -173,7 +174,7 @@ const SMALL_DEALS = [
 	{
 		title: 'Club de Suscriptores de Recetas Gourmet',
 		type: 'business',
-		desc: 'Comunidad online de repostería donde miembros suscritos pagan una mensualidad por clases y recetarios.',
+		desc: 'Comunidad digital de repostería donde miembros pagan suscripción mensual recurrente.',
 		cost: 2500000,
 		downPayment: 2500000,
 		cashFlow: 390000,
@@ -183,7 +184,7 @@ const SMALL_DEALS = [
 	{
 		title: 'Carrito Móvil de Postres y Café',
 		type: 'business',
-		desc: 'Puesto portátil de postres y café ubicado en una plazoleta de comidas con un operario.',
+		desc: 'Puesto portátil en una plazoleta comercial operado por un colaborador.',
 		cost: 4200000,
 		downPayment: 4200000,
 		cashFlow: 580000,
@@ -198,7 +199,7 @@ const BIG_DEALS = [
 		title: 'Apartaestudio para Renta',
 		type: 'real_estate',
 		propertyType: 'apartaestudio',
-		desc: 'Apartaestudio en zona universitaria. Arrendado a un estudiante responsable.',
+		desc: 'Apartaestudio bien ubicado en zona residencial, arrendado con contrato anual.',
 		cost: 130000000,
 		downPayment: 15000000,
 		cashFlow: 950000,
@@ -209,7 +210,7 @@ const BIG_DEALS = [
 		title: 'Apartamento Turístico en Santa Marta',
 		type: 'real_estate',
 		propertyType: 'condo_playa',
-		desc: 'Condominio cerca a la playa gestionado por plataforma turística con ocupación constante.',
+		desc: 'Condominio cerca a la playa con administración hotelera y alta ocupación.',
 		cost: 240000000,
 		downPayment: 25000000,
 		cashFlow: 1850000,
@@ -220,7 +221,7 @@ const BIG_DEALS = [
 		title: 'Local Comercial en Plaza Central',
 		type: 'real_estate',
 		propertyType: 'commercial',
-		desc: 'Local de alta visibilidad alquilado a una franquicia de servicios financieros.',
+		desc: 'Local de alta visibilidad alquilado a una cadena de servicios financieros.',
 		cost: 350000000,
 		downPayment: 35000000,
 		cashFlow: 2700000,
@@ -231,7 +232,7 @@ const BIG_DEALS = [
 		title: 'Casa con 3 Apartamentos Multifamiliar',
 		type: 'real_estate',
 		propertyType: 'multifamiliar',
-		desc: 'Vivienda de 3 pisos con 3 apartamentos que producen 3 arriendos mensuales simultáneos.',
+		desc: 'Inmueble de 3 niveles con 3 viviendas que generan 3 arriendos mensuales simultáneos.',
 		cost: 480000000,
 		downPayment: 48000000,
 		cashFlow: 3900000,
@@ -241,7 +242,7 @@ const BIG_DEALS = [
 	{
 		title: 'Franquicia Express Sweet Lab',
 		type: 'business',
-		desc: 'Franquicia operando con personal contratado en un centro comercial con flujo continuo de clientes.',
+		desc: 'Punto de venta franquiciado con empleados en centro comercial con alto flujo de clientes.',
 		cost: 150000000,
 		downPayment: 18000000,
 		cashFlow: 1650000,
@@ -254,7 +255,7 @@ const BIG_DEALS = [
 const DOODADS = [
 	{
 		title: 'Último Smartphone de Gama Alta',
-		desc: 'Compraste el teléfono de última generación para estrenar con tus conocidos.',
+		desc: 'Compraste el teléfono de última generación para estrenar con tus amigos.',
 		cost: 3800000,
 		lesson: '¿Era una necesidad o un deseo? Gastar en pasivos antes de tener activos retrasa tu libertad.'
 	},
@@ -340,12 +341,11 @@ const gameState = {
 	currentPlayerIndex: 0,
 	selectedTabPlayerIndex: 0,
 	isRolling: false,
-	generatedTiles: [],
-	currentMaxRow: 0
+	generatedTiles: [] // Camino lineal continuo
 };
 
 // ==========================================
-// 4. EFECTOS DE SONIDO SINTETIZADOS (Web Audio)
+// 4. EFECTOS DE SONIDO SINTETIZADOS
 // ==========================================
 
 class SoundEffects {
@@ -377,7 +377,7 @@ class SoundEffects {
 			osc.start();
 			osc.stop(this.ctx.currentTime + duration);
 		} catch (e) {
-			// Ignorar errores
+			// Ignorar
 		}
 	}
 
@@ -385,6 +385,10 @@ class SoundEffects {
 		for (let i = 0; i < 5; i++) {
 			setTimeout(() => this.playTone(220 + Math.random() * 260, 0.08, 'triangle', 0.08), i * 70);
 		}
+	}
+
+	step() {
+		this.playTone(320, 0.06, 'sine', 0.08);
 	}
 
 	cash() {
@@ -409,58 +413,59 @@ class SoundEffects {
 const sounds = new SoundEffects();
 
 // ==========================================
-// 5. GENERADOR DEL CAMINO CONTINUO INTERMINABLE
+// 5. GENERADOR DEL CAMINO LINEAL CONTINUO (1 CASILLA A LA VEZ)
 // ==========================================
 
-function extendContinuousTrack(rowsToAdd = 6) {
-	const trackContainer = document.getElementById('track-path');
-	if (!trackContainer) return;
+/**
+ * Añade casillas en una sola columna hacia adelante (una delante de la otra).
+ * Sin casillas a los lados. Conectadas en línea recta.
+ */
+function extendLinearRoad(tilesCountToAdd = 25) {
+	const pathContainer = document.getElementById('linear-path');
+	if (!pathContainer) return;
 
-	const tilesPerRow = 6;
-	const currentTileCount = gameState.generatedTiles.length;
+	const startIdx = gameState.generatedTiles.length;
 
-	for (let r = 0; r < rowsToAdd; r++) {
-		const rowIndex = gameState.currentMaxRow++;
-		const isEvenRow = (rowIndex % 2 === 0);
+	for (let i = 0; i < tilesCountToAdd; i++) {
+		const globalIndex = startIdx + i;
+		const tileData = pickTileForIndex(globalIndex);
+		tileData.globalIndex = globalIndex;
+		gameState.generatedTiles.push(tileData);
 
-		if (rowIndex % 2 === 0) {
-			const monthNum = Math.floor(rowIndex / 2) + 1;
-			const marker = document.createElement('div');
-			marker.className = 'milestone-marker';
-			marker.innerHTML = `<span>🧀 TRAMO FINANCIERO: MES ${monthNum}</span>`;
-			trackContainer.appendChild(marker);
+		// Contenedor de paso
+		const stepContainer = document.createElement('div');
+		stepContainer.className = 'path-step-container';
+		stepContainer.id = `path-step-${globalIndex}`;
+
+		// Si es múltiplo de 6, agregar un hito de mes
+		if (globalIndex > 0 && globalIndex % 6 === 0) {
+			const monthNum = Math.floor(globalIndex / 6) + 1;
+			const milestone = document.createElement('div');
+			milestone.className = 'road-milestone';
+			milestone.innerHTML = `🏁 <strong>TRAMO FINANCIERO • MES ${monthNum}</strong>`;
+			stepContainer.appendChild(milestone);
+		} else if (globalIndex > 0) {
+			// Conector con flecha de avance hacia adelante
+			const connector = document.createElement('div');
+			connector.className = 'step-connector';
+			connector.innerHTML = '⬇';
+			stepContainer.appendChild(connector);
 		}
 
-		const rowEl = document.createElement('div');
-		rowEl.className = 'track-row';
-		rowEl.id = `track-row-${rowIndex}`;
+		// La tarjeta de casilla única
+		const tileCard = createRoadTileDOM(tileData);
+		stepContainer.appendChild(tileCard);
 
-		const rowTiles = [];
-
-		for (let c = 0; c < tilesPerRow; c++) {
-			const globalIndex = currentTileCount + (r * tilesPerRow) + c;
-			const tileData = pickTileTypeForIndex(globalIndex);
-			tileData.globalIndex = globalIndex;
-			gameState.generatedTiles.push(tileData);
-			rowTiles.push(tileData);
-		}
-
-		const displayTiles = isEvenRow ? rowTiles : [...rowTiles].reverse();
-
-		displayTiles.forEach(tile => {
-			const tileEl = createTileDOM(tile);
-			rowEl.appendChild(tileEl);
-		});
-
-		trackContainer.appendChild(rowEl);
+		pathContainer.appendChild(stepContainer);
 	}
 }
 
-function pickTileTypeForIndex(index) {
+function pickTileForIndex(index) {
 	if (index === 0) {
-		return { ...TILE_TYPES.payday, id: index, title: 'SALIDA • DÍA DE PAGO' };
+		return { ...TILE_TYPES.payday, id: index, name: 'SALIDA • DÍA DE PAGO' };
 	}
 
+	// Día de Pago cada 6 casillas (mensualidad de ingresos)
 	if (index % 6 === 0) {
 		return { ...TILE_TYPES.payday, id: index };
 	}
@@ -485,22 +490,24 @@ function pickTileTypeForIndex(index) {
 	return { ...TILE_TYPES[typeKey], id: index };
 }
 
-function createTileDOM(tile) {
-	const el = document.createElement('div');
-	el.id = `track-tile-${tile.globalIndex}`;
-	el.className = `track-tile ${tile.styleClass}`;
+function createRoadTileDOM(tile) {
+	const card = document.createElement('div');
+	card.id = `road-tile-${tile.globalIndex}`;
+	card.className = `road-tile-card ${tile.styleClass}`;
 
-	el.innerHTML = `
-		<span class="track-tile-num">${tile.globalIndex + 1}</span>
-		<span class="track-tile-icon">${tile.icon}</span>
-		<div>
-			<div class="track-tile-name">${tile.name}</div>
-			<div class="track-tile-sub">${tile.sub}</div>
+	card.innerHTML = `
+		<div class="road-tile-left">
+			<div class="road-tile-badge">#${tile.globalIndex + 1}</div>
+			<div class="road-tile-icon">${tile.icon}</div>
+			<div class="road-tile-texts">
+				<div class="road-tile-title">${tile.name}</div>
+				<div class="road-tile-sub">${tile.sub}</div>
+			</div>
 		</div>
-		<div class="track-tile-pawns" id="tile-pawns-${tile.globalIndex}"></div>
+		<div class="road-tile-pawns" id="road-pawns-${tile.globalIndex}"></div>
 	`;
 
-	return el;
+	return card;
 }
 
 // ==========================================
@@ -548,12 +555,12 @@ function wireEventListeners() {
 
 	document.getElementById('btn-start-play')?.addEventListener('click', () => {
 		sounds.init();
-		startContinuousGame();
+		startLinearGame();
 	});
 
 	document.getElementById('btn-roll-dice')?.addEventListener('click', () => {
 		sounds.init();
-		rollDiceContinuous();
+		rollDiceLinear();
 	});
 
 	document.getElementById('btn-exit')?.addEventListener('click', () => {
@@ -585,7 +592,7 @@ function wireEventListeners() {
 
 	document.getElementById('btn-victory-restart')?.addEventListener('click', () => {
 		document.getElementById('victory-modal').classList.remove('open');
-		startContinuousGame();
+		startLinearGame();
 	});
 	document.getElementById('btn-victory-exit')?.addEventListener('click', () => {
 		window.location.href = '/index.html';
@@ -593,10 +600,10 @@ function wireEventListeners() {
 }
 
 // ==========================================
-// 7. INICIO DE PARTIDA
+// 7. INICIO DE PARTIDA LINEAL
 // ==========================================
 
-function startContinuousGame() {
+function startLinearGame() {
 	const count = parseInt(document.querySelector('.setup-count-btn.active')?.dataset.count || '2', 10);
 	const players = [];
 
@@ -632,20 +639,19 @@ function startContinuousGame() {
 	gameState.selectedTabPlayerIndex = 0;
 	gameState.isRolling = false;
 	gameState.generatedTiles = [];
-	gameState.currentMaxRow = 0;
 
-	const trackPath = document.getElementById('track-path');
-	if (trackPath) trackPath.innerHTML = '';
+	const pathContainer = document.getElementById('linear-path');
+	if (pathContainer) pathContainer.innerHTML = '';
 
-	// Generar primeras 8 filas (48 casillas de camino inicial)
-	extendContinuousTrack(8);
+	// Generar las primeras 30 casillas lineales iniciales
+	extendLinearRoad(30);
 
 	document.getElementById('setup-screen').classList.add('hidden');
 	document.getElementById('game-hud').classList.remove('hidden');
 	document.getElementById('game-screen').classList.remove('hidden');
 
 	renderPlayerTabs();
-	updatePawnsOnTrack();
+	updatePawnsOnLinearRoad();
 	updateActivePlayerHUD();
 	updateFinancialSheet(gameState.selectedTabPlayerIndex);
 
@@ -663,7 +669,7 @@ function renderPlayerTabs() {
 		tab.id = `cf-tab-${idx}`;
 		tab.style.borderTop = `3px solid ${p.color}`;
 		tab.innerHTML = `
-			<span style="font-size: 1.2rem;">${p.avatar}</span>
+			<span style="font-size: 1.25rem;">${p.avatar}</span>
 			<span>${p.name.split(' ')[0]}</span>
 		`;
 
@@ -679,14 +685,14 @@ function renderPlayerTabs() {
 	});
 }
 
-function updatePawnsOnTrack() {
+function updatePawnsOnLinearRoad() {
 	gameState.generatedTiles.forEach(tile => {
-		const pawnsContainer = document.getElementById(`tile-pawns-${tile.globalIndex}`);
+		const pawnsContainer = document.getElementById(`road-pawns-${tile.globalIndex}`);
 		if (pawnsContainer) pawnsContainer.innerHTML = '';
 	});
 
 	gameState.players.forEach(p => {
-		const pawnsContainer = document.getElementById(`tile-pawns-${p.position}`);
+		const pawnsContainer = document.getElementById(`road-pawns-${p.position}`);
 		if (pawnsContainer) {
 			const pawn = document.createElement('div');
 			pawn.className = 'cf-pawn';
@@ -713,8 +719,9 @@ function updateActivePlayerHUD() {
 	}
 	if (hudProf) hudProf.textContent = current.profession;
 
-	document.querySelectorAll('.track-tile').forEach(t => t.classList.remove('active-step'));
-	const activeTile = document.getElementById(`track-tile-${current.position}`);
+	// Resaltar casilla activa
+	document.querySelectorAll('.road-tile-card').forEach(t => t.classList.remove('active-step'));
+	const activeTile = document.getElementById(`road-tile-${current.position}`);
 	if (activeTile) activeTile.classList.add('active-step');
 
 	document.querySelectorAll('.cf-tab').forEach((t, i) => {
@@ -724,7 +731,7 @@ function updateActivePlayerHUD() {
 
 	if (current.skipTurns > 0) {
 		btnRoll.disabled = true;
-		statusLog.innerHTML = `<strong style="color:#f87171;">⚠️ ${current.name} está en cesantía temporal y pierde este turno.</strong>`;
+		statusLog.innerHTML = `<strong style="color:#dc2626;">⚠️ ${current.name} está en cesantía temporal y pierde este turno.</strong>`;
 		setTimeout(() => {
 			current.skipTurns--;
 			endTurn();
@@ -734,7 +741,7 @@ function updateActivePlayerHUD() {
 
 	btnRoll.disabled = false;
 	btnRoll.textContent = current.hasTwoDice > 0 ? 'Tirar 2 Dados 🎲🎲' : 'Tirar Dado 🎲';
-	statusLog.textContent = '¡Lanza el dado para avanzar por el camino financiero!';
+	statusLog.textContent = `Casilla #${current.position + 1} • ¡Lanza el dado para avanzar!`;
 
 	gameState.selectedTabPlayerIndex = gameState.currentPlayerIndex;
 	renderPlayerTabs();
@@ -742,7 +749,7 @@ function updateActivePlayerHUD() {
 }
 
 function scrollToCurrentTile(tileIndex) {
-	const tileEl = document.getElementById(`track-tile-${tileIndex}`);
+	const tileEl = document.getElementById(`road-tile-${tileIndex}`);
 	if (tileEl) {
 		tileEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 	}
@@ -783,8 +790,7 @@ function updateFinancialSheet(playerIndex) {
 	}
 	if (sheetProf) sheetProf.textContent = p.profession;
 
-	// Formato en Pesos Colombianos
-	document.getElementById('sheet-cash-val').textContent = formatCOP(p.cash);
+	document.getElementById('sheet-cash-val').textContent = `${formatCOP(p.cash)} COP`;
 
 	document.getElementById('freedom-percentage').textContent = `${fin.freedomProgress}%`;
 	document.getElementById('freedom-fill').style.width = `${fin.freedomProgress}%`;
@@ -794,7 +800,7 @@ function updateFinancialSheet(playerIndex) {
 	const cashflowVal = document.getElementById('sheet-cashflow-val');
 	if (cashflowVal) {
 		cashflowVal.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`;
-		cashflowVal.style.color = fin.monthlyCashFlow >= 0 ? '#4ade80' : '#f87171';
+		cashflowVal.style.color = fin.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
 	}
 
 	document.getElementById('sheet-total-income').textContent = formatCOP(fin.totalIncome);
@@ -809,7 +815,7 @@ function updateFinancialSheet(playerIndex) {
 	if (assetsContainer) {
 		if (p.assets.length === 0) {
 			assetsContainer.innerHTML = `
-				<div style="color:#c084fc; font-size:0.75rem; text-align:center; padding:10px;">
+				<div style="color:#64748b; font-size:0.75rem; text-align:center; padding:10px;">
 					Aún no tienes activos. ¡Aprovecha las casillas de Oportunidad verde!
 				</div>
 			`;
@@ -818,7 +824,7 @@ function updateFinancialSheet(playerIndex) {
 				<div class="cf-asset-entry">
 					<div>
 						<div class="cf-asset-name">${a.title}</div>
-						<small style="color:#d8b4fe; font-size:0.65rem;">${a.category || 'Activo'}</small>
+						<small style="color:#64748b; font-size:0.65rem;">${a.category || 'Activo'}</small>
 					</div>
 					<div class="cf-asset-gain">+${a.cashFlow ? `${formatCOP(a.cashFlow)}/mes` : '$0'}</div>
 				</div>
@@ -828,10 +834,10 @@ function updateFinancialSheet(playerIndex) {
 }
 
 // ==========================================
-// 9. MOVIMIENTO Y TIRADA DE DADOS
+// 9. MOVIMIENTO PASO A PASO (SENSACIÓN DE AVANCE REAL)
 // ==========================================
 
-function rollDiceContinuous() {
+function rollDiceLinear() {
 	if (gameState.isRolling) return;
 	const player = gameState.players[gameState.currentPlayerIndex];
 	const btnRoll = document.getElementById('btn-roll-dice');
@@ -864,7 +870,8 @@ function rollDiceContinuous() {
 				diceDisplay.textContent = getDiceSymbol(d1);
 			}
 
-			stepForwardOnTrack(player, totalSteps);
+			// Iniciar movimiento paso a paso
+			stepForwardOnRoad(player, totalSteps);
 		}
 	}, 70);
 }
@@ -874,21 +881,27 @@ function getDiceSymbol(val) {
 	return faces[val - 1] || '🎲';
 }
 
-function stepForwardOnTrack(player, steps) {
-	let remaining = steps;
+function stepForwardOnRoad(player, totalSteps) {
+	let stepsRemaining = totalSteps;
+	const statusLog = document.getElementById('hud-status-log');
 
-	const moveInterval = setInterval(() => {
+	const stepInterval = setInterval(() => {
 		player.position++;
+		stepsRemaining--;
 
-		// Extender el camino si el jugador se acerca al final
-		if (player.position >= gameState.generatedTiles.length - 12) {
-			extendContinuousTrack(6);
+		// Efecto de sonido de paso
+		sounds.step();
+
+		// Si se acerca al final de las casillas cargadas, añadir 20 casillas más
+		if (player.position >= gameState.generatedTiles.length - 8) {
+			extendLinearRoad(20);
 		}
 
-		updatePawnsOnTrack();
+		updatePawnsOnLinearRoad();
 
-		document.querySelectorAll('.track-tile').forEach(t => t.classList.remove('active-step'));
-		const tileEl = document.getElementById(`track-tile-${player.position}`);
+		// Resaltar casilla actual y centrar viewport suavemente
+		document.querySelectorAll('.road-tile-card').forEach(t => t.classList.remove('active-step'));
+		const tileEl = document.getElementById(`road-tile-${player.position}`);
 		if (tileEl) {
 			tileEl.classList.add('active-step');
 			scrollToCurrentTile(player.position);
@@ -896,28 +909,30 @@ function stepForwardOnTrack(player, steps) {
 
 		const currentTileData = gameState.generatedTiles[player.position];
 
-		// Cobro si pasa por Día de Pago
-		if (currentTileData && currentTileData.type === 'payday' && remaining > 1) {
+		if (statusLog) {
+			statusLog.innerHTML = `<strong>${player.name}</strong> avanzando... (Casilla #${player.position + 1} de ${totalSteps - stepsRemaining}/${totalSteps})`;
+		}
+
+		// Cobro si pasa por Día de Pago durante la tirada
+		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0) {
 			collectPayday(player, false);
 		}
 
-		remaining--;
-
-		if (remaining <= 0) {
-			clearInterval(moveInterval);
+		if (stepsRemaining <= 0) {
+			clearInterval(stepInterval);
 			gameState.isRolling = false;
-			handleContinuousLanding(player, currentTileData);
+			handleLinearLanding(player, currentTileData);
 		}
-	}, 150);
+	}, 200); // 200ms por paso para que se sienta el ritmo de caminata hacia adelante
 }
 
 // ==========================================
 // 10. EVENTOS DE CASILLAS
 // ==========================================
 
-function handleContinuousLanding(player, tile) {
+function handleLinearLanding(player, tile) {
 	const statusLog = document.getElementById('hud-status-log');
-	statusLog.innerHTML = `<strong>${player.name}</strong> cayó en <strong>${tile.name}</strong> (${tile.icon}).`;
+	statusLog.innerHTML = `<strong>${player.name}</strong> llegó a la Casilla #${player.position + 1}: <strong>${tile.name}</strong> (${tile.icon}).`;
 
 	switch (tile.type) {
 		case 'payday':
@@ -956,7 +971,7 @@ function collectPayday(player, showPopup = true) {
 			icon: '💰',
 			title: '¡DÍA DE PAGO!',
 			subtitle: 'Tu flujo de caja mensual ha ingresado',
-			desc: `Has recibido tu Flujo de Caja Mensual:<br><strong style="font-size:1.5rem; color:#facc15; font-family:'Outfit',sans-serif;">+${formatCOP(fin.monthlyCashFlow)} COP</strong>`,
+			desc: `Has recibido tu Flujo de Caja Mensual:<br><strong style="font-size:1.5rem; color:#854d0e; font-family:'Outfit',sans-serif;">+${formatCOP(fin.monthlyCashFlow)} COP</strong>`,
 			stats: [
 				{ label: 'Ingresos Totales', value: `+${formatCOP(fin.totalIncome)}`, color: 'green' },
 				{ label: 'Gastos Totales', value: `-${formatCOP(fin.totalExpenses)}`, color: 'red' },
@@ -1057,7 +1072,7 @@ function presentOpportunityDeal(player, deal) {
 	});
 }
 
-// Modal Caprichos (Doodads - COP)
+// Modal Caprichos
 function showDoodadModal(player) {
 	const doodad = DOODADS[Math.floor(Math.random() * DOODADS.length)];
 	sounds.loss();
@@ -1067,7 +1082,7 @@ function showDoodadModal(player) {
 		icon: '🛍️',
 		title: doodad.title,
 		subtitle: 'Gasto Imprevisto',
-		desc: `${doodad.desc}<br><br><small style="color:#fbcfe8;">💡 <em>${doodad.lesson}</em></small>`,
+		desc: `${doodad.desc}<br><br><small style="color:#be185d;">💡 <em>${doodad.lesson}</em></small>`,
 		stats: [
 			{ label: 'Costo del Capricho', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
 			{ label: 'Tu Efectivo Disponible', value: `${formatCOP(player.cash)} COP` }
@@ -1079,10 +1094,9 @@ function showDoodadModal(player) {
 				action: () => {
 					player.cash -= doodad.cost;
 					if (player.cash < 0) {
-						// Préstamo automático si el efectivo no alcanza (en bloques de $1.000.000 COP)
 						const debtNeeded = Math.ceil(Math.abs(player.cash) / 1000000) * 1000000;
 						player.totalDebt += debtNeeded;
-						player.debtExpenses += (debtNeeded * 0.03); // 3% mensual
+						player.debtExpenses += (debtNeeded * 0.03);
 						player.cash += debtNeeded;
 					}
 					closeModal();
@@ -1094,7 +1108,7 @@ function showDoodadModal(player) {
 	});
 }
 
-// Modal Mercado (The Market - COP)
+// Modal Mercado
 function showMarketModal(player) {
 	const event = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
 	const eligibleAssets = player.assets.filter(a => {
@@ -1143,7 +1157,7 @@ function showMarketModal(player) {
 	});
 }
 
-// Modal Caridad (COP)
+// Modal Caridad
 function showCharityModal(player) {
 	const charityCost = Math.round(player.salary * 0.1);
 	const canAfford = player.cash >= charityCost;
@@ -1181,7 +1195,7 @@ function showCharityModal(player) {
 	});
 }
 
-// Modal Despido / Crisis (COP)
+// Modal Despido
 function showCrisisModal(player) {
 	sounds.loss();
 	const fin = getPlayerFinancials(player);
@@ -1214,7 +1228,7 @@ function showCrisisModal(player) {
 }
 
 // ==========================================
-// 11. PRÉSTAMOS BANCARIOS EN PESOS COLOMBIANOS (COP)
+// 11. PRÉSTAMOS BANCARIOS EN COP
 // ==========================================
 
 function showLoanModal(suggestedAmount = 1000000, onComplete = null) {
@@ -1420,7 +1434,7 @@ function launchVictoryConfetti() {
 	canvas.height = window.innerHeight;
 
 	const confetti = [];
-	const colors = ['#facc15', '#22c55e', '#3b82f6', '#ec4899', '#f97316', '#ffffff'];
+	const colors = ['#facc15', '#16a34a', '#2563eb', '#db2777', '#ea580c', '#0f172a'];
 
 	for (let i = 0; i < 150; i++) {
 		confetti.push({
