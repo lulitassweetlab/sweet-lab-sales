@@ -382,10 +382,10 @@ const TILE_TYPES = {
 	doodad: {
 		type: 'doodad',
 		styleClass: 'tile-color-doodad',
-		name: 'ANTOJO',
-		icon: '🛍️',
-		sub: 'Gasto de salida',
-		badge: 'Capricho'
+		name: 'IMPREVISTO',
+		icon: '💸',
+		sub: 'Gasto o antojo',
+		badge: 'Gasto'
 	},
 	market: {
 		type: 'market',
@@ -414,271 +414,1099 @@ const TILE_TYPES = {
 };
 
 // Barajas de cartas adaptadas al capital inicial ($500.000 COP) y salarios 2026
-// Utilidades mensuales calibradas a solicitud: 0%, 1%, 2%, 3%, 4% y 5%
+// Utilidades mensuales calibradas a solicitud del usuario:
+// - Ocasiones regulares: 0.3%, 0.5%, 0.7%, 0.8%, 0.9%, 1%, 1.2%, 1.5%, 1.6%, 1.7%, 2%
+// - En extrañas ocasiones: 2.5%, 3%, 3.5%
+// - En más extrañas situaciones: 4%, 5%
 const SMALL_DEALS = [
-	// --- 0% DE GANANCIA MENSUAL (Bienes de colección / Lotes de engorde / Plusvalía futura) ---
-	{
-		title: 'Lote de Terreno en Engorde 🏞️',
-		type: 'property',
-		propertyType: 'terreno',
-		desc: 'Un pequeño lote rural. No genera arriendo mensual, pero esperas venderlo más caro en el mercado.',
-		cost: 500000,
-		downPayment: 500000,
-		cashFlow: 0,
-		roiPercent: 0,
-		category: 'Tierra / Engorde'
-	},
-	{
-		title: 'Colección de Cartas Raras y Cómics 🃏',
-		type: 'business',
-		desc: 'Artículos de colección vintage. No generan dinero mensual, pero los coleccionistas pagan fortunas.',
-		cost: 300000,
-		downPayment: 300000,
-		cashFlow: 0,
-		roiPercent: 0,
-		category: 'Coleccionables'
-	},
-	{
-		title: 'Patente de Invento Registrada 💡',
-		type: 'business',
-		desc: 'Registro de marca y diseño innovador. No deja flujo mensual aún, pero puedes venderla en el mercado.',
-		cost: 450000,
-		downPayment: 450000,
-		cashFlow: 0,
-		roiPercent: 0,
-		category: 'Propiedad Intelectual'
-	},
+	// ==========================================
+	// OCASIONES REGULARES (0.3% a 2%)
+	// ==========================================
 
-	// --- 1% DE GANANCIA MENSUAL (Renta fija conservadora y muy segura) ---
+	// --- 0.3% DE GANANCIA MENSUAL ---
 	{
-		title: 'Cuenta de Ahorros con Rendimiento 🏦',
+		title: 'Cuenta de Ahorro a la Vista 🏦',
 		type: 'stock',
 		ticker: 'AHORRO',
-		desc: 'Dinero protegido en el banco que genera un rendimiento seguro y garantizado mes a mes.',
+		desc: 'Depósito a la vista seguro en entidad financiera con disponibilidad diaria.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 1500, // 0.3%
+		roiPercent: 0.3,
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '🏦'
+	},
+	{
+		title: 'Microbono de Deuda Soberana 📑',
+		type: 'stock',
+		ticker: 'M-TES',
+		desc: 'Título público de renta fija con máxima calificación de riesgo soberano.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 1800, // 0.3%
+		roiPercent: 0.3,
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '📑'
+	},
+	{
+		title: 'Depósito Remunerado Seguro 💳',
+		type: 'stock',
+		ticker: 'REMUN',
+		desc: 'Saldo remunerado en cuenta bancaria corporativa con rendimiento garantizado.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 1200, // 0.3%
+		roiPercent: 0.3,
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '💳'
+	},
+
+	// --- 0.5% DE GANANCIA MENSUAL ---
+	{
+		title: 'Fondo Fiduciario de Renta Fija 🏛️',
+		type: 'stock',
+		ticker: 'FIDUCIA',
+		desc: 'Fideicomiso administrado por fiduciaria bancaria invertido en pagarés de bajo riesgo.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 2500, // 0.5%
+		roiPercent: 0.5,
+		category: 'Fondos',
+		rarity: 'common',
+		icon: '🏛️'
+	},
+	{
+		title: 'Bono Bancario de Alta Calificación 💵',
+		type: 'stock',
+		ticker: 'BON-BANC',
+		desc: 'Bono emitido por banca nacional con pago mensual de cupones fijos.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 2000, // 0.5%
+		roiPercent: 0.5,
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '💵'
+	},
+	{
+		title: 'Certificado Fiduciario Tranquilo 🛡️',
+		type: 'stock',
+		ticker: 'CERT-FID',
+		desc: 'Participación en cartera colectiva de muy bajo perfil de riesgo.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 3000, // 0.5%
+		roiPercent: 0.5,
+		category: 'Fondos',
+		rarity: 'common',
+		icon: '🛡️'
+	},
+
+	// --- 0.7% DE GANANCIA MENSUAL ---
+	{
+		title: 'CDT Digital Garantizado 📈',
+		type: 'stock',
+		ticker: 'CDT-DIG',
+		desc: 'Certificado de depósito a término digital con pago mensual automático.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 3500, // 0.7%
+		roiPercent: 0.7,
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '📈'
+	},
+	{
+		title: 'Cartera Colectiva Conservadora 📂',
+		type: 'stock',
+		ticker: 'CCC',
+		desc: 'Fondo de inversión con diversificación en títulos del tesoro y depósitos a plazo.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 2800, // 0.7%
+		roiPercent: 0.7,
+		category: 'Fondos',
+		rarity: 'common',
+		icon: '📂'
+	},
+	{
+		title: 'Fondo Monetario de Liquidez 💰',
+		type: 'stock',
+		ticker: 'LIQ-MON',
+		desc: 'Fondo en moneda local respaldado por títulos del Banco de la República.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 4200, // 0.7%
+		roiPercent: 0.7,
+		category: 'Fondos',
+		rarity: 'common',
+		icon: '💰'
+	},
+
+	// --- 0.8% DE GANANCIA MENSUAL ---
+	{
+		title: 'Fondo de Títulos Corporativos 🏢',
+		type: 'stock',
+		ticker: 'FTC',
+		desc: 'Títulos de deuda emitidos por las 50 empresas más sólidas del país.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 4000, // 0.8%
+		roiPercent: 0.8,
+		category: 'Fondos',
+		rarity: 'common',
+		icon: '🏢'
+	},
+	{
+		title: 'Pagaré Comercial Avalado 📝',
+		type: 'stock',
+		ticker: 'PAG-AVAL',
+		desc: 'Instrumento financiero de crédito comercial avalado por una entidad aseguradora.',
+		cost: 450000,
+		downPayment: 450000,
+		cashFlow: 3600, // 0.8%
+		roiPercent: 0.8,
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '📝'
+	},
+	{
+		title: 'Participación en Fideicomiso Comercial 🏬',
+		type: 'property',
+		propertyType: 'fideicomiso',
+		desc: 'Derechos fiduciarios sobre locales de centros comerciales con rentas compartidas.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 4800, // 0.8%
+		roiPercent: 0.8,
+		category: 'Fondos',
+		rarity: 'common',
+		icon: '🏬'
+	},
+
+	// --- 0.9% DE GANANCIA MENSUAL ---
+	{
+		title: 'Fondo Inmobiliario de Renta Comercial 🏬',
+		type: 'property',
+		propertyType: 'comercial',
+		desc: 'Portafolio de oficinas y locales con arrendatarios corporativos estables.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 4500, // 0.9%
+		roiPercent: 0.9,
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '🏬'
+	},
+	{
+		title: 'Crédito Colectivo con Garantía Real 🔒',
+		type: 'stock',
+		ticker: 'CRED-REAL',
+		desc: 'Financiamiento colectivo con hipoteca de respaldo que distribuye intereses.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 3600, // 0.9%
+		roiPercent: 0.9,
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '🔒'
+	},
+	{
+		title: 'Participación en Bodegaje Modular 📦',
+		type: 'property',
+		propertyType: 'bodega',
+		desc: 'Unidad de almacenamiento en parque logístico que renta mensualmente a pymes.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 5400, // 0.9%
+		roiPercent: 0.9,
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '📦'
+	},
+
+	// --- 1% DE GANANCIA MENSUAL ---
+	{
+		title: 'Acciones Preferenciales de Servicios Públicos ⚡',
+		type: 'stock',
+		ticker: 'ENER-PREF',
+		desc: 'Acciones preferenciales de empresa eléctrica con dividendo mensual protegido.',
 		cost: 500000,
 		downPayment: 500000,
 		cashFlow: 5000, // 1%
 		roiPercent: 1,
-		category: 'Renta Fija'
+		category: 'Acciones',
+		rarity: 'common',
+		icon: '⚡'
 	},
 	{
-		title: 'Bono del Tesoro Seguro 📑',
-		type: 'stock',
-		ticker: 'TES',
-		desc: 'Inversión de bajo riesgo con respaldo financiero que te paga un interés mensual tranquilo.',
+		title: 'Fondo Inmobiliario Residencial 🏡',
+		type: 'property',
+		propertyType: 'residencial',
+		desc: 'Fondo especializado en departamentos y apartaestudios en arriendo continuo.',
 		cost: 400000,
 		downPayment: 400000,
 		cashFlow: 4000, // 1%
 		roiPercent: 1,
-		category: 'Bonos'
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '🏡'
 	},
 	{
-		title: 'Fondo de Liquidez Inmediata 💳',
+		title: 'Bono del Tesoro a Mediano Plazo 📜',
 		type: 'stock',
-		ticker: 'LIQ',
-		desc: 'Un fondo estable de retiro libre que suma un pequeño interés automático cada mes.',
+		ticker: 'TES-M',
+		desc: 'Título del tesoro con maduración a 5 años y pago puntual de rendimiento mensual.',
 		cost: 600000,
 		downPayment: 600000,
 		cashFlow: 6000, // 1%
 		roiPercent: 1,
-		category: 'Fondos'
+		category: 'Renta Fija',
+		rarity: 'common',
+		icon: '📜'
 	},
 
-	// --- 2% DE GANANCIA MENSUAL (Fondos colectivos y participaciones tranquilas) ---
-	{
-		title: 'Fondo de Inversión Colectiva 📊',
-		type: 'stock',
-		ticker: 'FIC',
-		desc: 'Inversión diversificada en empresas estables con reparto mensual de utilidades.',
-		cost: 450000,
-		downPayment: 450000,
-		cashFlow: 9000, // 2%
-		roiPercent: 2,
-		category: 'Fondos'
-	},
-	{
-		title: 'Participación en Parqueadero Comunitario 🚗',
-		type: 'property',
-		propertyType: 'parqueadero',
-		desc: 'Socio en un espacio de parqueo en el barrio con ingresos mensuales recurrentes.',
-		cost: 500000,
-		downPayment: 500000,
-		cashFlow: 10000, // 2%
-		roiPercent: 2,
-		category: 'Alquiler de Espacio'
-	},
-	{
-		title: 'Puesto de Alquiler de Libros y Mangas 📚',
-		type: 'business',
-		desc: 'Pequeño club de lectura donde los jóvenes pagan suscripción mensual para leer novedades.',
-		cost: 350000,
-		downPayment: 350000,
-		cashFlow: 7000, // 2%
-		roiPercent: 2,
-		category: 'Alquiler'
-	},
-
-	// --- 3% DE GANANCIA MENSUAL (Acciones, bodegaje y microservicios) ---
-	{
-		title: 'Acciones Sweet Lab 📈',
-		type: 'stock',
-		ticker: 'SWT',
-		desc: 'Compraste una partecita de Sweet Lab y recibes dividendos constantes cada mes.',
-		cost: 500000,
-		downPayment: 500000,
-		cashFlow: 15000, // 3%
-		roiPercent: 3,
-		category: 'Acciones'
-	},
+	// --- 1.2% DE GANANCIA MENSUAL ---
 	{
 		title: 'Bodega de Almacenamiento Compartida 📦',
 		type: 'property',
 		propertyType: 'bodega',
-		desc: 'Espacio alquilado a comerciantes para guardar mercancía con pago mensual fijo.',
-		cost: 600000,
-		downPayment: 600000,
-		cashFlow: 18000, // 3%
-		roiPercent: 3,
-		category: 'Alquiler de Espacio'
+		desc: 'Espacio alquilado a comerciantes barriales para guardar mercancía con pago fijo.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 6000, // 1.2%
+		roiPercent: 1.2,
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '📦'
 	},
 	{
-		title: 'Tótem de Carga de Celulares 🔋',
+		title: 'Parqueadero de Bicicletas y Motos 🚲',
+		type: 'property',
+		propertyType: 'parqueadero',
+		desc: 'Puesto seguro para guardar motocicletas y ciclas cerca a estación de transporte.',
+		cost: 450000,
+		downPayment: 450000,
+		cashFlow: 5400, // 1.2%
+		roiPercent: 1.2,
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '🚲'
+	},
+	{
+		title: 'Fondo de Desarrollo Urbano 🏙️',
+		type: 'property',
+		propertyType: 'urbano',
+		desc: 'Cartera fiduciaria con participación en proyectos de renovación habitacional.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 7200, // 1.2%
+		roiPercent: 1.2,
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '🏙️'
+	},
+
+	// --- 1.5% DE GANANCIA MENSUAL ---
+	{
+		title: 'Cupo en Parqueadero Comunitario Techado 🚗',
+		type: 'property',
+		propertyType: 'parqueadero',
+		desc: 'Espacio de estacionamiento bajo techo que se arrienda mes a mes a un vecino.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 7500, // 1.5%
+		roiPercent: 1.5,
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '🚗'
+	},
+	{
+		title: 'Estación de Carga de Patinetas Eléctricas ⚡',
 		type: 'business',
-		desc: 'Estación de recarga rápida instalada en una cafetería con pago por uso continuo.',
+		desc: 'Punto de recarga rápida y anclaje en una universidad con pago por minuto.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 6000, // 1.5%
+		roiPercent: 1.5,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '⚡'
+	},
+	{
+		title: 'Fondo Colectivo de Renta Automotriz 🚐',
+		type: 'stock',
+		ticker: 'FLOTA',
+		desc: 'Participación en leasing de camionetas de reparto urbano con reparto mensual.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 9000, // 1.5%
+		roiPercent: 1.5,
+		category: 'Fondos',
+		rarity: 'common',
+		icon: '🚐'
+	},
+
+	// --- 1.6% DE GANANCIA MENSUAL ---
+	{
+		title: 'Máquina Dispensadora de Agua Purificada 💧',
+		type: 'business',
+		desc: 'Equipo automático de recarga de botellones y termos en un gimnasio.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 8000, // 1.6%
+		roiPercent: 1.6,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '💧'
+	},
+	{
+		title: 'Casillero Inteligente de Paquetes 📬',
+		type: 'business',
+		desc: 'Locker electrónico instalado en una portería para entrega de encomiendas 24/7.',
+		cost: 450000,
+		downPayment: 450000,
+		cashFlow: 7200, // 1.6%
+		roiPercent: 1.6,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '📬'
+	},
+	{
+		title: 'Puesto de Fotocopiadora Automática 🖨️',
+		type: 'business',
+		desc: 'Kiosco autoservicio de impresión para estudiantes universitarios.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 9600, // 1.6%
+		roiPercent: 1.6,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '🖨️'
+	},
+
+	// --- 1.7% DE GANANCIA MENSUAL ---
+	{
+		title: 'Tótem de Carga y Publicidad Digital 📱',
+		type: 'business',
+		desc: 'Estación de recarga de celulares con pantalla de pautas publicitarias locales.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 8500, // 1.7%
+		roiPercent: 1.7,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '📱'
+	},
+	{
+		title: 'Nevera Inteligente de Snacks en Coworking 🥤',
+		type: 'business',
+		desc: 'Frigobar con lector QR y cobro automático instalado en oficinas compartidas.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 6800, // 1.7%
+		roiPercent: 1.7,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '🥤'
+	},
+	{
+		title: 'Máquina Despachadora de Café Caliente ☕',
+		type: 'business',
+		desc: 'Dispensadora automática de tinto y capuchino en sala de espera médica.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 10200, // 1.7%
+		roiPercent: 1.7,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '☕'
+	},
+
+	// --- 2% DE GANANCIA MENSUAL ---
+	{
+		title: 'Acciones Sweet Lab con Dividendo Regular 🍩',
+		type: 'stock',
+		ticker: 'SWT',
+		desc: 'Compraste acciones de Sweet Lab con excelente distribución mensual de dividendos.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 10000, // 2%
+		roiPercent: 2,
+		category: 'Acciones',
+		rarity: 'common',
+		icon: '🍩'
+	},
+	{
+		title: 'Lavadora Comunitaria a Monedas 🧺',
+		type: 'business',
+		desc: 'Servicio de lavado automático para estudiantes que deja renta mensual estable.',
+		cost: 450000,
+		downPayment: 450000,
+		cashFlow: 9000, // 2%
+		roiPercent: 2,
+		category: 'Servicio Automático',
+		rarity: 'common',
+		icon: '🧺'
+	},
+	{
+		title: 'Habitación en Arriendo en Casa Compartida 🛏️',
+		type: 'property',
+		propertyType: 'habitacion',
+		desc: 'Pieza amoblada que genera una renta fija mensual con servicios compartidos.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 12000, // 2%
+		roiPercent: 2,
+		category: 'Propiedad Raíz',
+		rarity: 'common',
+		icon: '🛏️'
+	},
+
+	// ==========================================
+	// EN EXTRAÑAS OCASIONES (2.5%, 3%, 3.5%)
+	// ==========================================
+
+	// --- 2.5% DE GANANCIA MENSUAL (Ocasión Extraña) ---
+	{
+		title: 'Máquina Expendedora de Café Especial ☕',
+		type: 'business',
+		desc: 'Vending de café de origen en un edificio corporativo con gran demanda.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 12500, // 2.5%
+		roiPercent: 2.5,
+		category: 'Servicio Automático',
+		rarity: 'rare',
+		icon: '☕'
+	},
+	{
+		title: 'Taller Artesanal de Confección y Arreglos 🧵',
+		type: 'business',
+		desc: 'Negocio propio de arreglos de sastrería y prendas de vestir personalizadas.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 10000, // 2.5%
+		roiPercent: 2.5,
+		category: 'Negocio Propio',
+		rarity: 'rare',
+		icon: '🧵'
+	},
+	{
+		title: 'Puesto de Accesorios para Celulares 📱',
+		type: 'business',
+		desc: 'Mostrador en pasillo comercial con alta rotación de protectores y cables.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 15000, // 2.5%
+		roiPercent: 2.5,
+		category: 'Negocio Propio',
+		rarity: 'rare',
+		icon: '📱'
+	},
+
+	// --- 3% DE GANANCIA MENSUAL (Ocasión Extraña) ---
+	{
+		title: 'Kiosco de Impresiones y Trámites Digitales 🖨️',
+		type: 'business',
+		desc: 'Local de pagos de servicios, fotocopias y diligencias en zona comercial.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 15000, // 3%
+		roiPercent: 3,
+		category: 'Negocio Propio',
+		rarity: 'rare',
+		icon: '🖨️'
+	},
+	{
+		title: 'Puesto de Cupcakes y Postres Artesanales 🧁',
+		type: 'business',
+		desc: 'Cajitas de repostería dulce para cumpleaños y pedidos especiales de fin de semana.',
 		cost: 400000,
 		downPayment: 400000,
 		cashFlow: 12000, // 3%
 		roiPercent: 3,
-		category: 'Servicio Automático'
+		category: 'Negocio Propio',
+		rarity: 'rare',
+		icon: '🧁'
+	},
+	{
+		title: 'Taller de Reparación de Bicicletas y Patinetas 🚲',
+		type: 'business',
+		desc: 'Taller de mantenimiento preventivo sobre ciclorruta principal con clientes fieles.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 18000, // 3%
+		roiPercent: 3,
+		category: 'Negocio Propio',
+		rarity: 'rare',
+		icon: '🚲'
 	},
 
-	// --- 4% DE GANANCIA MENSUAL (Máquinas automáticas y talleres activos) ---
+	// --- 3.5% DE GANANCIA MENSUAL (Ocasión Extraña) ---
 	{
-		title: 'Máquina Vendedora de Café y Snacks ☕',
+		title: 'Alquiler de Consolas y Simuladores Gamer 🎮',
 		type: 'business',
-		desc: 'Expendedora automática en una sala de espera con alto consumo de café a diario.',
-		cost: 550000,
-		downPayment: 550000,
-		cashFlow: 22000, // 4%
-		roiPercent: 4,
-		category: 'Negocio Automático'
+		desc: 'Sala de videojuegos y torneos los fines de semana con cobro por hora.',
+		cost: 500000,
+		downPayment: 500000,
+		cashFlow: 17500, // 3.5%
+		roiPercent: 3.5,
+		category: 'Servicio Automático',
+		rarity: 'rare',
+		icon: '🎮'
 	},
 	{
-		title: 'Taller de Joyería y Pulseras 💍',
+		title: 'Minifranquicia de Batidos y Frutas Frescas 🥤',
 		type: 'business',
-		desc: 'Diseñas accesorios artesanales de moda con pedidos regulares todos los meses.',
-		cost: 350000,
-		downPayment: 350000,
-		cashFlow: 14000, // 4%
-		roiPercent: 4,
-		category: 'Negocio Propio'
+		desc: 'Puesto express de batidos y jugos naturales frente a complejo deportivo.',
+		cost: 400000,
+		downPayment: 400000,
+		cashFlow: 14000, // 3.5%
+		roiPercent: 3.5,
+		category: 'Negocio Propio',
+		rarity: 'rare',
+		icon: '🥤'
 	},
 	{
-		title: 'Alquiler de Consola de Videojuegos 🎮',
+		title: 'Carro de Comidas Rápidas Gourmet 🌭',
 		type: 'business',
-		desc: 'Torneos juveniles los fines de semana que dejan un flujo mensual constante.',
+		desc: 'Puesto móvil de hamburguesas y perros calientes en zona de eventos nocturnos.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 21000, // 3.5%
+		roiPercent: 3.5,
+		category: 'Negocio Propio',
+		rarity: 'rare',
+		icon: '🌭'
+	},
+
+	// ==========================================
+	// EN MÁS EXTRAÑAS SITUACIONES (4% y 5%)
+	// ==========================================
+
+	// --- 4% DE GANANCIA MENSUAL (Ocasión Muy Extraña) ---
+	{
+		title: '¡Socio en Fábrica de Galletas Sweet Lab! 🍪',
+		type: 'stock',
+		ticker: 'SWT-IND',
+		desc: '¡Oportunidad excepcional! Participación societaria en la nueva línea industrial de galletas.',
 		cost: 500000,
 		downPayment: 500000,
 		cashFlow: 20000, // 4%
 		roiPercent: 4,
-		category: 'Entretenimiento'
+		category: 'Acciones',
+		rarity: 'very_rare',
+		icon: '🍪'
+	},
+	{
+		title: '¡Máquina de Dulces en Terminal Multimodal! 🍬',
+		type: 'business',
+		desc: '¡Ubicación de oro! Máquina automática en el punto de transbordo más concurrido de la ciudad.',
+		cost: 600000,
+		downPayment: 600000,
+		cashFlow: 24000, // 4%
+		roiPercent: 4,
+		category: 'Servicio Automático',
+		rarity: 'very_rare',
+		icon: '🍬'
 	},
 
-	// --- 5% DE GANANCIA MENSUAL (Negocios de alto rendimiento y autoservicios) ---
+	// --- 5% DE GANANCIA MENSUAL (Ocasión Muy Extraña) ---
 	{
-		title: 'Puesto de Cupcakes y Postres 🧁',
+		title: '¡Franquicia Estrella de Waffles Sweet Lab! 🍦',
 		type: 'business',
-		desc: 'Cajitas de postres deliciosos para cumpleaños y eventos pedidos con anticipación.',
-		cost: 400000,
-		downPayment: 400000,
-		cashFlow: 20000, // 5%
-		roiPercent: 5,
-		category: 'Negocio Propio'
-	},
-	{
-		title: 'Máquina de Dulces y Juguetes 🍬',
-		type: 'business',
-		desc: 'Máquina automática en un minimercado concurrido que vende solita día y noche.',
+		desc: '¡Situación extraordinaria! Kiosco franquiciado con exclusividad total y clientela desbordante.',
 		cost: 500000,
 		downPayment: 500000,
 		cashFlow: 25000, // 5%
 		roiPercent: 5,
-		category: 'Negocio Automático'
+		category: 'Negocio Propio',
+		rarity: 'very_rare',
+		icon: '🍦'
 	},
 	{
-		title: 'Lavadora Comunitaria de Ropa 🧺',
+		title: '¡Patente Tecnológica con Licenciamiento! 💡',
 		type: 'business',
-		desc: 'Servicio de lavado con monedas para estudiantes que deja un arriendo mensual garantizado.',
+		desc: '¡Gran hallazgo! Licencia tecnológica con regalías mensuales directas de grandes empresas.',
 		cost: 600000,
 		downPayment: 600000,
 		cashFlow: 30000, // 5%
 		roiPercent: 5,
-		category: 'Servicio Automático'
-	},
-	{
-		title: 'Carrito de Jugos y Limonadas 🍋',
-		type: 'business',
-		desc: 'Puesto móvil de bebidas naturales en la cancha deportiva del barrio.',
-		cost: 450000,
-		downPayment: 450000,
-		cashFlow: 22500, // 5%
-		roiPercent: 5,
-		category: 'Negocio Propio'
+		category: 'Negocio Propio',
+		rarity: 'very_rare',
+		icon: '💡'
 	}
 ];
 
-// Gastos y antojos calibrados a escala real 2026:
+// Gastos imprevistos y antojos calibrados a escala real 2026 (6x más variedad, 64 opciones):
 // "una salida con amigos debe salir en 120.000 más o menos, pero no siempre el mismo valor"
 const DOODADS = [
+	// --- 1. SALIDAS Y REUNIONES CON AMIGOS (~$120.000 COP con variación natural) ---
 	{
-		title: 'Salida a Cenar con Amigos 🍕',
-		desc: 'Una pizza grande con gaseosas y buena charla con amigos.',
-		cost: 120000 // $120.000 COP exacto de referencia
+		title: 'Salida a Cenar Pizzas con Amigos 🍕',
+		desc: 'Una pizza grande con gaseosas y buena charla de fin de semana con tus amigos.',
+		cost: 120000,
+		category: 'Salida con Amigos',
+		icon: '🍕'
 	},
 	{
 		title: 'Salida de Café y Postres con Amigos ☕',
-		desc: 'Una tarde relajada tomando café de especialidad y torta.',
-		cost: 105000
+		desc: 'Tarde relajada en cafetería de especialidad compartiendo capuchinos y torta.',
+		cost: 105000,
+		category: 'Salida con Amigos',
+		icon: '☕'
 	},
 	{
 		title: 'Tarde de Bolos y Cerveza con Amigos 🎳',
-		desc: 'Dos líneas de bolos y snacks compartidos el fin de semana.',
-		cost: 135000
+		desc: 'Dos líneas de bolos, alquiler de zapatos y bebidas compartidas con el grupo.',
+		cost: 135000,
+		category: 'Salida con Amigos',
+		icon: '🎳'
 	},
 	{
 		title: 'Salida al Bar con Música y Amigos 🍹',
-		desc: 'Ronda de cócteles y picada para celebrar con tus amigos.',
-		cost: 140000
-	},
-	{
-		title: 'Entrada a Cine VIP con Combo Crispetas 🍿',
-		desc: 'Boletas de estreno con crispetas gigantes y gaseosas.',
-		cost: 95000
+		desc: 'Ronda de cócteles, picada y buena música para celebrar el fin de semana.',
+		cost: 140000,
+		category: 'Salida con Amigos',
+		icon: '🍹'
 	},
 	{
 		title: 'Hamburguesas Artesanales con Amigos 🍔',
-		desc: 'Hamburguesas especiales con papas rústicas y malteadas.',
-		cost: 115000
+		desc: 'Hamburguesas especiales con papas rústicas y malteadas con los parceros.',
+		cost: 115000,
+		category: 'Salida con Amigos',
+		icon: '🍔'
+	},
+	{
+		title: 'Entrada a Cine VIP con Combo Crispetas 🍿',
+		desc: 'Boletas de estreno con crispetas gigantes, gaseosas y nachos con queso.',
+		cost: 95000,
+		category: 'Salida con Amigos',
+		icon: '🍿'
+	},
+	{
+		title: 'Asado Dominical con Amigos 🥩',
+		desc: 'Aporte para la carne, chorizos, mazorcas y gaseosas del domingo.',
+		cost: 125000,
+		category: 'Salida con Amigos',
+		icon: '🥩'
+	},
+	{
+		title: 'Noche de Tacos y Margaritas con Amigos 🌮',
+		desc: 'Ronda de tacos al pastor y bebidas mexicanas compartidas con amigos.',
+		cost: 120000,
+		category: 'Salida con Amigos',
+		icon: '🌮'
+	},
+	{
+		title: 'Cena de Sushi con Amigos 🍣',
+		desc: 'Rollos de sushi variados y bebidas en restaurante oriental con amigos.',
+		cost: 130000,
+		category: 'Salida con Amigos',
+		icon: '🍣'
+	},
+	{
+		title: 'Picada Criolla de Fin de Semana 🥓',
+		desc: 'Chicharrón, plátano maduro, arepas y gaseosas compartidas con amigos.',
+		cost: 125000,
+		category: 'Salida con Amigos',
+		icon: '🥓'
+	},
+	{
+		title: 'Salida a Bailar y Discoteca 🪩',
+		desc: 'Cover de entrada y ronda de bebidas con tus amigos en la discoteca.',
+		cost: 110000,
+		category: 'Salida con Amigos',
+		icon: '🪩'
+	},
+	{
+		title: 'Desayuno y Brunch con Amigos 🥞',
+		desc: 'Pancakes, huevos benedictinos, fruta y café de origen en la mañana del sábado.',
+		cost: 90000,
+		category: 'Salida con Amigos',
+		icon: '🥞'
+	},
+	{
+		title: 'Almuerzo Campestre Fuera de la Ciudad 🌳',
+		desc: 'Salida a un mirador en la montaña a almorzar sancocho con amigos.',
+		cost: 135000,
+		category: 'Salida con Amigos',
+		icon: '🌳'
+	},
+	{
+		title: 'Helados Gourmet y Waffles con Amigos 🍨',
+		desc: 'Copas de helado artesanal, barquillos y waffles dulces de postre.',
+		cost: 75000,
+		category: 'Salida con Amigos',
+		icon: '🍨'
+	},
+	{
+		title: 'Tarde de Parrilla y Picadas con Amigos 🍢',
+		desc: 'Mazorcas desgranadas, pinchos de carne y bebidas frías en la noche.',
+		cost: 110000,
+		category: 'Salida con Amigos',
+		icon: '🍢'
+	},
+	{
+		title: 'Cena de Celebración Especial con Amigos 🍽️',
+		desc: 'Cena de cumpleaños o logro especial en restaurante con tus mejores amigos.',
+		cost: 145000,
+		category: 'Salida con Amigos',
+		icon: '🍽️'
+	},
+
+	// --- 2. GASTOS IMPREVISTOS DEL HOGAR Y SERVICIOS ---
+	{
+		title: 'Fuga de Agua en el Lavaplatos 🔧',
+		desc: 'Tuviste que llamar a un plomero de urgencia y cambiar el sifón del lavaplatos.',
+		cost: 85000,
+		category: 'Hogar y Servicios',
+		icon: '🔧'
+	},
+	{
+		title: 'Cambio Urgente de Cerradura 🔑',
+		desc: 'La llave se partió adentro de la chapa de la puerta principal al llegar tarde.',
+		cost: 110000,
+		category: 'Hogar y Servicios',
+		icon: '🔑'
+	},
+	{
+		title: 'Recibo de Luz Más Alto este Mes 💡',
+		desc: 'Uso intensivo de calentador y electrodomésticos; la factura de energía subió.',
+		cost: 145000,
+		category: 'Hogar y Servicios',
+		icon: '💡'
+	},
+	{
+		title: 'Destape de Cañería de Emergencia 🪠',
+		desc: 'El desagüe del baño colapsó y requirió motobomba y servicio de fontanería.',
+		cost: 95000,
+		category: 'Hogar y Servicios',
+		icon: '🪠'
+	},
+	{
+		title: 'Bombillos LED Quemados y Cableado 🔌',
+		desc: 'Un bajonazo de luz dañó varios bombillos LED y un interruptor del pasillo.',
+		cost: 60000,
+		category: 'Hogar y Servicios',
+		icon: '🔌'
+	},
+	{
+		title: 'Reparación de la Lavadora 🧺',
+		desc: 'Se soltó la correa del tambor de centrifugado y tocó llamar al técnico.',
+		cost: 175000,
+		category: 'Hogar y Servicios',
+		icon: '🧺'
+	},
+	{
+		title: 'Filtro de Agua y Mantenimiento de Purificador 💧',
+		desc: 'Cambio periódico de cartuchos de carbón activado del filtro del agua de la cocina.',
+		cost: 70000,
+		category: 'Hogar y Servicios',
+		icon: '💧'
+	},
+	{
+		title: 'Cuota Extraordinaria del Edificio 🏢',
+		desc: 'Aporte comunitario imprevisto para pintar la fachada y reparar el portón comunal.',
+		cost: 130000,
+		category: 'Hogar y Servicios',
+		icon: '🏢'
+	},
+	{
+		title: 'Pintura e Impermeabilización de Pared 🖌️',
+		desc: 'Una humedad manchó la pared del cuarto y compraste sellador, lija y galón de pintura.',
+		cost: 115000,
+		category: 'Hogar y Servicios',
+		icon: '🖌️'
+	},
+	{
+		title: 'Candado de Alta Seguridad y Llaves 🔒',
+		desc: 'Refuerzo de seguridad para la reja exterior y duplicados de llaves de seguridad.',
+		cost: 55000,
+		category: 'Hogar y Servicios',
+		icon: '🔒'
+	},
+	{
+		title: 'Mantenimiento del Calentador de Gas 🔥',
+		desc: 'Revisión técnica anual obligatoria y limpieza de inyectores para evitar fugas.',
+		cost: 120000,
+		category: 'Hogar y Servicios',
+		icon: '🔥'
+	},
+	{
+		title: 'Reemplazo de Grifería de la Ducha 🚿',
+		desc: 'El mezclador de agua caliente y fría goteaba día y noche; tocó reemplazarlo.',
+		cost: 100000,
+		category: 'Hogar y Servicios',
+		icon: '🚿'
+	},
+
+	// --- 3. GASTOS IMPREVISTOS DE SALUD Y FARMACIA ---
+	{
+		title: 'Consulta Médica Prioritaria 🩺',
+		desc: 'Molestia física aguda que obligó a pagar una consulta médica particular sin demora.',
+		cost: 110000,
+		category: 'Salud y Farmacia',
+		icon: '🩺'
+	},
+	{
+		title: 'Fórmula Médica en la Droguería 💊',
+		desc: 'Antibióticos, analgésicos y jarabes recetados para cortar una fuerte virosis.',
+		cost: 75000,
+		category: 'Salud y Farmacia',
+		icon: '💊'
+	},
+	{
+		title: 'Urgencia Odontológica y Calza Dental 🦷',
+		desc: 'Se cayó una calza comiendo tostadas y tocó acudir de inmediato al odontólogo.',
+		cost: 140000,
+		category: 'Salud y Farmacia',
+		icon: '🦷'
+	},
+	{
+		title: 'Exámenes de Laboratorio Clínico 🧪',
+		desc: 'Copago y toma de muestras de sangre para control médico solicitado por el doctor.',
+		cost: 65000,
+		category: 'Salud y Farmacia',
+		icon: '🧪'
+	},
+	{
+		title: 'Multivitamínicos y Suplementos Inmunes 🍊',
+		desc: 'Complejo B, vitamina C y suplementos de defensas recomendados para el cansancio.',
+		cost: 80000,
+		category: 'Salud y Farmacia',
+		icon: '🍊'
+	},
+	{
+		title: 'Reparación de Montura de Gafas 👓',
+		desc: 'Se zafó la patilla de tus gafas formuladas y compraste una montura nueva.',
+		cost: 165000,
+		category: 'Salud y Farmacia',
+		icon: '👓'
+	},
+	{
+		title: 'Lágrimas Artificiales y Gotas Oftálmicas 👁️',
+		desc: 'Ojos secos y enrojecimiento tras largas jornadas frente a pantallas.',
+		cost: 50000,
+		category: 'Salud y Farmacia',
+		icon: '👁️'
+	},
+	{
+		title: 'Fisioterapia por Dolor Lumbar 💆',
+		desc: 'Sesión de masajes y terapia muscular para desinflamar la espalda tras hacer fuerza.',
+		cost: 95000,
+		category: 'Salud y Farmacia',
+		icon: '💆'
+	},
+
+	// --- 4. GASTOS IMPREVISTOS DE MASCOTAS ---
+	{
+		title: 'Vacuna Anual y Pipeta Antipulgas 🐶',
+		desc: 'Refuerzo de vacuna séxtuple y antipulgas de tu perrito en la veterinaria.',
+		cost: 85000,
+		category: 'Mascotas',
+		icon: '🐶'
+	},
+	{
+		title: 'Urgencia Veterinaria por Indigestión 🐱',
+		desc: 'Tu mascota comió algo indebido y requirió examen clínico y suero en la clínica.',
+		cost: 120000,
+		category: 'Mascotas',
+		icon: '🐱'
+	},
+	{
+		title: 'Baño Dermatológico y Peluquería Canina ✂️',
+		desc: 'Baño antiparasitario especial, corte de pelo y cepillado higiénico para tu mascota.',
+		cost: 70000,
+		category: 'Mascotas',
+		icon: '✂️'
+	},
+	{
+		title: 'Bulto de Alimento Medicado Especial 🦴',
+		desc: 'Dieta veterinaria gastrointestinal formulada para el cuidado de tu mascota.',
+		cost: 95000,
+		category: 'Mascotas',
+		icon: '🦴'
+	},
+	{
+		title: 'Cojín y Juguete Nuevo para Mascota 🧸',
+		desc: 'Tu mascota destrozó su cama y compraste un cojín acolchado y resistente.',
+		cost: 55000,
+		category: 'Mascotas',
+		icon: '🧸'
+	},
+
+	// --- 5. GASTOS IMPREVISTOS DE TECNOLOGÍA Y CELULAR ---
+	{
+		title: 'Cambio de Vidrio Templado y Pantalla 📱',
+		desc: 'El celular resbaló de tus manos y tocó cambiar el vidrio protector y display.',
+		cost: 180000,
+		category: 'Tecnología',
+		icon: '📱'
+	},
+	{
+		title: 'Cargador Original de Carga Rápida ⚡',
+		desc: 'El cable se dobló y dejó de hacer contacto; tocó comprar cargador de buena marca.',
+		cost: 75000,
+		category: 'Tecnología',
+		icon: '⚡'
 	},
 	{
 		title: 'Audífonos Inalámbricos Bluetooth 🎧',
-		desc: 'Se dañaron los viejos y compraste unos nuevos para escuchar música.',
-		cost: 160000
+		desc: 'Se cayó un audífono al subir al bus y compraste unos nuevos para tus trayectos.',
+		cost: 155000,
+		category: 'Tecnología',
+		icon: '🎧'
 	},
+	{
+		title: 'Mouse Ergonómico y Teclado Nuevo 🖱️',
+		desc: 'El scroll del mouse falló en plena jornada de trabajo y compraste uno ergonómico.',
+		cost: 85000,
+		category: 'Tecnología',
+		icon: '🖱️'
+	},
+	{
+		title: 'Memoria USB y Disco de Respaldo 💾',
+		desc: 'Compraste unidad de almacenamiento para respaldar fotos y archivos indispensables.',
+		cost: 90000,
+		category: 'Tecnología',
+		icon: '💾'
+	},
+	{
+		title: 'Renovación de Almacenamiento en la Nube ☁️',
+		desc: 'Cobro imprevisto de renovación anual de tu cuenta en la nube para no perder fotos.',
+		cost: 105000,
+		category: 'Tecnología',
+		icon: '☁️'
+	},
+	{
+		title: 'Mantenimiento y Pasta Térmica del Portátil 💻',
+		desc: 'El computador se calentaba y apagaba solo; tocó hacerle limpieza profunda.',
+		cost: 135000,
+		category: 'Tecnología',
+		icon: '💻'
+	},
+
+	// --- 6. GASTOS IMPREVISTOS DE TRANSPORTE Y MOVILIDAD ---
+	{
+		title: 'Pinchazo de Llanta en la Vía 🛵',
+		desc: 'Un clavo en la llanta de la moto/bici obligó a pagar parche vulcanizado y desvare.',
+		cost: 55000,
+		category: 'Transporte',
+		icon: '🛵'
+	},
+	{
+		title: 'Carreras de Taxi por Aguacero Torrencial 🚕',
+		desc: 'Llovió torrencialmente en hora pico y tocó pedir transporte de aplicación con tarifa alta.',
+		cost: 65000,
+		category: 'Transporte',
+		icon: '🚕'
+	},
+	{
+		title: 'Pastillas de Frenos y Guayas de Moto 🛑',
+		desc: 'Desgaste severo en los frenos detectado en el taller; cambio obligado por seguridad.',
+		cost: 115000,
+		category: 'Transporte',
+		icon: '🛑'
+	},
+	{
+		title: 'Cambio de Aceite y Filtro de Motor 🛢️',
+		desc: 'Mantenimiento del motor para evitar daños mayores en tus desplazamientos diarios.',
+		cost: 90000,
+		category: 'Transporte',
+		icon: '🛢️'
+	},
+	{
+		title: 'Servicio de Grúa o Carga de Batería 🔋',
+		desc: 'La batería se descargó al dejar las luces prendidas y tocó pagar servicio eléctrico.',
+		cost: 85000,
+		category: 'Transporte',
+		icon: '🔋'
+	},
+	{
+		title: 'Casco o Chaleco Reflectivo Reglamentario 🦺',
+		desc: 'Renovación de implementos de seguridad vial exigidos por las normas de tránsito.',
+		cost: 125000,
+		category: 'Transporte',
+		icon: '🦺'
+	},
+
+	// --- 7. COMPROMISOS SOCIALES, FAMILIARES Y REGALOS ---
+	{
+		title: 'Regalo de Cumpleaños Sorpresa 🎁',
+		desc: 'Celebración de un familiar querido al que no podías llegar con las manos vacías.',
+		cost: 115000,
+		category: 'Compromisos y Regalos',
+		icon: '🎁'
+	},
+	{
+		title: 'Cuota para Baby Shower o Despedida 👶',
+		desc: 'Aporte grupal para la ancheta y pañales de un compañero en la oficina.',
+		cost: 65000,
+		category: 'Compromisos y Regalos',
+		icon: '👶'
+	},
+	{
+		title: 'Amigo Secreto y Detalle Grupal 🎅',
+		desc: 'Intercambio tradicional de regalos con el parche de amigos o compañeros.',
+		cost: 70000,
+		category: 'Compromisos y Regalos',
+		icon: '🎅'
+	},
+	{
+		title: 'Flores y Chocolates para Fecha Especial 💐',
+		desc: 'Ramo de rosas y caja de chocolates para sorprender a alguien muy especial.',
+		cost: 85000,
+		category: 'Compromisos y Regalos',
+		icon: '💐'
+	},
+
+	// --- 8. ANTOJOS PERSONALES Y ROPA ---
 	{
 		title: 'Gorra o Zapatillas Urbanas con Estilo 👟',
-		desc: 'Una prenda que viste en vitrina y no pudiste resistir comprar.',
-		cost: 175000
+		desc: 'Viste unos tenis o gorra en oferta en el centro comercial y decidiste comprarlos.',
+		cost: 170000,
+		category: 'Antojos y Ropa',
+		icon: '👟'
 	},
 	{
-		title: 'Antojos y Domicilios del Fin de Semana 🍫',
-		desc: 'Pedidos de comida rápida y golosinas a domicilio durante el descanso.',
-		cost: 85000
+		title: 'Perfume o Fragancia en Promoción Irresistible 🧴',
+		desc: 'Tu colonia preferida estaba con descuento temporal y la compraste sin pensarlo.',
+		cost: 145000,
+		category: 'Antojos y Ropa',
+		icon: '🧴'
 	},
 	{
 		title: 'Boleta para Festival o Concierto Juvenil 🎟️',
-		desc: 'Entrada general para ver a tus artistas favoritos en vivo.',
-		cost: 190000
+		desc: 'Entrada para ver en vivo a tus artistas favoritos en el festival de la ciudad.',
+		cost: 190000,
+		category: 'Antojos y Ropa',
+		icon: '🎟️'
+	},
+	{
+		title: 'Corte de Cabello y Arreglo de Barba / Peinado 💈',
+		desc: 'Sesión de estilista, hidratación capilar y corte antes de un evento importante.',
+		cost: 90000,
+		category: 'Antojos y Ropa',
+		icon: '💈'
+	},
+	{
+		title: 'Arreglo de Ropa en la Sastrería 🧵',
+		desc: 'Ajuste de bota de dos pantalones y cambio de cremallera de tu chaqueta favorita.',
+		cost: 50000,
+		category: 'Antojos y Ropa',
+		icon: '🧵'
+	},
+	{
+		title: 'Antojos y Domicilios a Medianoche 🍫',
+		desc: 'Pedidos de comida rápida y golosinas a domicilio durante el fin de semana.',
+		cost: 85000,
+		category: 'Antojos y Ropa',
+		icon: '🍫'
 	}
 ];
 
@@ -2190,21 +3018,52 @@ function showPromotionModal(player) {
 	});
 }
 
+// Selección probabilística calibrada de oportunidades:
+// - ~87% Ocasiones regulares (0.3% a 2%)
+// - ~10% Extrañas ocasiones (2.5%, 3%, 3.5%)
+// - ~3% Más extrañas situaciones (4%, 5%)
+function getRandomOpportunity() {
+	const roll = Math.random() * 100;
+	let pool;
+	if (roll < 3) {
+		// En más extrañas situaciones (4% y 5%)
+		pool = SMALL_DEALS.filter(d => d.rarity === 'very_rare');
+	} else if (roll < 13) {
+		// En extrañas ocasiones (2.5%, 3%, 3.5%)
+		pool = SMALL_DEALS.filter(d => d.rarity === 'rare');
+	} else {
+		// Ocasiones regulares (0.3% a 2%)
+		pool = SMALL_DEALS.filter(d => d.rarity === 'common');
+	}
+	if (!pool || pool.length === 0) pool = SMALL_DEALS;
+	return pickRandom(pool);
+}
+
 // 4. Negocio / Inversión
 function showOpportunityModal(player) {
-	const deal = pickRandom(SMALL_DEALS);
+	const deal = getRandomOpportunity();
 	presentDeal(player, deal);
 }
 
 function presentDeal(player, deal) {
 	const canAfford = player.cash >= deal.downPayment;
 
+	let rarityBadgeHtml = '';
+	let modalTypeName = 'OPORTUNIDAD DE INVERSIÓN 🚀';
+	if (deal.rarity === 'very_rare') {
+		modalTypeName = '¡OCASIÓN MUY EXTRAÑA! 🔥💎';
+		rarityBadgeHtml = `<div style="display:inline-block; background:linear-gradient(135deg,#ec4899,#8b5cf6); color:white; font-weight:800; padding:5px 14px; border-radius:20px; font-size:12px; margin-bottom:12px; box-shadow:0 3px 12px rgba(236,72,153,0.45); text-transform:uppercase; letter-spacing:0.5px;">🔥💎 ¡Ocasión Muy Extraña! (${deal.roiPercent}% Ganancia)</div><br>`;
+	} else if (deal.rarity === 'rare') {
+		modalTypeName = '¡OCASIÓN EXTRAÑA! ⭐';
+		rarityBadgeHtml = `<div style="display:inline-block; background:linear-gradient(135deg,#f59e0b,#d97706); color:white; font-weight:800; padding:5px 14px; border-radius:20px; font-size:12px; margin-bottom:12px; box-shadow:0 3px 12px rgba(245,158,11,0.4); text-transform:uppercase; letter-spacing:0.5px;">⭐ ¡Ocasión Extraña! (${deal.roiPercent}% Ganancia)</div><br>`;
+	}
+
 	const stats = [
 		{ label: 'Inversión inicial:', value: `${formatCOP(deal.downPayment)} COP` },
 		{
 			label: 'Ganancia al mes:',
-			value: deal.cashFlow > 0 ? `+${formatCOP(deal.cashFlow)} COP (${deal.roiPercent}% ganancia)` : `$0 COP (${deal.roiPercent}% ganancia / plusvalía)`,
-			color: deal.cashFlow > 0 ? 'green' : 'blue'
+			value: `+${formatCOP(deal.cashFlow)} COP (${deal.roiPercent}% ganancia)`,
+			color: 'green'
 		}
 	];
 
@@ -2239,21 +3098,19 @@ function presentDeal(player, deal) {
 					}, 220);
 				}
 
-				const successDesc = deal.cashFlow > 0
-					? `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra (${deal.roiPercent}% de ganancia)</strong> todos los meses en tu Día de Pago.`
-					: `¡Adquiriste este activo! Aunque su ganancia mensual es del <strong>0% ($0 COP/mes)</strong>, podrás venderlo por un precio mayor cuando caigas en casillas de Venta en el Mercado.`;
+				const successDesc = `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra (${deal.roiPercent}% de ganancia mensual)</strong> todos los meses en tu Día de Pago.`;
 
 				showModal({
-					typeName: '¡ÉXITO! 🎉',
+					typeName: deal.rarity === 'very_rare' ? '¡OCASIÓN EXTRAORDINARIA! 🔥💎' : (deal.rarity === 'rare' ? '¡OCASIÓN EXTRAÑA APROVECHADA! ⭐' : '¡ÉXITO! 🎉'),
 					headerClass: 'opportunity',
-					icon: '🎉',
+					icon: deal.icon || '🎉',
 					title: deal.title,
 					detailedInfo: successDesc,
 					stats: [
 						{
 							label: 'Ganancia agregada:',
-							value: deal.cashFlow > 0 ? `+${formatCOP(deal.cashFlow)} COP/mes (${deal.roiPercent}%)` : `$0 COP/mes (${deal.roiPercent}%)`,
-							color: deal.cashFlow > 0 ? 'green' : 'blue'
+							value: `+${formatCOP(deal.cashFlow)} COP/mes (${deal.roiPercent}%)`,
+							color: 'green'
 						}
 					],
 					buttons: [
@@ -2281,27 +3138,31 @@ function presentDeal(player, deal) {
 	});
 
 	showModal({
-		typeName: 'OPORTUNIDAD 🚀',
+		typeName: modalTypeName,
 		headerClass: 'opportunity',
-		icon: '💼',
+		icon: deal.icon || '💼',
 		title: deal.title,
-		desc: deal.desc,
+		detailedInfo: `${rarityBadgeHtml}${deal.desc}<br><br><small style="color:#64748b;">💡 Inviertes <strong>${formatCOP(deal.downPayment)} COP</strong> y genera <strong>+${formatCOP(deal.cashFlow)} COP cada mes (${deal.roiPercent}% de ganancia mensual)</strong> en tus Días de Pago.</small>`,
 		stats,
 		buttons
 	});
 }
 
-// 5. Antojos (Doodads)
+// 5. Gastos Imprevistos y Antojos (Doodads)
 function showDoodadModal(player) {
 	const doodad = pickRandom(DOODADS);
 	const remaining = player.cash - doodad.cost;
 
+	const typeTitle = doodad.category
+		? `GASTO IMPREVISTO • ${doodad.category.toUpperCase()}`
+		: 'GASTO IMPREVISTO 💸';
+
 	showModal({
-		typeName: 'ANTOJITO 🛍️',
+		typeName: typeTitle,
 		headerClass: 'doodad',
-		icon: '🛍️',
+		icon: doodad.icon || '💸',
 		title: doodad.title,
-		detailedInfo: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para los negocios te ayuda a comprar activos más rápido.</small>`,
+		detailedInfo: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para imprevistos te protege sin frenar tus inversiones en negocios.</small>`,
 		stats: [
 			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
 			{ label: 'Te quedará en bolsillo:', value: `${formatCOP(remaining)} COP`, color: remaining >= 0 ? 'green' : 'red' }
