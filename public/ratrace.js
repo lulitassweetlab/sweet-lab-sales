@@ -909,7 +909,6 @@ function updateHUDAndHeaders() {
 					${isMyTurn ? '<span class="p-turn-indicator">Turno</span>' : ''}
 				</div>
 				<div class="player-hud-stats-row">
-					<span class="p-te-quedan">Te quedan:</span>
 					<span class="p-cash">${formatCOP(p.cash)}</span>
 					<span class="p-divider">•</span>
 					<span class="p-flow ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
@@ -1939,12 +1938,6 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 			statsEl.innerHTML = '';
 			statsEl.style.display = 'none';
 		}
-	}
-
-	// Mostrar saldo restante del jugador: Te quedan: xxxx
-	if (balanceValEl && current) {
-		balanceValEl.textContent = `${formatCOP(current.cash)} COP`;
-		balanceValEl.className = `mini-balance-val ${current.cash < 0 ? 'red' : ''}`;
 	}
 
 	// Mostrar widget lateral minimalista a mano derecha
