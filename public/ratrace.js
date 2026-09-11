@@ -320,6 +320,8 @@ const gameState = {
 	currentPlayerIndex: 0,
 	selectedDrawerPlayerIndex: 0,
 	isRolling: false,
+	isCardFlying: false,
+	pendingEndTurn: false,
 	generatedTiles: [],
 	cameraViewOffset: 0 // Para explorar casillas siguientes/anteriores sin mover el ficho
 };
@@ -372,6 +374,11 @@ class SoundEffects {
 		magicPitches.forEach((p, idx) => {
 			setTimeout(() => this.playTone(p, 0.25, 'sine', 0.12), idx * 90);
 		});
+	}
+
+	cardLand() {
+		this.playTone(360, 0.07, 'triangle', 0.1);
+		setTimeout(() => this.playTone(460, 0.1, 'sine', 0.08), 35);
 	}
 
 	step() {
@@ -876,7 +883,7 @@ function setDiceFace(diceNumber, faceValue) {
 }
 
 function rollTwoDice() {
-	if (gameState.isRolling) return;
+	if (gameState.isRolling || gameState.isCardFlying) return;
 	const player = gameState.players[gameState.currentPlayerIndex];
 	const btnRoll = document.getElementById('btn-roll-dice');
 	const dice1 = document.getElementById('hud-dice-3d-1');
@@ -1023,7 +1030,7 @@ function collectPayday(player, isLanding) {
 				{ label: 'Nuevo Saldo en Efectivo', value: `${formatCOP(player.cash)} COP`, color: 'green' }
 			],
 			buttons: [
-				{ text: 'Continuar ➔', action: () => { closeModal(); endTurn(); } }
+				{ text: 'Continuar ➔', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 	}
@@ -1058,7 +1065,6 @@ function presentDeal(player, deal) {
 				player.cash -= deal.downPayment;
 				player.assets.push({ ...deal });
 				sounds.cash();
-				closeModal();
 				updateHUDAndHeaders();
 				showModal({
 					headerClass: 'opportunity',
@@ -1067,7 +1073,7 @@ function presentDeal(player, deal) {
 					subtitle: deal.title,
 					desc: `Has incorporado este activo a tu balance. A partir de ahora sumas <strong>+${formatCOP(deal.cashFlow)} COP/mes</strong> en cada Día de Pago.`,
 					buttons: [
-						{ text: '¡Excelente!', action: () => { closeModal(); endTurn(); } }
+						{ text: '¡Excelente!', action: () => { closeModal(() => endTurn()); } }
 					]
 				});
 			}
@@ -1077,7 +1083,6 @@ function presentDeal(player, deal) {
 			text: 'Pedir Préstamo Bancario 🏦',
 			class: 'primary',
 			action: () => {
-				closeModal();
 				showLoanModal(() => presentDeal(player, deal));
 			}
 		});
@@ -1086,7 +1091,7 @@ function presentDeal(player, deal) {
 	buttons.push({
 		text: 'Rechazar Oportunidad',
 		class: 'secondary',
-		action: () => { closeModal(); endTurn(); }
+		action: () => { closeModal(() => endTurn()); }
 	});
 
 	showModal({
@@ -1118,7 +1123,7 @@ function showDoodadModal(player) {
 			{ label: 'Efectivo Restante', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
 		],
 		buttons: [
-			{ text: 'Aceptar y Aprender', action: () => { closeModal(); endTurn(); } }
+			{ text: 'Aceptar y Aprender', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
@@ -1135,7 +1140,7 @@ function showMarketModal(player) {
 			subtitle: 'El Mercado',
 			desc: event.desc,
 			buttons: [
-				{ text: 'Continuar', action: () => { closeModal(); endTurn(); } }
+				{ text: 'Continuar', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 		return;
@@ -1157,7 +1162,7 @@ function showMarketModal(player) {
 			subtitle: 'Oportunidad de Mercado',
 			desc: `${event.desc}<br><br><em>No tienes este activo en este momento. ¡Asegúrate de invertir en las casillas verdes para vender cuando haya auge!</em>`,
 			buttons: [
-				{ text: 'Entendido', action: () => { closeModal(); endTurn(); } }
+				{ text: 'Entendido', action: () => { closeModal(() => endTurn()); } }
 			]
 		});
 		return;
@@ -1182,7 +1187,6 @@ function showMarketModal(player) {
 					player.assets.splice(eligibleIndex, 1);
 					player.cash += event.salePrice;
 					sounds.cash();
-					closeModal();
 					updateHUDAndHeaders();
 					showModal({
 						headerClass: 'market',
@@ -1190,14 +1194,14 @@ function showMarketModal(player) {
 						title: '¡VENTA EXITOSA!',
 						subtitle: `Ganancia: +${formatCOP(event.netGain)} COP`,
 						desc: `Has liquidado tu inversión. Tienes una gran suma en efectivo para adquirir negocios mayores.`,
-						buttons: [{ text: 'Continuar', action: () => { closeModal(); endTurn(); } }]
+						buttons: [{ text: 'Continuar', action: () => { closeModal(() => endTurn()); } }]
 					});
 				}
 			},
 			{
 				text: 'Conservar el Activo',
 				class: 'secondary',
-				action: () => { closeModal(); endTurn(); }
+				action: () => { closeModal(() => endTurn()); }
 			}
 		]
 	});
@@ -1230,15 +1234,14 @@ function showCharityModal(player) {
 					player.cash -= donation;
 					player.cash += Math.round(donation * 1.5);
 					sounds.cash();
-					closeModal();
 					updateHUDAndHeaders();
-					endTurn();
+					closeModal(() => endTurn());
 				}
 			},
 			{
 				text: 'No donar esta vez',
 				class: 'secondary',
-				action: () => { closeModal(); endTurn(); }
+				action: () => { closeModal(() => endTurn()); }
 			}
 		]
 	});
@@ -1263,7 +1266,7 @@ function showCrisisModal(player) {
 			{ label: 'Efectivo Restante', value: `${formatCOP(player.cash)} COP`, color: player.cash >= 0 ? 'green' : 'red' }
 		],
 		buttons: [
-			{ text: 'Afrontar la Situación', action: () => { closeModal(); endTurn(); } }
+			{ text: 'Afrontar la Situación', action: () => { closeModal(() => endTurn()); } }
 		]
 	});
 }
@@ -1297,10 +1300,9 @@ function showLoanModal(callbackAfterLoan) {
 					player.totalDebt += loanBlock;
 					player.debtExpenses += interest;
 					sounds.cash();
-					closeModal();
 					updateHUDAndHeaders();
 					if (callbackAfterLoan) callbackAfterLoan();
-					else endTurn();
+					else closeModal(() => endTurn());
 				}
 			},
 			{
@@ -1312,16 +1314,18 @@ function showLoanModal(callbackAfterLoan) {
 					player.totalDebt += block5;
 					player.debtExpenses += (interest * 5);
 					sounds.cash();
-					closeModal();
 					updateHUDAndHeaders();
 					if (callbackAfterLoan) callbackAfterLoan();
-					else endTurn();
+					else closeModal(() => endTurn());
 				}
 			},
 			{
 				text: 'Cancelar',
 				class: 'secondary',
-				action: () => { closeModal(); if (!callbackAfterLoan) endTurn(); }
+				action: () => {
+					if (callbackAfterLoan) callbackAfterLoan();
+					else closeModal(() => endTurn());
+				}
 			}
 		]
 	});
@@ -1502,7 +1506,14 @@ function triggerVictory(player) {
 	document.getElementById('victory-modal').classList.add('open');
 }
 
+let currentFlyingTileEl = null;
+
 function endTurn() {
+	if (gameState.isCardFlying) {
+		gameState.pendingEndTurn = true;
+		return;
+	}
+
 	const current = gameState.players[gameState.currentPlayerIndex];
 	if (checkVictoryCondition(current)) return;
 
@@ -1514,11 +1525,15 @@ function endTurn() {
 }
 
 // ==========================================
-// 13. MODALES DE TARJETAS
+// 13. MODALES DE TARJETAS (Efecto 3D Levantar, Voltear y Regresar)
 // ==========================================
 
 function showModal({ headerClass, icon, title, subtitle, desc, stats = [], buttons = [] }) {
-	const modal = document.getElementById('card-modal');
+	const overlay = document.getElementById('flying-card-overlay');
+	const wrapper = document.getElementById('flying-card-wrapper');
+	const flipper = document.getElementById('flying-card-flipper');
+	const frontFace = document.getElementById('flying-card-front');
+
 	const header = document.getElementById('modal-header');
 	const iconEl = document.getElementById('modal-icon');
 	const titleEl = document.getElementById('modal-title');
@@ -1527,48 +1542,187 @@ function showModal({ headerClass, icon, title, subtitle, desc, stats = [], butto
 	const statsEl = document.getElementById('modal-stats');
 	const footerEl = document.getElementById('modal-footer');
 
-	if (!modal) return;
+	if (!wrapper || !flipper) return;
 
-	header.className = `card-header-cf ${headerClass || 'opportunity'}`;
-	iconEl.textContent = icon || 'ℹ️';
-	titleEl.textContent = title;
-	subEl.textContent = subtitle || '';
-	descEl.innerHTML = desc;
+	// Configurar contenido de la cara posterior (revelada al voltear)
+	if (header) header.className = `card-header-cf ${headerClass || 'opportunity'}`;
+	if (iconEl) iconEl.textContent = icon || 'ℹ️';
+	if (titleEl) titleEl.textContent = title;
+	if (subEl) subEl.textContent = subtitle || '';
+	if (descEl) descEl.innerHTML = desc;
 
-	statsEl.innerHTML = stats.map(s => `
-		<div class="card-stat-line">
-			<span class="lbl">${s.label}</span>
-			<span class="val ${s.color || ''}">${s.value}</span>
-		</div>
-	`).join('');
-
-	footerEl.innerHTML = '';
-	buttons.forEach(b => {
-		const btn = document.createElement('button');
-		btn.className = `cf-dialog-btn ${b.class || 'primary'}`;
-		btn.textContent = b.text;
-		btn.addEventListener('click', b.action);
-		footerEl.appendChild(btn);
-	});
-
-	const cardBox = modal.querySelector('.cf-card-modal');
-	if (cardBox) {
-		cardBox.classList.remove('genie-emerge');
-		// Forzar reflujo para reiniciar la animación
-		void cardBox.offsetWidth;
-		cardBox.classList.add('genie-emerge');
+	if (statsEl) {
+		statsEl.innerHTML = stats.map(s => `
+			<div class="card-stat-line">
+				<span class="lbl">${s.label}</span>
+				<span class="val ${s.color || ''}">${s.value}</span>
+			</div>
+		`).join('');
 	}
 
-	sounds.genieMagic();
-	modal.classList.add('open');
+	if (footerEl) {
+		footerEl.innerHTML = '';
+		buttons.forEach(b => {
+			const btn = document.createElement('button');
+			btn.className = `cf-dialog-btn ${b.class || 'primary'}`;
+			btn.textContent = b.text;
+			btn.addEventListener('click', () => {
+				if (b.action) b.action();
+			});
+			footerEl.appendChild(btn);
+		});
+	}
+
+	// Si la tarjeta ya está en el centro (ej. confirmación, préstamo o felicitación):
+	if (gameState.isCardFlying) {
+		flipper.style.transform = 'rotateX(0deg) rotateY(180deg) scale(1.02)';
+		setTimeout(() => {
+			flipper.style.transform = 'rotateX(0deg) rotateY(180deg) scale(1)';
+		}, 150);
+		return;
+	}
+
+	// 1. Obtener la casilla activa del camino donde cayó el jugador
+	const current = gameState.players[gameState.currentPlayerIndex];
+	const isParallelTwo = gameState.players.length === 2;
+	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
+	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
+
+	gameState.isCardFlying = true;
+	currentFlyingTileEl = activeTile;
+
+	if (activeTile && frontFace) {
+		// Clonar la apariencia física exacta de la casilla en la cara frontal
+		const tileData = gameState.generatedTiles[current.position];
+		frontFace.className = `flying-card-face flying-card-front tile-lane-card ${tileData ? tileData.styleClass : 'opportunity'}`;
+		frontFace.innerHTML = activeTile.innerHTML;
+		frontFace.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+
+		// Medir posición y dimensiones exactas en la pantalla de la casilla en el camino
+		const rect = activeTile.getBoundingClientRect();
+		const startW = activeTile.offsetWidth || 236;
+		const startH = activeTile.offsetHeight || 115;
+		const startX = rect.left + rect.width / 2 - startW / 2;
+		const startY = rect.top + rect.height / 2 - startH / 2;
+
+		// Dimensiones destino en el centro de la pantalla
+		const targetW = Math.min(460, Math.floor(window.innerWidth * 0.92));
+		const targetH = Math.min(520, Math.floor(window.innerHeight * 0.88));
+		const targetX = Math.floor((window.innerWidth - targetW) / 2);
+		const targetY = Math.floor((window.innerHeight - targetH) / 2);
+
+		// Posicionar la tarjeta voladora exactamente sobre la casilla del camino con su ángulo 3D (42deg)
+		wrapper.style.display = 'block';
+		wrapper.style.pointerEvents = 'none';
+		wrapper.style.transition = 'none';
+		flipper.style.transition = 'none';
+
+		wrapper.style.width = `${startW}px`;
+		wrapper.style.height = `${startH}px`;
+		wrapper.style.transform = `translate3d(${startX}px, ${startY}px, 0)`;
+		flipper.style.transform = 'rotateX(42deg) rotateY(0deg)';
+
+		// Atenuar la casilla en el camino para dar la sensación física de que se desprendió
+		activeTile.style.transition = 'opacity 0.25s ease';
+		activeTile.style.opacity = '0.12';
+
+		// Forzar reflujo
+		void wrapper.offsetWidth;
+
+		// Sonido mágico al despegar
+		sounds.genieMagic();
+
+		// Animar elevación, expansión a la mitad de la pantalla y volteo 3D a 180°
+		const animDuration = '0.75s cubic-bezier(0.25, 1, 0.3, 1)';
+		wrapper.style.transition = `transform ${animDuration}, width ${animDuration}, height ${animDuration}`;
+		flipper.style.transition = `transform ${animDuration}`;
+
+		overlay.classList.add('active');
+		wrapper.style.width = `${targetW}px`;
+		wrapper.style.height = `${targetH}px`;
+		wrapper.style.transform = `translate3d(${targetX}px, ${targetY}px, 0)`;
+		flipper.style.transform = 'rotateX(0deg) rotateY(180deg)';
+
+		setTimeout(() => {
+			wrapper.style.pointerEvents = 'auto';
+		}, 750);
+	} else {
+		// Modo de respaldo
+		overlay.classList.add('active');
+		wrapper.style.display = 'block';
+		wrapper.style.pointerEvents = 'auto';
+	}
 }
 
-function closeModal() {
-	const modal = document.getElementById('card-modal');
-	if (!modal) return;
-	modal.classList.remove('open');
-	const cardBox = modal.querySelector('.cf-card-modal');
-	if (cardBox) cardBox.classList.remove('genie-emerge');
+function closeModal(callback) {
+	const overlay = document.getElementById('flying-card-overlay');
+	const wrapper = document.getElementById('flying-card-wrapper');
+	const flipper = document.getElementById('flying-card-flipper');
+
+	if (!wrapper || !gameState.isCardFlying) {
+		if (overlay) overlay.classList.remove('active');
+		if (callback) callback();
+		if (gameState.pendingEndTurn) {
+			gameState.pendingEndTurn = false;
+			endTurn();
+		}
+		return;
+	}
+
+	wrapper.style.pointerEvents = 'none';
+	sounds.cardLand();
+
+	const activeTile = currentFlyingTileEl;
+
+	if (activeTile) {
+		// Re-medir la posición actual de la casilla en el camino por si cambió la vista
+		const rect = activeTile.getBoundingClientRect();
+		const startW = activeTile.offsetWidth || 236;
+		const startH = activeTile.offsetHeight || 115;
+		const startX = rect.left + rect.width / 2 - startW / 2;
+		const startY = rect.top + rect.height / 2 - startH / 2;
+
+		const returnDuration = '0.65s cubic-bezier(0.25, 1, 0.3, 1)';
+		wrapper.style.transition = `transform ${returnDuration}, width ${returnDuration}, height ${returnDuration}`;
+		flipper.style.transition = `transform ${returnDuration}`;
+
+		overlay.classList.remove('active');
+
+		// Animar de regreso: reducir tamaño, des-voltear a 0° y volver a colocarse en el camino en 42°
+		wrapper.style.width = `${startW}px`;
+		wrapper.style.height = `${startH}px`;
+		wrapper.style.transform = `translate3d(${startX}px, ${startY}px, 0)`;
+		flipper.style.transform = 'rotateX(42deg) rotateY(0deg)';
+
+		setTimeout(() => {
+			wrapper.style.display = 'none';
+			activeTile.style.opacity = '1';
+
+			// Sutil efecto de asentamiento físico en el tablero
+			activeTile.classList.remove('tile-landing-thump');
+			void activeTile.offsetWidth;
+			activeTile.classList.add('tile-landing-thump');
+
+			gameState.isCardFlying = false;
+			currentFlyingTileEl = null;
+
+			if (callback) callback();
+			if (gameState.pendingEndTurn) {
+				gameState.pendingEndTurn = false;
+				endTurn();
+			}
+		}, 650);
+	} else {
+		overlay.classList.remove('active');
+		wrapper.style.display = 'none';
+		gameState.isCardFlying = false;
+		currentFlyingTileEl = null;
+		if (callback) callback();
+		if (gameState.pendingEndTurn) {
+			gameState.pendingEndTurn = false;
+			endTurn();
+		}
+	}
 }
 
 function pickRandom(arr) {
