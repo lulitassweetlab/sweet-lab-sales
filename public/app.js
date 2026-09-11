@@ -951,8 +951,8 @@ function isAdmin(user) {
 
 function getRole(user) {
 	const u = String(user || '').toLowerCase();
-	if (u === 'jorge') return 'superadmin';
-	if (u === 'marcela' || u === 'aleja') return 'admin';
+	if (u === 'jorge' || u === 'marcela') return 'superadmin';
+	if (u === 'aleja') return 'admin';
 	return 'user';
 }
 
@@ -1016,7 +1016,11 @@ function bindLogin() {
 	const logoutBtn = document.getElementById('logout-btn');
 	logoutBtn?.addEventListener('click', () => {
 		state.currentUser = null;
-		try { localStorage.removeItem('authUser'); } catch { }
+		try {
+			localStorage.removeItem('authUser');
+			localStorage.removeItem('storeAuthUser');
+			localStorage.removeItem('storeActiveSeller');
+		} catch { }
 		applyAuthVisibility();
 		renderSellerButtons();
 		switchView('#view-login');
@@ -1298,10 +1302,9 @@ async function enterSeller(id) {
 		return;
 	}
 	state.currentSeller = seller;
-	// Apply seller bill icon CSS var
 	try {
-		const letter = (seller.name || '').trim().charAt(0).toUpperCase();
-		// seller-specific icon removed
+		localStorage.setItem('storeActiveSeller', JSON.stringify(seller));
+		localStorage.setItem('storeAuthUser', JSON.stringify({ username: seller.name, role: state.currentUser?.role || 'user' }));
 	} catch { }
 	state.saleDays = [];
 	state.selectedDayId = null;
@@ -2338,7 +2341,7 @@ async function performRedo() {
 // Superadmin-only editors for delivered counts per day (inline editable)
 function wireDeliveredRowEditors() {
 	const user = state?.currentUser;
-	const isSuper = user?.role === 'superadmin' || !!user?.isSuperAdmin || String(user?.name).toLowerCase() === 'jorge';
+	const isSuper = user?.role === 'superadmin' || !!user?.isSuperAdmin || ['jorge', 'marcela'].includes(String(user?.name).toLowerCase());
 	const cells = [];
 	// Look only for spans belonging to flavor columns (exclude "total" span)
 	const spans = document.querySelectorAll('#footer-delivered-row td.col-dessert span[id^="deliv-"]:not(#deliv-total)');
@@ -11061,6 +11064,20 @@ async function goToSaleFromDeepLink(sellerId, saleDayId, saleId) {
 	if (!btn) return;
 	btn.addEventListener('click', async () => {
 		await openClientsView();
+	});
+})();
+
+(function wireCrmMobileButton() {
+	const btn = document.getElementById('crm-mobile-btn');
+	if (!btn) return;
+	btn.addEventListener('click', () => {
+		if (state.currentSeller) {
+			try {
+				localStorage.setItem('storeActiveSeller', JSON.stringify(state.currentSeller));
+				localStorage.setItem('storeAuthUser', JSON.stringify({ username: state.currentSeller.name, role: state.currentUser?.role || 'user' }));
+			} catch {}
+		}
+		window.location.href = '/crm-mobile.html';
 	});
 })();
 

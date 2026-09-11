@@ -157,6 +157,156 @@ export async function handler(event) {
                 `;
                 return json({ ok: true });
             }
+
+            if (action === 'transfer') {
+                const actorName = (data.actor_name || event.headers?.['x-actor-name'] || event.headers?.['X-Actor-Name'] || '').toString().trim();
+                let isAuthorized = false;
+                if (['jorge', 'marcela'].includes(actorName.toLowerCase())) {
+                    isAuthorized = true;
+                } else if (actorName) {
+                    const [actorRow] = await sql`SELECT role FROM users WHERE lower(username) = lower(${actorName}) LIMIT 1`;
+                    if (actorRow && (actorRow.role === 'superadmin' || actorRow.role === 'admin')) {
+                        isAuthorized = true;
+                    }
+                }
+                if (!isAuthorized) {
+                    return json({ error: 'Solo superadmin puede transferir clientes' }, 403);
+                }
+
+                const targetSellerId = Number(data.target_seller_id);
+                if (!targetSellerId) return json({ error: 'Falta target_seller_id' }, 400);
+
+                const [targetSeller] = await sql`SELECT id, name FROM sellers WHERE id = ${targetSellerId} LIMIT 1`;
+                if (!targetSeller) return json({ error: 'Vendedor destino no encontrado' }, 404);
+
+                let clientIds = data.client_ids;
+                if (!Array.isArray(clientIds) && data.client_id) {
+                    clientIds = [Number(data.client_id)];
+                }
+                clientIds = (clientIds || []).map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
+                if (clientIds.length === 0) {
+                    return json({ error: 'No se seleccionaron clientes para transferir' }, 400);
+                }
+
+                const originClients = await sql`
+                    SELECT c.*, s.name as origin_seller_name 
+                    FROM clients c 
+                    LEFT JOIN sellers s ON c.seller_id = s.id 
+                    WHERE c.id = ANY(${clientIds})
+                `;
+
+                if (originClients.length === 0) {
+                    return json({ error: 'Ningún cliente encontrado' }, 404);
+                }
+
+                let transferredCount = 0;
+                for (const c of originClients) {
+                    if (c.seller_id === targetSellerId) continue;
+
+                    // 1. Check if target seller already has a client with the same name
+                    const existingTarget = await sql`
+                        SELECT * FROM clients 
+                        WHERE seller_id = ${targetSellerId} AND LOWER(name) = LOWER(${c.name})
+                        LIMIT 1
+                    `;
+
+                    if (existingTarget.length > 0) {
+                        // MERGE SCENARIO
+                        const targetClient = existingTarget[0];
+                        await sql`
+                            UPDATE clients SET
+                                short_name = COALESCE(clients.short_name, ${c.short_name}),
+                                whatsapp = COALESCE(clients.whatsapp, ${c.whatsapp}),
+                                birth_date = COALESCE(clients.birth_date, ${c.birth_date}),
+                                description = COALESCE(clients.description, ${c.description}),
+                                address = COALESCE(clients.address, ${c.address}),
+                                latitude = COALESCE(clients.latitude, ${c.latitude}),
+                                longitude = COALESCE(clients.longitude, ${c.longitude})
+                            WHERE id = ${targetClient.id}
+                        `;
+
+                        // Rebind sales bridge
+                        await sql`
+                            UPDATE crm_client_sales
+                            SET client_id = ${targetClient.id}, seller_id = ${targetSellerId}
+                            WHERE client_id = ${c.id}
+                              AND sale_id NOT IN (SELECT sale_id FROM crm_client_sales WHERE client_id = ${targetClient.id})
+                        `;
+                        await sql`DELETE FROM crm_client_sales WHERE client_id = ${c.id}`;
+
+                        // Rebind activities
+                        await sql`UPDATE crm_activities SET client_id = ${targetClient.id}, seller_id = ${targetSellerId} WHERE client_id = ${c.id}`;
+
+                        // Rebind reminders
+                        await sql`UPDATE crm_reminders SET client_id = ${targetClient.id}, seller_id = ${targetSellerId} WHERE client_id = ${c.id}`;
+
+                        // Rebind whatsapp logs
+                        await sql`UPDATE crm_whatsapp_logs SET client_id = ${targetClient.id} WHERE client_id = ${c.id}`;
+
+                        // Rebind tags
+                        const originTags = await sql`SELECT tag_id FROM crm_client_tags WHERE client_id = ${c.id}`;
+                        for (const ot of originTags) {
+                            const [tagInfo] = await sql`SELECT name, color FROM crm_tags WHERE id = ${ot.tag_id}`;
+                            if (tagInfo) {
+                                let [tTag] = await sql`SELECT id FROM crm_tags WHERE seller_id = ${targetSellerId} AND lower(name) = lower(${tagInfo.name}) LIMIT 1`;
+                                if (!tTag) {
+                                    [tTag] = await sql`INSERT INTO crm_tags (seller_id, name, color) VALUES (${targetSellerId}, ${tagInfo.name}, ${tagInfo.color}) RETURNING id`;
+                                }
+                                if (tTag && tTag.id) {
+                                    await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${targetClient.id}, ${tTag.id}) ON CONFLICT DO NOTHING`;
+                                }
+                            }
+                        }
+                        await sql`DELETE FROM crm_client_tags WHERE client_id = ${c.id}`;
+
+                        // Delete merged origin client
+                        await sql`DELETE FROM clients WHERE id = ${c.id}`;
+
+                        // Audit activity note
+                        await sql`
+                            INSERT INTO crm_activities (client_id, seller_id, activity_type, description, created_by)
+                            VALUES (${targetClient.id}, ${targetSellerId}, 'note', ${'🔄 Cliente fusionado y transferido desde ' + (c.origin_seller_name || 'vendedor anterior') + ' por ' + (actorName || 'Superadmin')}, ${actorName || 'Superadmin'})
+                        `;
+                    } else {
+                        // DIRECT TRANSFER SCENARIO
+                        await sql`UPDATE clients SET seller_id = ${targetSellerId} WHERE id = ${c.id}`;
+                        await sql`UPDATE crm_client_sales SET seller_id = ${targetSellerId} WHERE client_id = ${c.id}`;
+                        await sql`UPDATE crm_reminders SET seller_id = ${targetSellerId} WHERE client_id = ${c.id}`;
+                        await sql`UPDATE crm_activities SET seller_id = ${targetSellerId} WHERE client_id = ${c.id}`;
+
+                        // Replicate tags to target seller
+                        const originTags = await sql`SELECT tag_id FROM crm_client_tags WHERE client_id = ${c.id}`;
+                        for (const ot of originTags) {
+                            const [tagInfo] = await sql`SELECT name, color FROM crm_tags WHERE id = ${ot.tag_id}`;
+                            if (tagInfo) {
+                                let [tTag] = await sql`SELECT id FROM crm_tags WHERE seller_id = ${targetSellerId} AND lower(name) = lower(${tagInfo.name}) LIMIT 1`;
+                                if (!tTag) {
+                                    [tTag] = await sql`INSERT INTO crm_tags (seller_id, name, color) VALUES (${targetSellerId}, ${tagInfo.name}, ${tagInfo.color}) RETURNING id`;
+                                }
+                                if (tTag && tTag.id && tTag.id !== ot.tag_id) {
+                                    await sql`DELETE FROM crm_client_tags WHERE client_id = ${c.id} AND tag_id = ${ot.tag_id}`;
+                                    await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${c.id}, ${tTag.id}) ON CONFLICT DO NOTHING`;
+                                }
+                            }
+                        }
+
+                        // Audit activity note
+                        await sql`
+                            INSERT INTO crm_activities (client_id, seller_id, activity_type, description, created_by)
+                            VALUES (${c.id}, ${targetSellerId}, 'note', ${'🔄 Cliente transferido desde ' + (c.origin_seller_name || 'vendedor anterior') + ' por ' + (actorName || 'Superadmin')}, ${actorName || 'Superadmin'})
+                        `;
+                    }
+                    transferredCount++;
+                }
+
+                return json({
+                    success: true,
+                    count: transferredCount,
+                    transferred_count: transferredCount,
+                    target_seller_name: targetSeller.name
+                });
+            }
+
             return json({ error: 'Acción no válida' }, 400);
         }
 

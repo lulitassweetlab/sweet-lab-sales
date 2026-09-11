@@ -1780,22 +1780,36 @@
 
         // Initialize state from localStorage
         try {
-            const savedUser = safeLS.getItem('storeAuthUser');
+            let savedUser = safeLS.getItem('storeAuthUser');
+            if (!savedUser) {
+                const authUser = safeLS.getItem('authUser');
+                if (authUser) {
+                    savedUser = authUser;
+                    safeLS.setItem('storeAuthUser', authUser);
+                }
+            }
             if (savedUser) storeAuthUser = JSON.parse(savedUser);
+            
             const savedSeller = safeLS.getItem('storeActiveSeller');
             if (savedSeller) storeActiveSeller = JSON.parse(savedSeller);
 
-            if (storeActiveSeller) {
-                fetch('/api/sellers').then(r => r.json()).then(all => {
-                    if (Array.isArray(all)) {
-                        const fresh = all.find(s => s.id === storeActiveSeller.id || s.name.toLowerCase() === storeActiveSeller.name.toLowerCase());
-                        if (fresh) {
-                            storeActiveSeller = fresh;
-                            safeLS.setItem('storeActiveSeller', JSON.stringify(fresh));
-                        }
+            fetch('/api/sellers').then(r => r.json()).then(all => {
+                if (Array.isArray(all) && all.length > 0) {
+                    const username = (storeAuthUser && (storeAuthUser.username || storeAuthUser.name) || '').toLowerCase();
+                    let fresh = null;
+                    if (username) {
+                        fresh = all.find(s => s.name && s.name.toLowerCase() === username);
                     }
-                }).catch(() => {});
-            }
+                    if (!fresh && storeActiveSeller) {
+                        fresh = all.find(s => s.id === storeActiveSeller.id || (s.name && s.name.toLowerCase() === (storeActiveSeller.name || '').toLowerCase()));
+                    }
+                    if (fresh) {
+                        storeActiveSeller = fresh;
+                        safeLS.setItem('storeActiveSeller', JSON.stringify(fresh));
+                        if (typeof updateAuthUI === 'function') updateAuthUI();
+                    }
+                }
+            }).catch(() => {});
         } catch (e) { console.error('Error loading session:', e); }
 
         // Compatibility Helper
