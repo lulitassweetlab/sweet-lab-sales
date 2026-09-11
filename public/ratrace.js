@@ -820,15 +820,13 @@ function setupRoad3DScene() {
 	// 2. Caminos de los Jugadores
 	const isParallelTwo = gameState.players.length === 2;
 	if (isParallelTwo) {
-		const col0 = document.createElement('div');
-		col0.className = 'parallel-road-column';
-		col0.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
-		scene.appendChild(col0);
-
-		const col1 = document.createElement('div');
-		col1.className = 'parallel-road-column';
-		col1.innerHTML = `<div class="road-3d-track" id="road-lane-track-1"></div>`;
-		scene.appendChild(col1);
+		const roadGroup = document.createElement('div');
+		roadGroup.className = 'road-lanes-group';
+		roadGroup.innerHTML = `
+			<div class="parallel-road-column"><div class="road-3d-track" id="road-lane-track-0"></div></div>
+			<div class="parallel-road-column"><div class="road-3d-track" id="road-lane-track-1"></div></div>
+		`;
+		scene.appendChild(roadGroup);
 	} else {
 		const col = document.createElement('div');
 		col.className = 'parallel-road-column';

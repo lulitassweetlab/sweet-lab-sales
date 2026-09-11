@@ -103,11 +103,12 @@
 			transform: translateX(-50%);
 			z-index: 150;
 			display: flex;
+			flex-direction: row;
+			flex-wrap: nowrap;
 			align-items: center;
 			justify-content: center;
-			gap: 16px;
-			max-width: 96vw;
-			flex-wrap: wrap;
+			gap: 6px; /* Justo donde termina el recuadro de uno comienza el del otro */
+			max-width: 98vw;
 			pointer-events: auto;
 		}
 
@@ -337,11 +338,20 @@
 			display: flex;
 			justify-content: center;
 			align-items: flex-end;
-			gap: 30px;
+			gap: 20px;
 			transform-style: preserve-3d;
 			transform-origin: 50% 88%;
 			transform: scale(0.83) translateY(28px); /* Vista un poco más de lejos antes de tirar */
 			transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+		}
+
+		/* Contenedor de caminos paralelos pegados uno al lado del otro */
+		.road-lanes-group {
+			display: flex;
+			align-items: flex-end;
+			justify-content: center;
+			gap: 4px; /* Casillas una al lado de la otra, justo donde terminan sus recuadros */
+			transform-style: preserve-3d;
 		}
 
 		/* Cada columna de pista */
@@ -350,13 +360,13 @@
 			flex-direction: column;
 			align-items: center;
 			position: relative;
-			width: 260px;
+			width: 236px;
 			transform-style: preserve-3d;
 		}
 
 		/* La Pista Inclinada en 3D Hacia el Fondo (Perspectiva de Carretera) */
 		.road-3d-track {
-			width: 250px;
+			width: 236px;
 			display: flex;
 			flex-direction: column-reverse; /* La casilla actual abajo y el futuro arriba en el horizonte */
 			align-items: center;
