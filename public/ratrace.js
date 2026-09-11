@@ -780,7 +780,7 @@ function setupRoad3DScene() {
 	scene.appendChild(colBeach);
 }
 
-function updatePawnsOnRoad() {
+function updatePawnsOnRoad(activeHoppingIndex = -1) {
 	const isParallelTwo = gameState.players.length === 2;
 
 	// Limpiar casillas
@@ -802,7 +802,7 @@ function updatePawnsOnRoad() {
 		const slot = document.getElementById(`lane-pawns-${laneIndex}-${p.position}`);
 		if (slot) {
 			const pawn = document.createElement('div');
-			pawn.className = 'mini-pawn';
+			pawn.className = `mini-pawn ${idx === activeHoppingIndex ? 'pawn-hopping' : ''}`;
 			pawn.style.background = p.color;
 			pawn.title = p.name;
 			pawn.innerHTML = p.avatar;
@@ -882,7 +882,7 @@ function updateHUDAndHeaders() {
  * Toma en cuenta el avance de la ficha + el cameraViewOffset si el usuario está explorando adelante.
  * Sincroniza tanto los caminos como la escenografía 3D (árboles y playa).
  */
-function centerPerspective() {
+function centerPerspective(smooth = false) {
 	const current = gameState.players[gameState.currentPlayerIndex];
 	const targetTileIndex = Math.max(0, current.position + gameState.cameraViewOffset);
 	const stepHeight = 126;
@@ -893,10 +893,14 @@ function centerPerspective() {
 	const sceneryLeft = document.getElementById('scenery-lane-left');
 	const sceneryRight = document.getElementById('scenery-lane-right');
 
-	if (track0) track0.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
-	if (track1) track1.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
-	if (sceneryLeft) sceneryLeft.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
-	if (sceneryRight) sceneryRight.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
+	const transitionStyle = smooth ? 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+
+	[track0, track1, sceneryLeft, sceneryRight].forEach(el => {
+		if (el) {
+			el.style.transition = transitionStyle;
+			el.style.transform = `rotateX(42deg) translateY(${translateY}px)`;
+		}
+	});
 }
 
 // ==========================================
@@ -973,14 +977,13 @@ function stepForwardOnRoad(player, totalSteps) {
 			extendPerspectiveRoad(20);
 		}
 
-		updatePawnsOnRoad();
+		// La ficha salta hacia adelante sobre las casillas (las casillas permanecen quietas)
+		updatePawnsOnRoad(gameState.currentPlayerIndex);
 
-		// Resaltar casilla y deslizar cámara
+		// Resaltar casilla activa
 		document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
 		const tileEl = document.getElementById(`lane-tile-${laneIndex}-${player.position}`);
 		if (tileEl) tileEl.classList.add('active-step');
-
-		centerPerspective();
 
 		const currentTileData = gameState.generatedTiles[player.position];
 		pill.textContent = `${player.name} avanzando hacia el frente... (${totalSteps - stepsRemaining}/${totalSteps})`;
@@ -992,6 +995,7 @@ function stepForwardOnRoad(player, totalSteps) {
 
 		if (stepsRemaining <= 0) {
 			clearInterval(stepInterval);
+			updatePawnsOnRoad(-1); // Asentar ficha al detenerse
 			pill.textContent = `✨ ${player.name} llegó a: ${currentTileData.name}... Revelando evento...`;
 
 			// 1 SEGUNDO DE ESPERA en la casilla antes de que salga la información de la tarjeta
@@ -1669,7 +1673,88 @@ function endTurn() {
 	gameState.isRolling = false;
 	gameState.cameraViewOffset = 0;
 	updateHUDAndHeaders();
-	centerPerspective();
+	centerPerspective(true); // Al terminar el turno, deslizar suavemente las casillas para centrar al siguiente jugador
+}
+
+/**
+ * Renderiza el widget de balance a mano derecha mientras se muestra la tarjeta central
+ */
+function renderModalSideBalance(targetPlayerIndex = null) {
+	const sideBalanceEl = document.getElementById('modal-side-balance');
+	if (!sideBalanceEl) return;
+
+	const pIndex = targetPlayerIndex !== null ? targetPlayerIndex : gameState.currentPlayerIndex;
+	const player = gameState.players[pIndex];
+	if (!player) return;
+
+	const fin = getPlayerFinancials(player);
+
+	// Header
+	const avatarEl = document.getElementById('side-bal-avatar');
+	const nameEl = document.getElementById('side-bal-name');
+	const jobEl = document.getElementById('side-bal-job');
+	if (avatarEl) {
+		avatarEl.textContent = player.avatar;
+		avatarEl.style.background = player.bg;
+	}
+	if (nameEl) {
+		nameEl.textContent = player.name + (pIndex === gameState.currentPlayerIndex ? ' (En Turno)' : '');
+	}
+	if (jobEl) jobEl.textContent = player.profession;
+
+	// Tabs si hay más de 1 jugador
+	const tabsEl = document.getElementById('side-bal-tabs');
+	if (tabsEl) {
+		if (gameState.players.length > 1) {
+			tabsEl.classList.remove('hidden');
+			tabsEl.innerHTML = gameState.players.map((p, idx) => `
+				<button type="button" class="side-bal-tab-btn ${idx === pIndex ? 'active' : ''}" data-idx="${idx}">
+					${p.avatar} ${p.name}
+				</button>
+			`).join('');
+			tabsEl.querySelectorAll('.side-bal-tab-btn').forEach(btn => {
+				btn.onclick = (e) => {
+					e.stopPropagation();
+					const idx = parseInt(btn.dataset.idx, 10);
+					renderModalSideBalance(idx);
+				};
+			});
+		} else {
+			tabsEl.classList.add('hidden');
+		}
+	}
+
+	// Métricas Clave
+	const cashEl = document.getElementById('side-bal-cash');
+	const flowEl = document.getElementById('side-bal-flow');
+	if (cashEl) {
+		cashEl.textContent = `${formatCOP(player.cash)} COP`;
+		cashEl.className = `val cash ${player.cash < 0 ? 'red' : ''}`;
+	}
+	if (flowEl) {
+		flowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m`;
+		flowEl.className = `val flow ${fin.monthlyCashFlow < 0 ? 'red' : ''}`;
+	}
+
+	// Detalle
+	const salaryEl = document.getElementById('side-bal-salary');
+	const passiveEl = document.getElementById('side-bal-passive');
+	const expensesEl = document.getElementById('side-bal-expenses');
+	const debtEl = document.getElementById('side-bal-debt');
+	const assetsCountEl = document.getElementById('side-bal-assets-count');
+
+	if (salaryEl) salaryEl.textContent = formatCOP(player.salary);
+	if (passiveEl) passiveEl.textContent = `+${formatCOP(fin.passiveIncome)}`;
+	if (expensesEl) expensesEl.textContent = `-${formatCOP(fin.totalExpenses)}`;
+	if (debtEl) {
+		debtEl.textContent = player.totalDebt > 0 ? `${formatCOP(player.totalDebt)}` : '$0';
+	}
+	if (assetsCountEl) {
+		const count = player.assets.length;
+		assetsCountEl.textContent = count === 1 ? '1 oportunidad activa' : `${count} oportunidades activas`;
+	}
+
+	sideBalanceEl.classList.add('active');
 }
 
 // ==========================================
@@ -1743,6 +1828,9 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 		balanceValEl.textContent = `${formatCOP(current.cash)} COP`;
 		balanceValEl.className = `mini-balance-val ${current.cash < 0 ? 'red' : ''}`;
 	}
+
+	// Mostrar widget lateral minimalista a mano derecha
+	renderModalSideBalance(gameState.currentPlayerIndex);
 
 	// Botones predominantes
 	if (footerEl) {
@@ -1842,6 +1930,9 @@ function closeModal(callback) {
 	const overlay = document.getElementById('flying-card-overlay');
 	const wrapper = document.getElementById('flying-card-wrapper');
 	const flipper = document.getElementById('flying-card-flipper');
+	const sideBal = document.getElementById('modal-side-balance');
+
+	if (sideBal) sideBal.classList.remove('active');
 
 	if (!wrapper || !gameState.isCardFlying) {
 		if (overlay) overlay.classList.remove('active');

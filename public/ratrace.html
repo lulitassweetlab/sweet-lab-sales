@@ -1401,6 +1401,224 @@
 			color: #0f172a;
 			border-color: #cbd5e1;
 			transform: translateY(-2px);
+		}
+
+		/* ----------------------------------------------------
+		   WIDGET LATERAL DE BALANCE (A Mano Derecha)
+		   ---------------------------------------------------- */
+		.modal-side-balance {
+			position: fixed;
+			right: 28px;
+			top: 50%;
+			transform: translateY(-50%) translateX(35px);
+			width: 270px;
+			background: #ffffff;
+			background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+			border: 1.5px solid #e2e8f0;
+			border-radius: 22px;
+			box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12), 0 4px 14px rgba(0, 0, 0, 0.04);
+			padding: 16px 14px;
+			z-index: 120;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			opacity: 0;
+			visibility: hidden;
+			pointer-events: none;
+			transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+			font-family: 'Outfit', sans-serif;
+			box-sizing: border-box;
+		}
+
+		.modal-side-balance.active {
+			opacity: 1;
+			visibility: visible;
+			pointer-events: auto;
+			transform: translateY(-50%) translateX(0);
+		}
+
+		.side-bal-header {
+			display: flex;
+			align-items: center;
+			gap: 9px;
+			border-bottom: 1px solid #f1f5f9;
+			padding-bottom: 8px;
+		}
+
+		.side-bal-avatar {
+			width: 38px;
+			height: 38px;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 1.35rem;
+			border: 2px solid white;
+			box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+			flex-shrink: 0;
+		}
+
+		.side-bal-titles {
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+
+		.side-bal-name {
+			font-size: 0.96rem;
+			font-weight: 800;
+			color: var(--text-main);
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			overflow: hidden;
+		}
+
+		.side-bal-job {
+			font-size: 0.72rem;
+			font-weight: 600;
+			color: #64748b;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			overflow: hidden;
+		}
+
+		.side-bal-tabs {
+			display: flex;
+			gap: 5px;
+			margin-top: -4px;
+		}
+
+		.side-bal-tab-btn {
+			flex: 1;
+			padding: 4px 8px;
+			border-radius: 999px;
+			border: 1px solid #e2e8f0;
+			background: #f8fafc;
+			font-size: 0.72rem;
+			font-weight: 700;
+			color: #64748b;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			text-align: center;
+			font-family: 'Outfit', sans-serif;
+		}
+
+		.side-bal-tab-btn.active {
+			background: #0f172a;
+			color: #ffffff;
+			border-color: #0f172a;
+		}
+
+		.side-bal-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+		}
+
+		.side-bal-stat-card {
+			background: #f8fafc;
+			border: 1px solid #f1f5f9;
+			border-radius: 12px;
+			padding: 7px 9px;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.side-bal-stat-card .lbl {
+			font-size: 0.66rem;
+			font-weight: 700;
+			color: #64748b;
+			text-transform: uppercase;
+			letter-spacing: 0.3px;
+		}
+
+		.side-bal-stat-card .val {
+			font-size: 0.95rem;
+			font-weight: 900;
+			margin-top: 2px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.side-bal-stat-card .val.cash { color: #16a34a; }
+		.side-bal-stat-card .val.flow { color: #2563eb; }
+		.side-bal-stat-card .val.flow.red { color: #dc2626; }
+
+		.side-bal-detail-box {
+			background: #f8fafc;
+			border: 1px solid #f1f5f9;
+			border-radius: 14px;
+			padding: 8px 10px;
+			display: flex;
+			flex-direction: column;
+			gap: 5px;
+			font-size: 0.78rem;
+		}
+
+		.side-bal-line {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.side-bal-line .lbl {
+			color: #64748b;
+			font-weight: 600;
+		}
+
+		.side-bal-line .num {
+			font-weight: 800;
+			color: var(--text-main);
+		}
+
+		.side-bal-line .num.green { color: #16a34a; }
+		.side-bal-line .num.red { color: #dc2626; }
+
+		.side-bal-divider {
+			height: 1px;
+			background: #e2e8f0;
+			margin: 2px 0;
+		}
+
+		.side-bal-footer-info {
+			font-size: 0.72rem;
+			font-weight: 700;
+			color: #64748b;
+			text-align: center;
+			padding: 4px;
+			background: #f1f5f9;
+			border-radius: 8px;
+		}
+
+		/* Animación de salto de ficha */
+		.mini-pawn.pawn-hopping {
+			animation: pawn-hop-step 0.28s cubic-bezier(0.25, 1, 0.5, 1);
+		}
+
+		@keyframes pawn-hop-step {
+			0% { transform: scale(1) translateY(0) translateZ(0); }
+			45% { transform: scale(1.35) translateY(-14px) translateZ(28px); }
+			100% { transform: scale(1) translateY(0) translateZ(0); }
+		}
+
+		/* Adaptabilidad en pantallas angostas */
+		@media (max-width: 960px) {
+			.modal-side-balance {
+				right: auto;
+				left: 50%;
+				top: auto;
+				bottom: 12px;
+				transform: translateX(-50%) translateY(20px);
+				width: calc(100vw - 24px);
+				max-width: 380px;
+				padding: 10px 12px;
+			}
+			.modal-side-balance.active {
+				transform: translateX(-50%) translateY(0);
+			}
+		}
+
 		.hidden { display: none !important; }
 	</style>
 </head>
@@ -1616,6 +1834,56 @@
 
 					<div id="modal-footer" class="card-mini-footer"></div>
 				</div>
+			</div>
+		</div>
+
+		<!-- WIDGET LATERAL DE BALANCE (A Mano Derecha Durante la Tarjeta Central) -->
+		<div id="modal-side-balance" class="modal-side-balance">
+			<div class="side-bal-header">
+				<div id="side-bal-avatar" class="side-bal-avatar">👤</div>
+				<div class="side-bal-titles">
+					<div id="side-bal-name" class="side-bal-name">Jugador</div>
+					<div id="side-bal-job" class="side-bal-job">Profesión</div>
+				</div>
+			</div>
+
+			<!-- Selector de Jugador si son 2 -->
+			<div id="side-bal-tabs" class="side-bal-tabs hidden"></div>
+
+			<!-- Métricas Clave -->
+			<div class="side-bal-grid">
+				<div class="side-bal-stat-card">
+					<span class="lbl">💵 En Mano</span>
+					<span id="side-bal-cash" class="val cash">$100.000 COP</span>
+				</div>
+				<div class="side-bal-stat-card">
+					<span class="lbl">📈 Flujo Mes</span>
+					<span id="side-bal-flow" class="val flow">+$0/m</span>
+				</div>
+			</div>
+
+			<div class="side-bal-detail-box">
+				<div class="side-bal-line">
+					<span class="lbl">💼 Sueldo:</span>
+					<span id="side-bal-salary" class="num">$400.000</span>
+				</div>
+				<div class="side-bal-line">
+					<span class="lbl">🌟 Negocios:</span>
+					<span id="side-bal-passive" class="num green">+$0</span>
+				</div>
+				<div class="side-bal-divider"></div>
+				<div class="side-bal-line">
+					<span class="lbl">🧾 Gastos Fijos:</span>
+					<span id="side-bal-expenses" class="num red">-$400.000</span>
+				</div>
+				<div class="side-bal-line">
+					<span class="lbl">🏦 Deuda Banco:</span>
+					<span id="side-bal-debt" class="num red">$0</span>
+				</div>
+			</div>
+
+			<div class="side-bal-footer-info">
+				<span id="side-bal-assets-count">0 negocios activos</span>
 			</div>
 		</div>
 	</div>
