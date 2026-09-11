@@ -241,6 +241,63 @@
 			uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
 		});
 		
+		// Utility to compress receipt images before upload (max 1200x1200, 75% JPEG)
+		async function compressReceiptImage(file, options = { maxWidth: 1200, maxHeight: 1200, quality: 0.75 }) {
+			if (!file || !file.type || !file.type.startsWith('image/')) {
+				return new Promise((resolve, reject) => {
+					const reader = new FileReader();
+					reader.onload = () => resolve(reader.result);
+					reader.onerror = reject;
+					reader.readAsDataURL(file);
+				});
+			}
+
+			return new Promise((resolve) => {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					const img = new Image();
+					img.onload = () => {
+						try {
+							let width = img.width;
+							let height = img.height;
+							const maxW = options.maxWidth || 1200;
+							const maxH = options.maxHeight || 1200;
+
+							if (width > maxW || height > maxH) {
+								if (width / maxW > height / maxH) {
+									height = Math.round((height * maxW) / width);
+									width = maxW;
+								} else {
+									width = Math.round((width * maxH) / height);
+									height = maxH;
+								}
+							}
+
+							const canvas = document.createElement('canvas');
+							canvas.width = width;
+							canvas.height = height;
+							const ctx = canvas.getContext('2d');
+							ctx.drawImage(img, 0, 0, width, height);
+
+							const compressed = canvas.toDataURL('image/jpeg', options.quality || 0.75);
+							resolve(compressed);
+						} catch (err) {
+							console.warn('Canvas compression failed, falling back to original:', err);
+							resolve(e.target.result);
+						}
+					};
+					img.onerror = () => resolve(e.target.result);
+					img.src = e.target.result;
+				};
+				reader.onerror = () => {
+					const fallbackReader = new FileReader();
+					fallbackReader.onload = () => resolve(fallbackReader.result);
+					fallbackReader.readAsDataURL(file);
+				};
+				reader.readAsDataURL(file);
+			});
+		}
+
 		uploadBtn.addEventListener('click', async () => {
 			if (selectedFiles.length === 0 || !saleId) return;
 			uploadBtn.disabled = true;
@@ -253,7 +310,7 @@
 			const successIcon = document.getElementById('success-icon');
 			
 			overlay.classList.add('show');
-			loadingText.textContent = 'Procesando...';
+			loadingText.textContent = 'Procesando y optimizando...';
 			loadingSubtext.textContent = '';
 			
 			const note = (document.getElementById('note').value || '').toString();
@@ -268,12 +325,7 @@
 					loadingSubtext.textContent = `${i + 1} de ${selectedFiles.length}`;
 					
 					try {
-						const base64 = await new Promise((resolve, reject) => {
-							const reader = new FileReader();
-							reader.onload = () => resolve(reader.result);
-							reader.onerror = reject;
-							reader.readAsDataURL(file);
-						});
+						const base64 = await compressReceiptImage(file);
 						
 						const res = await fetch('/api/sales', { 
 							method: 'POST', 

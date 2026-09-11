@@ -1420,6 +1420,9 @@ function applyAuthVisibility() {
 	const visitsBtn = document.getElementById('visits-button');
 	const canVisits = isSuper || isAdminUser || feats.has('nav.visits');
 	if (visitsBtn) visitsBtn.style.display = canVisits ? 'inline-block' : 'none';
+
+	const ratraceBtn = document.getElementById('ratrace-button');
+	if (ratraceBtn) ratraceBtn.style.display = 'inline-block';
 }
 
 // Load desserts from API (runs once per session)
@@ -5253,6 +5256,12 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
 		window.location.href = '/visitas.html';
+	});
+
+	const ratraceBtn = document.getElementById('ratrace-button');
+	ratraceBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		window.location.href = '/ratrace.html';
 	});
 
 	const globalDbBackBtn = document.getElementById('global-clients-back');
@@ -11397,10 +11406,57 @@ function openInlineFileUploadDialog(saleId) {
 		}
 
 		async function readAsDataUrl(file) {
-			return new Promise((resolve, reject) => {
+			if (!file || !file.type || !file.type.startsWith('image/')) {
+				return new Promise((resolve, reject) => {
+					const fr = new FileReader();
+					fr.onload = () => resolve(fr.result);
+					fr.onerror = (e) => reject(e);
+					fr.readAsDataURL(file);
+				});
+			}
+
+			return new Promise((resolve) => {
 				const fr = new FileReader();
-				fr.onload = () => resolve(fr.result);
-				fr.onerror = (e) => reject(e);
+				fr.onload = (e) => {
+					const img = new Image();
+					img.onload = () => {
+						try {
+							let width = img.width;
+							let height = img.height;
+							const maxW = 1200;
+							const maxH = 1200;
+
+							if (width > maxW || height > maxH) {
+								if (width / maxW > height / maxH) {
+									height = Math.round((height * maxW) / width);
+									width = maxW;
+								} else {
+									width = Math.round((width * maxH) / height);
+									height = maxH;
+								}
+							}
+
+							const canvas = document.createElement('canvas');
+							canvas.width = width;
+							canvas.height = height;
+							const ctx = canvas.getContext('2d');
+							ctx.drawImage(img, 0, 0, width, height);
+
+							const compressed = canvas.toDataURL('image/jpeg', 0.75);
+							resolve(compressed);
+						} catch (err) {
+							console.warn('Receipt compression fallback to raw:', err);
+							resolve(e.target.result);
+						}
+					};
+					img.onerror = () => resolve(e.target.result);
+					img.src = e.target.result;
+				};
+				fr.onerror = () => {
+					const fallbackFr = new FileReader();
+					fallbackFr.onload = () => resolve(fallbackFr.result);
+					fallbackFr.readAsDataURL(file);
+				};
 				fr.readAsDataURL(file);
 			});
 		}

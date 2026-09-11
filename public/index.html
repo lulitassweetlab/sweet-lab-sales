@@ -149,6 +149,7 @@
 						<button id="kitchen-button" class="press-btn report-btn btn-primary">Producción</button>
 						<button id="visits-button" class="press-btn report-btn btn-primary">Visitas</button>
 						<button id="restaurant-button" class="press-btn report-btn btn-primary" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none;">Restaurante</button>
+						<button id="ratrace-button" class="press-btn report-btn btn-primary" style="background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; font-weight: 700;">RatRace</button>
 					</div>
 				</div>
 				<input id="report-date" type="date" class="hidden" />
@@ -917,10 +918,16 @@
 					window.location.href = '/restaurante.html';
 				});
 			}
+			const ratraceBtn = document.getElementById('ratrace-button');
+			if(ratraceBtn) {
+				ratraceBtn.addEventListener('click', () => {
+					window.location.href = '/ratrace.html';
+				});
+			}
 		});
 	</script>
 	<script src="/kitchen-manager.js?v=2026-06-11" type="module"></script>
-	<script src="/app.js?v=2026-03-31-13" type="module"></script>
+	<script src="/app.js?v=2026-09-11-1" type="module"></script>
 	<style>
 		/* Buscador expansible */
 		.active-table-search {
