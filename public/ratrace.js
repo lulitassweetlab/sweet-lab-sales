@@ -336,13 +336,13 @@ const NEW_JOBS = [
 	{ title: 'Piloto de Drones 🛸', salary: 3200000, desc: 'Grabando tomas aéreas para películas y comerciales.' }
 ];
 
-// Ascensos dentro del trabajo con mejor pago y bono sorpresa (Calibrados 2026)
+// Ascensos dentro del trabajo con mejor pago (Calibrados 2026, sin bonos sorpresa)
 const PROMOTIONS = [
-	{ title: '¡Coordinador de Turno! ⭐', desc: 'Te nombraron líder de tu turno por tu compromiso y puntualidad.', raise: 180000, bonus: 90000 },
-	{ title: '¡Empleado del Mes! 🏆', desc: 'Recibes reconocimiento oficial con aumento de sueldo.', raise: 220000, bonus: 110000 },
-	{ title: '¡Subiste de Nivel! 🚀', desc: 'Superaste las metas del mes y te asignaron mejor categoría laboral.', raise: 250000, bonus: 125000 },
-	{ title: '¡Especialista Senior! 🎖️', desc: 'Tus clientes te calificaron con 5 estrellas y tu jefe te subió el sueldo.', raise: 300000, bonus: 150000 },
-	{ title: '¡Mano Derecha del Jefe! 💼', desc: 'Ahora ayudas en la toma de decisiones con un pago mucho mayor.', raise: 350000, bonus: 175000 }
+	{ title: '¡Coordinador de Turno! ⭐', desc: 'Te nombraron líder de tu turno por tu compromiso y puntualidad.', raise: 180000 },
+	{ title: '¡Empleado del Mes! 🏆', desc: 'Recibes reconocimiento oficial con aumento de sueldo.', raise: 220000 },
+	{ title: '¡Subiste de Nivel! 🚀', desc: 'Superaste las metas del mes y te asignaron mejor categoría laboral.', raise: 250000 },
+	{ title: '¡Especialista Senior! 🎖️', desc: 'Tus clientes te calificaron con 5 estrellas y tu jefe te subió el sueldo.', raise: 300000 },
+	{ title: '¡Mano Derecha del Jefe! 💼', desc: 'Ahora ayudas en la toma de decisiones con un pago mucho mayor.', raise: 350000 }
 ];
 
 // Tipos de casillas físicas del camino (Pocas palabras, lenguaje familiar y juvenil)
@@ -1475,7 +1475,7 @@ const DOODADS = [
 
 	// --- 7. COMPROMISOS SOCIALES, FAMILIARES Y REGALOS ---
 	{
-		title: 'Regalo de Cumpleaños Sorpresa 🎁',
+		title: 'Regalo de Cumpleaños Familiar 🎁',
 		desc: 'Celebración de un familiar querido al que no podías llegar con las manos vacías.',
 		cost: 115000,
 		category: 'Compromisos y Regalos',
@@ -1627,10 +1627,90 @@ class SoundEffects {
 		}
 	}
 
-	roll() {
-		for (let i = 0; i < 7; i++) {
-			setTimeout(() => this.playTone(200 + Math.random() * 320, 0.08, 'triangle', 0.09), i * 60);
+	diceRoll() {
+		try {
+			this.init();
+			if (!this.ctx) return;
+			if (this.ctx.state === 'suspended') {
+				this.ctx.resume();
+			}
+
+			const now = this.ctx.currentTime;
+
+			// Síntesis acústica de impacto físico de dados (resina/acrílico rebotando en fieltro/madera)
+			const playDieClick = (time, intensity = 1.0, pitchMod = 1.0) => {
+				const duration = 0.045;
+
+				// 1. Ruido en banda para el 'clack' seco de plástico/resina
+				const sampleRate = this.ctx.sampleRate || 44100;
+				const bufferSize = Math.floor(sampleRate * duration);
+				const noiseBuffer = this.ctx.createBuffer(1, bufferSize, sampleRate);
+				const output = noiseBuffer.getChannelData(0);
+				for (let i = 0; i < bufferSize; i++) {
+					output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.20));
+				}
+
+				const whiteNoise = this.ctx.createBufferSource();
+				whiteNoise.buffer = noiseBuffer;
+
+				const filter = this.ctx.createBiquadFilter();
+				filter.type = 'bandpass';
+				filter.frequency.setValueAtTime((2700 + (Math.random() - 0.5) * 600) * pitchMod, time);
+				filter.Q.setValueAtTime(5.5, time);
+
+				const noiseGain = this.ctx.createGain();
+				noiseGain.gain.setValueAtTime(0.24 * intensity, time);
+				noiseGain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+				whiteNoise.connect(filter);
+				filter.connect(noiseGain);
+				noiseGain.connect(this.ctx.destination);
+				whiteNoise.start(time);
+				whiteNoise.stop(time + duration);
+
+				// 2. Golpe grave de mesa (resonancia de madera hueca)
+				const osc = this.ctx.createOscillator();
+				const oscGain = this.ctx.createGain();
+				osc.type = 'triangle';
+				const startFreq = (190 + (Math.random() - 0.5) * 50) * pitchMod;
+				osc.frequency.setValueAtTime(startFreq, time);
+				osc.frequency.exponentialRampToValueAtTime(55, time + duration);
+
+				oscGain.gain.setValueAtTime(0.18 * intensity, time);
+				oscGain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+				osc.connect(oscGain);
+				oscGain.connect(this.ctx.destination);
+				osc.start(time);
+				osc.stop(time + duration);
+			};
+
+			// Secuencia acústica realista de 2 dados rodando y rebotando sobre la mesa:
+			// Agite inicial
+			playDieClick(now + 0.00, 0.40, 1.15);
+			playDieClick(now + 0.045, 0.35, 0.92);
+			playDieClick(now + 0.095, 0.50, 1.08);
+
+			// Golpe firme inicial contra la mesa
+			playDieClick(now + 0.17, 1.00, 1.00);
+			playDieClick(now + 0.205, 0.85, 1.18);
+
+			// Varios rebotes y giros mientras desaceleran los dos dados
+			playDieClick(now + 0.28, 0.70, 0.94);
+			playDieClick(now + 0.325, 0.62, 1.12);
+			playDieClick(now + 0.41, 0.50, 1.05);
+			playDieClick(now + 0.455, 0.42, 0.88);
+			playDieClick(now + 0.54, 0.32, 1.10);
+			playDieClick(now + 0.62, 0.22, 0.96);
+			playDieClick(now + 0.69, 0.16, 1.14);
+			playDieClick(now + 0.75, 0.10, 1.02);
+		} catch (e) {
+			// Silencioso
 		}
+	}
+
+	roll() {
+		this.diceRoll();
 	}
 
 	genieMagic() {
@@ -2288,10 +2368,10 @@ function rollTwoDice() {
 	gameState.cameraViewOffset = 0; // Regresar la cámara a la ficha al tirar
 	btnRoll.disabled = true;
 
-	// Efecto Aladino en los dados (flotan, brillan y se expanden mágicamente)
+	// Animación y sonido real de dados rodando
 	dice1?.classList.add('aladdin-magic');
 	dice2?.classList.add('aladdin-magic');
-	sounds.genieMagic();
+	sounds.diceRoll();
 
 	let rollCount = 0;
 	const interval = setInterval(() => {
@@ -2741,7 +2821,7 @@ function attachHoldToPeekEvents(buttonEl, onHold, onRelease) {
 	let isHolding = false;
 
 	const startHold = (e) => {
-		if (e.button !== undefined && e.button !== 0) return; // solo click principal izquierdo
+		if (e && e.button !== undefined && e.button !== 0) return; // solo click principal izquierdo
 		if (!isHolding) {
 			isHolding = true;
 			onHold();
@@ -2755,14 +2835,26 @@ function attachHoldToPeekEvents(buttonEl, onHold, onRelease) {
 		}
 	};
 
-	// Evitar menú contextual con pulsación larga en táctil
-	buttonEl.oncontextmenu = (e) => e.preventDefault();
+	// Evitar menú contextual, selección y llamadas en móviles
+	buttonEl.style.userSelect = 'none';
+	buttonEl.style.webkitUserSelect = 'none';
+	buttonEl.style.webkitTouchCallout = 'none';
+	buttonEl.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
 
-	// Pointer Events modernos
-	buttonEl.onpointerdown = startHold;
-	buttonEl.onpointerup = endHold;
+	// Pointer Events modernos con captura de puntero
+	buttonEl.onpointerdown = (e) => {
+		if (e && e.button !== undefined && e.button !== 0) return;
+		try { buttonEl.setPointerCapture(e.pointerId); } catch (_) {}
+		startHold(e);
+	};
+	buttonEl.onpointerup = (e) => {
+		try { buttonEl.releasePointerCapture(e.pointerId); } catch (_) {}
+		endHold();
+	};
 	buttonEl.onpointercancel = endHold;
-	buttonEl.onpointerleave = endHold;
+	buttonEl.onpointerleave = (e) => {
+		if (e.pointerType === 'mouse') endHold();
+	};
 
 	// Touch Events de respaldo
 	buttonEl.ontouchstart = (e) => {
@@ -2775,6 +2867,11 @@ function attachHoldToPeekEvents(buttonEl, onHold, onRelease) {
 	buttonEl.onmousedown = startHold;
 	buttonEl.onmouseup = endHold;
 	buttonEl.onmouseleave = endHold;
+
+	// Respaldo global por si se suelta fuera del botón
+	window.addEventListener('mouseup', () => {
+		if (isHolding) endHold();
+	}, { passive: true });
 }
 
 // ==========================================
@@ -3255,8 +3352,7 @@ function showPromotionModal(player) {
 	const nextTitle = getPromotedTitle(player.profession, nextTier);
 
 	const stats = [
-		{ label: 'Tu sueldo sube:', value: `+${formatCOP(promo.raise)} / mes`, color: 'green' },
-		{ label: 'Bono sorpresa en mano:', value: `+${formatCOP(promo.bonus)} COP`, color: 'green' }
+		{ label: 'Tu sueldo sube:', value: `+${formatCOP(promo.raise)} / mes`, color: 'green' }
 	];
 	if (nextTitle !== player.profession) {
 		stats.unshift({ label: 'Nuevo cargo alcanzado:', value: nextTitle });
@@ -3276,7 +3372,6 @@ function showPromotionModal(player) {
 				action: () => {
 					savePlayerFinancialSnapshot(player, `Ascenso: ${promo.title}`);
 					player.salary += promo.raise;
-					player.cash += promo.bonus;
 					if (nextTitle !== player.profession) {
 						player.jobTier = nextTier;
 						player.profession = nextTitle;
@@ -3289,22 +3384,13 @@ function showPromotionModal(player) {
 						amount: promo.raise,
 						category: 'salary',
 						sourceEl: btnEl,
-						label: 'Aumento Sueldo'
+						label: 'Aumento Sueldo',
+						onComplete: () => {
+							showModalContinueButton(() => {
+								closeModal(() => endTurn());
+							});
+						}
 					});
-
-					setTimeout(() => {
-						animateTransactionNumbersToBalance({
-							amount: promo.bonus,
-							category: 'cash',
-							sourceEl: btnEl,
-							label: 'Bono Sorpresa',
-							onComplete: () => {
-								showModalContinueButton(() => {
-									closeModal(() => endTurn());
-								});
-							}
-						});
-					}, 220);
 				}
 			}
 		]
@@ -3596,19 +3682,20 @@ function showMarketModal(player) {
 	});
 }
 
-// 7. Regalo / Solidaridad (Calibrado 2026: Donación $100.000 -> Recompensa $150.000)
+// 7. Regalo / Solidaridad (Aporte benéfico a la comunidad)
 function showCharityModal(player) {
 	const donation = 100000;
-	const reward = 150000;
 	const canAfford = player.cash >= donation;
 
 	showModal({
-		typeName: 'DONACIÓN 💛',
+		typeName: 'DONACIÓN SOLIDARIA 💛',
 		headerClass: 'charity',
-		icon: '🎁',
-		title: 'Donación Solidaria',
-		detailedInfo: `Donas <strong>${formatCOP(donation)} COP</strong> para apoyar a una fundación benéfica. Como agradecimiento por tu solidaridad, recibes una sorpresa de <strong>+${formatCOP(reward)} COP</strong>.`,
-		stats: [],
+		icon: '💛',
+		title: 'Apoyo a la Comunidad',
+		detailedInfo: `Puedes aportar <strong>${formatCOP(donation)} COP</strong> para apoyar a una fundación o causa social del barrio.`,
+		stats: [
+			{ label: 'Aporte solidario:', value: `-${formatCOP(donation)} COP`, color: 'red' }
+		],
 		buttons: [
 			...(canAfford ? [{
 				text: `Donar ${formatCOP(donation)} COP 💛`,
@@ -3616,16 +3703,15 @@ function showCharityModal(player) {
 				action: () => {
 					savePlayerFinancialSnapshot(player, 'Donación Solidaria');
 					player.cash -= donation;
-					player.cash += reward;
 					sounds.cash();
 					updateHUDAndHeaders();
 
 					const btnEl = document.querySelector('#modal-footer button');
 					animateTransactionNumbersToBalance({
-						amount: reward - donation,
+						amount: donation,
 						category: 'cash',
 						sourceEl: btnEl,
-						label: 'Recompensa Donación',
+						label: 'Donación Solidaria',
 						onComplete: () => {
 							showModalContinueButton(() => {
 								closeModal(() => endTurn());
@@ -3635,7 +3721,7 @@ function showCharityModal(player) {
 				}
 			}] : []),
 			{
-				text: 'Pasar ➔',
+				text: 'Pasar por ahora ➔',
 				class: 'secondary',
 				action: () => { closeModal(() => endTurn()); }
 			}
