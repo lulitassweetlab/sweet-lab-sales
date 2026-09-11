@@ -77,7 +77,7 @@ const TILE_TYPES = {
 	opportunity: {
 		type: 'opportunity',
 		styleClass: 'tile-color-opportunity',
-		name: 'NEGOCIO',
+		name: 'OPORTUNIDAD',
 		icon: '🚀',
 		sub: 'Gana más al mes',
 		badge: 'Inversión'
@@ -527,11 +527,11 @@ function wireEventListeners() {
 	// Exploración directa con el Trackpad (scroll de 2 dedos) o arrastre con el cursor
 	const viewport = document.getElementById('viewport-touch-track');
 	if (viewport) {
-		// 1. Control con Trackpad (Gesto de dos dedos / rueda)
+		// 1. Control con Trackpad (Gesto de dos dedos / rueda con sensibilidad suave)
 		viewport.addEventListener('wheel', (e) => {
 			e.preventDefault();
-			// Invertir o adaptar dirección natural: deltaY > 0 rueda hacia adelante
-			const delta = Math.sign(e.deltaY) * 1.5;
+			// Escala suave y amortiguada para evitar saltos bruscos
+			const delta = (e.deltaY * 0.007);
 			const currentPos = gameState.players[gameState.currentPlayerIndex]?.position || 0;
 			const newOffset = gameState.cameraViewOffset + delta;
 
@@ -542,7 +542,7 @@ function wireEventListeners() {
 			}
 		}, { passive: false });
 
-		// 2. Control con el Cursor (Arrastrar con el trackpad/mouse)
+		// 2. Control con el Cursor (Arrastrar suavemente con trackpad/ratón)
 		let isDragging = false;
 		let startY = 0;
 		let initialOffset = 0;
@@ -557,8 +557,8 @@ function wireEventListeners() {
 		viewport.addEventListener('pointermove', (e) => {
 			if (!isDragging) return;
 			const diffY = e.clientY - startY;
-			// 1 casilla = 126px aprox
-			const tileDelta = -diffY / 50;
+			// 1 casilla = 180px de arrastre (suave, estable y controlado)
+			const tileDelta = -diffY / 180;
 			const currentPos = gameState.players[gameState.currentPlayerIndex]?.position || 0;
 			const candidateOffset = initialOffset + tileDelta;
 
@@ -1159,7 +1159,7 @@ function presentDeal(player, deal) {
 	const buttons = [];
 	if (canAfford) {
 		buttons.push({
-			text: `¡Comprar Negocio! 🚀 (${formatCOP(deal.downPayment)})`,
+			text: `¡Aprovechar Oportunidad! 🚀 (${formatCOP(deal.downPayment)})`,
 			class: 'primary',
 			action: () => {
 				player.cash -= deal.downPayment;
@@ -1169,9 +1169,9 @@ function presentDeal(player, deal) {
 				showModal({
 					headerClass: 'opportunity',
 					icon: '🎉',
-					title: '¡NUEVO NEGOCIO!',
+					title: '¡OPORTUNIDAD APROVECHADA!',
 					subtitle: deal.title,
-					desc: `¡Excelente compra! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> todos los meses en tu Día de Pago.`,
+					desc: `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra</strong> todos los meses en tu Día de Pago.`,
 					buttons: [
 						{ text: '¡Continuar Jugando! ➔', action: () => { closeModal(() => endTurn()); } }
 					]
@@ -1197,7 +1197,7 @@ function presentDeal(player, deal) {
 	showModal({
 		headerClass: 'opportunity',
 		icon: '🚀',
-		title: '¡BUEN NEGOCIO!',
+		title: '¡OPORTUNIDAD!',
 		subtitle: deal.title,
 		desc: deal.desc,
 		stats: stats,
