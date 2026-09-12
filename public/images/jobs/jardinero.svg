@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgJard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0fdf4"/>
+      <stop offset="100%" stop-color="#dcfce7"/>
+    </linearGradient>
+    <filter id="shJard" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bgJard)"/>
+  <circle cx="80" cy="60" r="40" fill="#bbf7d0" opacity="0.4"/>
+  <circle cx="320" cy="170" r="40" fill="#bbf7d0" opacity="0.4"/>
+  <g filter="url(#shJard)" transform="translate(50, 20)">
+    <ellipse cx="150" cy="185" rx="75" ry="16" fill="#a16207"/>
+    <path d="M 95,125 L 110,185 L 190,185 L 205,125 Z" fill="#ea580c"/>
+    <rect x="90" y="115" width="120" height="16" rx="4" fill="#c2410c"/>
+    <path d="M 150,115 Q 150,45 150,30" stroke="#16a34a" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M 150,75 Q 115,50 105,75 Q 125,95 150,85" fill="#22c55e"/>
+    <path d="M 150,60 Q 185,35 195,60 Q 175,80 150,70" fill="#16a34a"/>
+    <circle cx="150" cy="28" r="12" fill="#eab308"/>
+    <circle cx="150" cy="10" r="9" fill="#ec4899"/>
+    <circle cx="168" cy="20" r="9" fill="#ec4899"/>
+    <circle cx="162" cy="40" r="9" fill="#ec4899"/>
+    <circle cx="138" cy="40" r="9" fill="#ec4899"/>
+    <circle cx="132" cy="20" r="9" fill="#ec4899"/>
+    <circle cx="150" cy="28" r="8" fill="#fef08a"/>
+    <path d="M 230,95 L 270,165" stroke="#64748b" stroke-width="8" stroke-linecap="round"/>
+    <path d="M 255,145 L 280,180 L 260,190 Z" fill="#334155"/>
+  </g>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg_doodad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff1f2"/>
+      <stop offset="100%" stop-color="#ffe4e6"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="160" fill="url(#bg_doodad)"/>
+
+  <!-- Shopping Bags -->
+  <g transform="translate(55, 35)">
+    <!-- Back bag -->
+    <rect x="40" y="15" width="45" height="65" rx="4" fill="#f43f5e"/>
+    <path d="M 52 15 C 52 2 73 2 73 15" fill="none" stroke="#be123c" stroke-width="3"/>
+    <!-- Front bag -->
+    <rect x="15" y="28" width="50" height="60" rx="4" fill="#fb7185"/>
+    <path d="M 28 28 C 28 14 52 14 52 28" fill="none" stroke="#e11d48" stroke-width="3"/>
+    <circle cx="40" cy="55" r="12" fill="#ffffff"/>
+    <text x="40" y="60" font-family="sans-serif" font-size="14" font-weight="900" fill="#e11d48" text-anchor="middle">♥</text>
+  </g>
+
+  <!-- Pizza Slice -->
+  <g transform="translate(160, 45)">
+    <polygon points="10,65 65,10 65,65" fill="#f59e0b"/>
+    <path d="M 65 10 Q 75 35 65 65" fill="#b45309"/>
+    <!-- Pepperonis -->
+    <circle cx="50" cy="35" r="5" fill="#ef4444"/>
+    <circle cx="35" cy="50" r="4.5" fill="#ef4444"/>
+    <circle cx="55" cy="52" r="4" fill="#ef4444"/>
+  </g>
+
+  <!-- Coffee cup -->
+  <g transform="translate(235, 55)">
+    <rect x="10" y="20" width="38" height="42" rx="4" fill="#0284c7"/>
+    <path d="M 48 26 C 60 26 60 46 48 46" fill="none" stroke="#0284c7" stroke-width="4"/>
+    <!-- Cup lid -->
+    <rect x="6" y="14" width="46" height="8" rx="2" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <!-- Steam -->
+    <path d="M 22 8 Q 25 2 22 -2" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+    <path d="M 34 8 Q 37 2 34 -2" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

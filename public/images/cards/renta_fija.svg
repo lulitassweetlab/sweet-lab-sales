@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg_rf" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#d1fae5"/>
+    </linearGradient>
+    <linearGradient id="g_gold2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="160" fill="url(#bg_rf)"/>
+  
+  <!-- Decorative rays -->
+  <circle cx="160" cy="80" r="70" fill="#a7f3d0" opacity="0.25"/>
+
+  <!-- Bank Safe Vault -->
+  <g transform="translate(60, 35)">
+    <rect x="0" y="0" width="80" height="85" rx="8" fill="#334155"/>
+    <rect x="6" y="6" width="68" height="73" rx="6" fill="#475569"/>
+    <!-- Vault door wheel -->
+    <circle cx="40" cy="42" r="22" fill="#64748b" stroke="#94a3b8" stroke-width="3"/>
+    <circle cx="40" cy="42" r="14" fill="#334155"/>
+    <circle cx="40" cy="42" r="6" fill="#cbd5e1"/>
+    <!-- Handles -->
+    <line x1="40" y1="20" x2="40" y2="64" stroke="#e2e8f0" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="18" y1="42" x2="62" y2="42" stroke="#e2e8f0" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Certificate / Bond document -->
+  <g transform="translate(165, 25)">
+    <rect x="0" y="0" width="85" height="105" rx="5" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+    <rect x="6" y="6" width="73" height="93" fill="#f0fdf4" stroke="#a7f3d0" stroke-width="1"/>
+    <!-- Certificate header ribbon -->
+    <rect x="16" y="16" width="53" height="12" rx="2" fill="#10b981"/>
+    <text x="42.5" y="25" font-family="sans-serif" font-size="7.5" font-weight="900" fill="#ffffff" text-anchor="middle">CDT • BONO</text>
+    <!-- Lines -->
+    <line x1="14" y1="36" x2="71" y2="36" stroke="#059669" stroke-width="2"/>
+    <line x1="14" y1="44" x2="65" y2="44" stroke="#94a3b8" stroke-width="1.8"/>
+    <line x1="14" y1="52" x2="71" y2="52" stroke="#94a3b8" stroke-width="1.8"/>
+    <line x1="14" y1="60" x2="58" y2="60" stroke="#94a3b8" stroke-width="1.8"/>
+    <!-- Seal badge -->
+    <circle cx="42.5" cy="78" r="11" fill="url(#g_gold2)"/>
+    <circle cx="42.5" cy="78" r="8" fill="#f59e0b"/>
+    <text x="42.5" y="81.5" font-family="sans-serif" font-size="9" font-weight="900" fill="#ffffff" text-anchor="middle">✓</text>
+  </g>
+
+  <!-- Stacks of coins in foreground -->
+  <g transform="translate(130, 95)">
+    <!-- Stack 1 -->
+    <ellipse cx="15" cy="30" rx="14" ry="4" fill="#d97706"/>
+    <ellipse cx="15" cy="25" rx="14" ry="4" fill="#f59e0b"/>
+    <ellipse cx="15" cy="20" rx="14" ry="4" fill="#fbbf24"/>
+    <ellipse cx="15" cy="15" rx="14" ry="4" fill="url(#g_gold2)"/>
+    <!-- Stack 2 -->
+    <ellipse cx="38" cy="35" rx="14" ry="4" fill="#d97706"/>
+    <ellipse cx="38" cy="30" rx="14" ry="4" fill="#f59e0b"/>
+    <ellipse cx="38" cy="25" rx="14" ry="4" fill="#fbbf24"/>
+    <ellipse cx="38" cy="20" rx="14" ry="4" fill="#fde047"/>
+    <ellipse cx="38" cy="15" rx="14" ry="4" fill="url(#g_gold2)"/>
+  </g>
+</svg>

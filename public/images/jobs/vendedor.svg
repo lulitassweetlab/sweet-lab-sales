@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgVend" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0fdfa"/>
+      <stop offset="100%" stop-color="#ccfbf1"/>
+    </linearGradient>
+    <filter id="shVend" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bgVend)"/>
+  <circle cx="70" cy="60" r="35" fill="#99f6e4" opacity="0.4"/>
+  <circle cx="330" cy="170" r="40" fill="#99f6e4" opacity="0.4"/>
+  <g filter="url(#shVend)" transform="translate(70, 20)">
+    <rect x="60" y="55" width="110" height="125" rx="16" fill="#0d9488"/>
+    <path d="M 90,55 C 90,20 140,20 140,55" stroke="#042f2e" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <circle cx="115" cy="115" r="26" fill="#ffffff"/>
+    <text x="115" y="126" font-family="'Outfit', sans-serif" font-size="30" font-weight="900" fill="#0d9488" text-anchor="middle">%</text>
+    <g transform="translate(140, 60) rotate(15)">
+      <path d="M 20,0 L 80,0 L 105,35 L 80,70 L 20,70 Z" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+      <circle cx="38" cy="35" r="8" fill="#ffffff"/>
+      <text x="68" y="42" font-family="sans-serif" font-size="14" font-weight="900" fill="#ffffff">SALE</text>
+    </g>
+  </g>
+</svg>

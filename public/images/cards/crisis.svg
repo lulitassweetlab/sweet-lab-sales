@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg_cri" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef2f2"/>
+      <stop offset="100%" stop-color="#fee2e2"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="160" fill="url(#bg_cri)"/>
+
+  <!-- Rain Cloud -->
+  <g transform="translate(50, 20)">
+    <ellipse cx="40" cy="30" rx="30" ry="18" fill="#94a3b8"/>
+    <ellipse cx="65" cy="24" rx="24" ry="16" fill="#64748b"/>
+    <ellipse cx="25" cy="32" rx="18" ry="14" fill="#94a3b8"/>
+    <!-- Rain drops -->
+    <line x1="20" y1="52" x2="15" y2="66" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+    <line x1="35" y1="52" x2="30" y2="66" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+    <line x1="50" y1="52" x2="45" y2="66" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+    <line x1="65" y1="52" x2="60" y2="66" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Big Red Protective Umbrella -->
+  <g transform="translate(145, 25)">
+    <path d="M 0 55 Q 40 10 80 55 Z" fill="#ef4444"/>
+    <path d="M 0 55 Q 20 48 40 55 Q 60 48 80 55 Z" fill="#b91c1c"/>
+    <!-- Umbrella Tip -->
+    <line x1="40" y1="8" x2="40" y2="12" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+    <!-- Handle -->
+    <path d="M 40 55 L 40 95 C 40 105 28 105 28 98" fill="none" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Shield with Cross / Emergency Fund -->
+  <g transform="translate(235, 50)">
+    <path d="M 25 0 L 50 12 L 50 45 C 50 65 25 80 25 80 C 25 80 0 65 0 45 L 0 12 Z" fill="#3b82f6"/>
+    <rect x="20" y="22" width="10" height="32" rx="2" fill="#ffffff"/>
+    <rect x="9" y="33" width="32" height="10" rx="2" fill="#ffffff"/>
+  </g>
+</svg>

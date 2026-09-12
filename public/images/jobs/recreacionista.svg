@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgRec" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fdf2f8"/>
+      <stop offset="100%" stop-color="#fce7f3"/>
+    </linearGradient>
+    <filter id="shRec" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bgRec)"/>
+  <circle cx="60" cy="60" r="35" fill="#fbcfe8" opacity="0.4"/>
+  <circle cx="340" cy="170" r="40" fill="#fbcfe8" opacity="0.4"/>
+  <g filter="url(#shRec)" transform="translate(50, 15)">
+    <path d="M 110,105 Q 130,160 145,210" stroke="#94a3b8" stroke-width="2" fill="none"/>
+    <path d="M 150,90 Q 150,150 145,210" stroke="#94a3b8" stroke-width="2" fill="none"/>
+    <path d="M 190,100 Q 170,160 145,210" stroke="#94a3b8" stroke-width="2" fill="none"/>
+    <ellipse cx="110" cy="70" rx="35" ry="42" fill="#ec4899" transform="rotate(-12 110 70)"/>
+    <ellipse cx="100" cy="60" rx="8" ry="16" fill="#ffffff" opacity="0.4" transform="rotate(-12 100 60)"/>
+    <polygon points="106,108 114,108 110,115" fill="#db2777"/>
+    <ellipse cx="190" cy="65" rx="35" ry="42" fill="#3b82f6" transform="rotate(12 190 65)"/>
+    <ellipse cx="180" cy="55" rx="8" ry="16" fill="#ffffff" opacity="0.4" transform="rotate(12 180 55)"/>
+    <polygon points="186,103 194,103 190,110" fill="#2563eb"/>
+    <ellipse cx="150" cy="55" rx="38" ry="46" fill="#eab308"/>
+    <ellipse cx="138" cy="42" rx="10" ry="18" fill="#ffffff" opacity="0.4"/>
+    <polygon points="146,98 154,98 150,105" fill="#ca8a04"/>
+    <circle cx="45" cy="65" r="6" fill="#a855f7"/>
+    <circle cx="255" cy="50" r="7" fill="#10b981"/>
+    <circle cx="240" cy="120" r="5" fill="#f97316"/>
+    <polygon points="60,110 65,120 75,120 67,126 70,135 60,130 50,135 53,126 45,120 55,120" fill="#eab308"/>
+    <polygon points="245,140 248,147 255,147 249,151 251,158 245,154 239,158 241,151 235,147 242,147" fill="#ec4899"/>
+  </g>
+</svg>

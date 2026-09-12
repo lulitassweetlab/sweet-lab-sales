@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgConst" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fefce8"/>
+      <stop offset="100%" stop-color="#fef08a"/>
+    </linearGradient>
+    <filter id="shConst" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bgConst)"/>
+  <circle cx="70" cy="70" r="40" fill="#fde047" opacity="0.4"/>
+  <circle cx="330" cy="170" r="40" fill="#fde047" opacity="0.4"/>
+  <g filter="url(#shConst)" transform="translate(60, 25)">
+    <path d="M 70,110 C 70,55 110,45 140,45 C 170,45 210,55 210,110 Z" fill="#eab308"/>
+    <rect x="55" y="105" width="170" height="18" rx="8" fill="#ca8a04"/>
+    <rect x="132" y="42" width="16" height="65" fill="#ca8a04" rx="3"/>
+    <g transform="translate(190, 70) rotate(35)">
+      <rect x="0" y="0" width="16" height="100" rx="5" fill="#b45309"/>
+      <rect x="-15" y="-15" width="46" height="28" rx="4" fill="#475569"/>
+      <path d="M -15,-5 L -30,10" stroke="#475569" stroke-width="12" stroke-linecap="round"/>
+    </g>
+    <rect x="40" y="150" width="80" height="35" rx="4" fill="#dc2626" stroke="#b91c1c" stroke-width="2"/>
+    <rect x="75" y="125" width="80" height="35" rx="4" fill="#dc2626" stroke="#b91c1c" stroke-width="2"/>
+  </g>
+</svg>

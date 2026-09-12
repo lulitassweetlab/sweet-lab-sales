@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg_free" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0fdf4"/>
+      <stop offset="100%" stop-color="#dcfce7"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="160" fill="url(#bg_free)"/>
+
+  <!-- Sun -->
+  <circle cx="270" cy="35" r="22" fill="#fde047"/>
+
+  <!-- Lush Green Tree -->
+  <g transform="translate(60, 25)">
+    <!-- Trunk -->
+    <rect x="34" y="60" width="16" height="50" rx="2" fill="#78350f"/>
+    <!-- Foliage -->
+    <circle cx="42" cy="40" r="36" fill="#16a34a"/>
+    <circle cx="26" cy="35" r="24" fill="#22c55e"/>
+    <circle cx="58" cy="35" r="24" fill="#22c55e"/>
+    <circle cx="42" cy="22" r="22" fill="#4ade80"/>
+  </g>
+
+  <!-- Park Bench -->
+  <g transform="translate(155, 75)">
+    <!-- Bench backrest -->
+    <rect x="0" y="0" width="75" height="6" rx="2" fill="#b45309"/>
+    <rect x="0" y="10" width="75" height="6" rx="2" fill="#b45309"/>
+    <!-- Bench seat -->
+    <rect x="0" y="22" width="75" height="7" rx="2" fill="#92400e"/>
+    <!-- Legs -->
+    <rect x="10" y="29" width="5" height="25" fill="#334155"/>
+    <rect x="60" y="29" width="5" height="25" fill="#334155"/>
+  </g>
+
+  <!-- Birds -->
+  <path d="M 180 30 Q 186 24 192 30 Q 198 24 204 30" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 215 42 Q 219 38 223 42 Q 227 38 231 42" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>
+</svg>
