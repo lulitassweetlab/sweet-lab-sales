@@ -4230,11 +4230,10 @@ function renderModalSideBalance() {
 		avatarEl.textContent = player.avatar;
 		avatarEl.style.background = player.bg;
 	}
-	if (nameEl) nameEl.textContent = `${player.name} (Turno)`;
+	if (nameEl) nameEl.textContent = player.name;
 	if (jobEl) {
-		const count = player.salariesCollected || 0;
 		if (player.hasJob) {
-			jobEl.textContent = `${player.profession} • ${count} salarios cobrados`;
+			jobEl.textContent = player.profession;
 		} else {
 			jobEl.textContent = 'Buscando empleo 🔍';
 		}
