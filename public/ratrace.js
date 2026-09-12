@@ -2886,50 +2886,88 @@ function animateTransactionNumbersToBalance({
 // CONTROLADOR DE ANIMACIÓN DE FLUJO ESTILO TRAGAMONEDAS
 // ==========================================
 
-let slotMachineTimer = null;
 let isSlotMachineSpinning = false;
+let slotReelAudioInterval = null;
+const DIGIT_REEL_HEIGHT = 38; // px de altura por dígito
 
 /**
- * Inicia el giro rápido de números estilo tragamonedas en el recuadro de Flujo del balance.
- * Se ejecuta continuamente mientras ocurren las operaciones y actualizaciones financieras.
+ * Construye y formatea el elemento de flujo con tambores rodantes mecánicos por cada dígito.
+ */
+function setCashflowDigitsDOM(val, isSpinning = false) {
+	const flowEl = document.getElementById('side-bal-flow');
+	if (!flowEl) return;
+
+	const num = Math.round(Number(val) || 0);
+	const sign = num >= 0 ? '+' : '-';
+	const absNum = Math.abs(num);
+	const formattedDigits = absNum.toLocaleString('es-CO'); // ej. "450.000"
+
+	let colorClass = 'zero';
+	if (num > 0) colorClass = 'green';
+	else if (num < 0) colorClass = 'red';
+
+	// Si no está girando y no se requiere efecto reel, estructura de rodillos quietos bien alineados
+	let reelsHTML = '';
+	for (let char of formattedDigits) {
+		if (char === '.' || char === ',') {
+			reelsHTML += `<span class="flow-slot-reel-separator">${char}</span>`;
+		} else {
+			const digit = parseInt(char, 10);
+			// Franja vertical de dígitos 0..9 repetida para permitir loop y frenado limpio
+			const digitStrip = [0,1,2,3,4,5,6,7,8,9, 0,1,2,3,4,5,6,7,8,9]
+				.map(d => `<span class="flow-slot-digit">${d}</span>`)
+				.join('');
+			
+			const offset = digit * DIGIT_REEL_HEIGHT;
+			reelsHTML += `
+				<span class="flow-slot-reel-wrap">
+					<span class="flow-slot-reel-strip ${isSpinning ? 'spinning-blur' : ''}" data-digit="${digit}" style="transform: translateY(-${offset}px);">
+						${digitStrip}
+					</span>
+				</span>
+			`;
+		}
+	}
+
+	flowEl.className = `val flow ${colorClass}`;
+	flowEl.innerHTML = `
+		<span class="flow-slot-machine-container">
+			<span class="flow-slot-prefix">${sign}$</span>
+			${reelsHTML}
+			<span class="flow-slot-suffix">/m</span>
+		</span>
+	`;
+}
+
+/**
+ * Inicia el giro rápido de tambores mecánicos estilo tragamonedas en cada dígito.
+ * Cada eje gira los números a toda velocidad sobre su eje vertical.
  */
 function startCashflowSlotMachine() {
 	const flowEl = document.getElementById('side-bal-flow');
 	if (!flowEl) return;
 
-	if (isSlotMachineSpinning && slotMachineTimer) return;
+	if (isSlotMachineSpinning) return;
 	isSlotMachineSpinning = true;
 
-	flowEl.classList.remove('flow-slot-machine-locked');
-	flowEl.classList.add('flow-slot-machine-spinning');
+	// Renderizar tambores en modo giro rápido continuo
+	// Usar un valor representativo de 6 cifras con separadores para tener suficientes tambores girando
+	setCashflowDigitsDOM(888888, true);
 
-	// Generar números aleatorios oscilantes con clic auditivo suave
-	let tickCounter = 0;
-	slotMachineTimer = setInterval(() => {
+	const container = flowEl.querySelector('.flow-slot-machine-container');
+	if (container) container.classList.remove('flow-slot-machine-locked');
+
+	// Sonido rítmico de clic mecánico rápido (tipo rodillos mecánicos en rotación)
+	if (slotReelAudioInterval) clearInterval(slotReelAudioInterval);
+	slotReelAudioInterval = setInterval(() => {
 		if (!isSlotMachineSpinning) return;
-		const randVal = Math.floor(Math.random() * 9500000) - 1000000;
-		const roundedVal = Math.round(randVal / 50000) * 50000;
-		flowEl.textContent = `${roundedVal >= 0 ? '+' : ''}${formatCOP(roundedVal)}/m`;
-
-		// Colores dinámicos mientras gira
-		if (roundedVal > 0) {
-			flowEl.className = 'val flow green flow-slot-machine-spinning';
-		} else if (roundedVal < 0) {
-			flowEl.className = 'val flow red flow-slot-machine-spinning';
-		} else {
-			flowEl.className = 'val flow zero flow-slot-machine-spinning';
-		}
-
-		tickCounter++;
-		if (tickCounter % 2 === 0) {
-			sounds.playSlotTick();
-		}
-	}, 70);
+		sounds.playSlotTick();
+	}, 85);
 }
 
 /**
- * Detiene el tragamonedas frenando suavemente (desaceleración progresiva)
- * hasta clavar con precisión el valor neto de flujo resultante final.
+ * Detiene el tragamonedas frenando cada tambor suavemente de izquierda a derecha
+ * con desaceleración elástica progresiva hasta encajar con precisión en la cifra final.
  */
 function stopAndSettleCashflowSlotMachine(targetFlow, onSettled = null) {
 	const flowEl = document.getElementById('side-bal-flow');
@@ -2938,63 +2976,64 @@ function stopAndSettleCashflowSlotMachine(targetFlow, onSettled = null) {
 		return;
 	}
 
+	if (slotReelAudioInterval) {
+		clearInterval(slotReelAudioInterval);
+		slotReelAudioInterval = null;
+	}
+
 	if (!isSlotMachineSpinning) {
-		// Si no estaba girando, simplemente actualizar valor directamente
-		let flowClass = 'zero';
-		if (targetFlow > 0) flowClass = 'green';
-		else if (targetFlow < 0) flowClass = 'red';
-		flowEl.textContent = `${targetFlow >= 0 ? '+' : ''}${formatCOP(targetFlow)}/m`;
-		flowEl.className = `val flow ${flowClass}`;
+		setCashflowDigitsDOM(targetFlow, false);
 		if (onSettled) onSettled();
 		return;
 	}
 
 	isSlotMachineSpinning = false;
-	if (slotMachineTimer) {
-		clearInterval(slotMachineTimer);
-		slotMachineTimer = null;
-	}
 
-	// Secuencia de frenado suave progresivo (3 pasos de desaceleración gradual y cierre)
-	const brakeSteps = [
-		{ delay: 110, offset: targetFlow + 450000 },
-		{ delay: 240, offset: targetFlow - 150000 },
-		{ delay: 420, offset: targetFlow + 50000 },
-		{ delay: 650, offset: targetFlow }
-	];
+	// 1. Armar la estructura con los dígitos meta exactos
+	setCashflowDigitsDOM(targetFlow, false);
 
-	brakeSteps.forEach((step, idx) => {
+	const container = flowEl.querySelector('.flow-slot-machine-container');
+	const strips = flowEl.querySelectorAll('.flow-slot-reel-strip');
+
+	// Inicialmente colocamos todas las tiras girando a alta velocidad
+	strips.forEach(strip => {
+		strip.classList.add('spinning-blur');
+	});
+
+	// Frenado escalonado tambor por tambor (de izquierda a derecha como una auténtica máquina tragamonedas)
+	const stripCount = strips.length;
+	let settledCount = 0;
+
+	strips.forEach((strip, index) => {
+		const targetDigit = parseInt(strip.dataset.digit, 10) || 0;
+		// Retardo escalonado para que frenen uno tras otro (ej. 140ms, 240ms, 340ms...)
+		const stopDelay = 150 + index * 95;
+
 		setTimeout(() => {
+			// Quitar animación continua de blur
+			strip.classList.remove('spinning-blur');
+			// Añadir transición de inercia y frenado elástico
+			strip.style.transition = 'transform 0.42s cubic-bezier(0.15, 0.9, 0.25, 1.25)';
+			// Segunda vuelta (+10 dígitos) para un deslizamiento fluido antes de clavar
+			const finalOffset = (targetDigit + 10) * DIGIT_REEL_HEIGHT;
+			strip.style.transform = `translateY(-${finalOffset}px)`;
 			sounds.playSlotTick();
-			const val = step.offset;
-			let stepClass = 'zero';
-			if (val > 0) stepClass = 'green';
-			else if (val < 0) stepClass = 'red';
 
-			flowEl.textContent = `${val >= 0 ? '+' : ''}${formatCOP(val)}/m`;
-			flowEl.className = `val flow ${stepClass} flow-slot-machine-spinning`;
-
-			// En el último paso (frenado final):
-			if (idx === brakeSteps.length - 1) {
-				flowEl.classList.remove('flow-slot-machine-spinning');
-				flowEl.classList.add('flow-slot-machine-locked');
-
-				let finalClass = 'zero';
-				if (targetFlow > 0) finalClass = 'green';
-				else if (targetFlow < 0) finalClass = 'red';
-				flowEl.className = `val flow ${finalClass} flow-slot-machine-locked`;
-				flowEl.textContent = `${targetFlow >= 0 ? '+' : ''}${formatCOP(targetFlow)}/m`;
-
-				// Sonido dulce de confirmación al asentarse el flujo
-				if (targetFlow > 0) sounds.cash();
-				else sounds.tap();
-
+			settledCount++;
+			if (settledCount === stripCount) {
+				// Todos los tambores han clavado su posición
 				setTimeout(() => {
-					flowEl.classList.remove('flow-slot-machine-locked');
-					if (onSettled) onSettled();
-				}, 550);
+					if (container) container.classList.add('flow-slot-machine-locked');
+					if (targetFlow > 0) sounds.cash();
+					else sounds.tap();
+
+					setTimeout(() => {
+						if (container) container.classList.remove('flow-slot-machine-locked');
+						if (onSettled) onSettled();
+					}, 450);
+				}, 260);
 			}
-		}, step.delay);
+		}, stopDelay);
 	});
 }
 
@@ -3108,7 +3147,7 @@ function showPreviousBalanceState(player) {
 		cashEl.className = `val cash ${prev.cash < 0 ? 'red' : ''} ${cashChanged ? 'past-val-highlight' : ''}`;
 	}
 	if (flowEl) {
-		flowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}/m`;
+		setCashflowDigitsDOM(prev.monthlyCashFlow, false);
 		const flowChanged = fin.monthlyCashFlow !== prev.monthlyCashFlow;
 		let prevFlowClass = 'zero';
 		if (prev.monthlyCashFlow > 0) prevFlowClass = 'green';
@@ -4961,11 +5000,7 @@ function renderModalSideBalance() {
 		const displayFlow = fin.monthlyCashFlow;
 		// Si el tragamonedas está girando activamente en plena animación, no sobreescribir con valor estático
 		if (!isSlotMachineSpinning) {
-			flowEl.textContent = `${displayFlow >= 0 ? '+' : ''}${formatCOP(displayFlow)}/m`;
-			let flowClass = 'zero';
-			if (displayFlow > 0) flowClass = 'green';
-			else if (displayFlow < 0) flowClass = 'red';
-			flowEl.className = `val flow ${flowClass}`;
+			setCashflowDigitsDOM(displayFlow, false);
 		}
 		if (!isViewingPast) {
 			player.lastKnownCashFlow = displayFlow;

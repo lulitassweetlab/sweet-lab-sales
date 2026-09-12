@@ -2198,30 +2198,108 @@
 			transform: scale(1.02);
 		}
 
-		/* Animación de Flujo Estilo Tragamonedas (Slot Machine Rolling & Smooth Braking) */
-		.flow-slot-machine-spinning {
-			animation: slotSpinVibrate 0.08s infinite alternate !important;
-			letter-spacing: 0.6px;
-			filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.45));
+		/* Animación de Flujo Estilo Máquina Tragamonedas (Tambores mecánicos rodando por dígitos en 3D) */
+		.flow-slot-machine-container {
+			display: inline-flex;
+			align-items: center;
+			justify-content: flex-start;
+			font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+			font-weight: 950;
+			font-size: 1.62rem;
+			height: 38px;
+			line-height: 38px;
+			overflow: hidden;
+			vertical-align: middle;
+			position: relative;
+			background: rgba(0, 0, 0, 0.035);
+			border: 1px solid rgba(0, 0, 0, 0.08);
+			border-radius: 8px;
+			padding: 0 6px;
+			box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.12), inset 0 -2px 5px rgba(255, 255, 255, 0.8);
+			mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 1) 18%, rgba(0, 0, 0, 1) 82%, transparent 100%);
+			-webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 1) 18%, rgba(0, 0, 0, 1) 82%, transparent 100%);
+		}
+
+		.flow-slot-prefix,
+		.flow-slot-suffix {
 			display: inline-block;
+			height: 38px;
+			line-height: 38px;
+			flex-shrink: 0;
+			font-weight: 950;
+		}
+
+		.flow-slot-suffix {
+			font-size: 0.88rem;
+			color: #64748b;
+			margin-left: 4px;
+			font-weight: 800;
+		}
+
+		.flow-slot-reel-wrap {
+			position: relative;
+			display: inline-block;
+			width: 17px;
+			height: 38px;
+			overflow: hidden;
+			text-align: center;
+			flex-shrink: 0;
+		}
+
+		.flow-slot-reel-separator {
+			display: inline-block;
+			width: 8px;
+			height: 38px;
+			line-height: 38px;
+			text-align: center;
+			font-weight: 950;
+			flex-shrink: 0;
+			color: inherit;
+		}
+
+		.flow-slot-reel-strip {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			will-change: transform;
+			transform: translateY(0);
+		}
+
+		.flow-slot-digit {
+			width: 100%;
+			height: 38px;
+			line-height: 38px;
 			font-variant-numeric: tabular-nums;
-			transition: color 0.15s ease;
+			text-align: center;
+			user-select: none;
+			color: inherit;
+			font-weight: 950;
 		}
 
-		@keyframes slotSpinVibrate {
-			0% { transform: translateY(-1.5px) scale(1.03); }
-			100% { transform: translateY(1.5px) scale(0.98); }
+		/* Rueda girando rápidamente a toda velocidad como rodillo mecánico */
+		.flow-slot-reel-strip.spinning-blur {
+			animation: slotReelContinuousRoll 0.18s linear infinite !important;
+			filter: blur(0.45px);
 		}
 
-		.flow-slot-machine-locked {
-			animation: slotLockSettle 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
-			display: inline-block;
+		@keyframes slotReelContinuousRoll {
+			0% { transform: translateY(0); }
+			100% { transform: translateY(-380px); /* 10 dígitos x 38px */ }
 		}
 
-		@keyframes slotLockSettle {
-			0% { transform: scale(1.26); filter: drop-shadow(0 0 12px rgba(34, 197, 94, 0.7)); }
-			60% { transform: scale(0.96); }
-			100% { transform: scale(1); filter: none; }
+		/* Asentamiento y rebote elástico final al clavar el número */
+		.flow-slot-machine-container.flow-slot-machine-locked {
+			animation: slotMachineLockFlash 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+		}
+
+		@keyframes slotMachineLockFlash {
+			0% { transform: scale(1.12); box-shadow: 0 0 16px rgba(34, 197, 94, 0.6); }
+			60% { transform: scale(0.98); }
+			100% { transform: scale(1); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.12), inset 0 -2px 5px rgba(255, 255, 255, 0.8); }
 		}
 
 		/* Desplegable comparativo antes vs ahora */
@@ -2718,7 +2796,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-wheel-seamless-v10"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-slot-reels-v11"></script>
 </body>
 
 </html>
