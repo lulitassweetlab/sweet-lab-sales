@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg_re" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#ffedd5"/>
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="160" fill="url(#bg_re)"/>
+  <circle cx="60" cy="40" r="30" fill="#fed7aa" opacity="0.5"/>
+
+  <!-- Sun -->
+  <circle cx="280" cy="35" r="22" fill="#fbbf24"/>
+
+  <!-- Left: House -->
+  <g transform="translate(35, 45)">
+    <polygon points="35,0 0,26 70,26" fill="url(#roofGrad)"/>
+    <rect x="8" y="26" width="54" height="60" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <!-- Door -->
+    <rect x="27" y="52" width="16" height="34" rx="2" fill="#78350f"/>
+    <circle cx="39" cy="70" r="1.5" fill="#fef08a"/>
+    <!-- Windows -->
+    <rect x="14" y="34" width="12" height="12" rx="1" fill="#93c5fd" stroke="#3b82f6" stroke-width="1"/>
+    <rect x="44" y="34" width="12" height="12" rx="1" fill="#93c5fd" stroke="#3b82f6" stroke-width="1"/>
+  </g>
+
+  <!-- Center-Right: Apartment Tower -->
+  <g transform="translate(135, 18)">
+    <rect x="0" y="10" width="85" height="120" rx="4" fill="#0284c7"/>
+    <rect x="5" y="15" width="75" height="110" rx="3" fill="#0369a1"/>
+    <!-- Windows grid -->
+    <rect x="12" y="25" width="14" height="15" rx="2" fill="#bae6fd"/>
+    <rect x="35" y="25" width="14" height="15" rx="2" fill="#fef08a"/>
+    <rect x="58" y="25" width="14" height="15" rx="2" fill="#bae6fd"/>
+    
+    <rect x="12" y="48" width="14" height="15" rx="2" fill="#fef08a"/>
+    <rect x="35" y="48" width="14" height="15" rx="2" fill="#bae6fd"/>
+    <rect x="58" y="48" width="14" height="15" rx="2" fill="#bae6fd"/>
+    
+    <rect x="12" y="71" width="14" height="15" rx="2" fill="#bae6fd"/>
+    <rect x="35" y="71" width="14" height="15" rx="2" fill="#fef08a"/>
+    <rect x="58" y="71" width="14" height="15" rx="2" fill="#fef08a"/>
+
+    <!-- Balcony -->
+    <rect x="8" y="93" width="68" height="4" fill="#38bdf8"/>
+    <rect x="12" y="97" width="60" height="2" fill="#0284c7"/>
+    <!-- Lobby entrance -->
+    <rect x="32" y="106" width="20" height="19" rx="2" fill="#f8fafc"/>
+  </g>
+
+  <!-- Golden Key Floating in foreground -->
+  <g transform="translate(235, 70)">
+    <circle cx="28" cy="20" r="14" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
+    <circle cx="28" cy="20" r="7" fill="#ffedd5"/>
+    <rect x="40" y="17" width="32" height="6" rx="2" fill="#f59e0b" stroke="#b45309" stroke-width="1.5"/>
+    <rect x="62" y="23" width="5" height="8" rx="1" fill="#f59e0b"/>
+    <rect x="53" y="23" width="5" height="5" rx="1" fill="#f59e0b"/>
+  </g>
+</svg>

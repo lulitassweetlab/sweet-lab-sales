@@ -1713,16 +1713,18 @@ class SoundEffects {
 		this.diceRoll();
 	}
 
+	cardAppear() {
+		// Toque sutil, cálido y elegante al abrir la tarjeta (amable al oído, no cansa ni aturde)
+		this.playTone(392, 0.08, 'sine', 0.035);
+		setTimeout(() => this.playTone(523.25, 0.12, 'sine', 0.03), 40);
+	}
+
 	genieMagic() {
-		const magicPitches = [392, 523.25, 659.25, 783.99, 1046.5, 1318.5];
-		magicPitches.forEach((p, idx) => {
-			setTimeout(() => this.playTone(p, 0.25, 'sine', 0.12), idx * 90);
-		});
+		this.cardAppear();
 	}
 
 	cardLand() {
-		this.playTone(360, 0.07, 'triangle', 0.1);
-		setTimeout(() => this.playTone(460, 0.1, 'sine', 0.08), 35);
+		this.playTone(320, 0.05, 'sine', 0.025);
 	}
 
 	step() {
@@ -4455,6 +4457,104 @@ function renderModalSideBalance() {
 // 13. MODALES DE TARJETAS (Efecto 3D Levantar, Voltear y Regresar)
 // ==========================================
 
+function getCardIllustrationPath({ image, headerClass, typeName, title, desc, detailedInfo }) {
+	if (image) return image;
+
+	const lowerTitle = (title || '').toLowerCase();
+	const lowerType = (typeName || '').toLowerCase();
+	const lowerHeader = (headerClass || '').toLowerCase();
+	const fullText = (lowerTitle + ' ' + lowerType + ' ' + (desc || '') + ' ' + (detailedInfo || '')).toLowerCase();
+
+	// 1. Elección de Oportunidad (Small vs Big)
+	if (lowerTitle.includes('oportunidad de inversión') || lowerTitle.includes('elige tu negocio') || lowerTitle.includes('explorar negocios') || (lowerHeader === 'opportunity' && !lowerTitle.includes('comprar') && !lowerTitle.includes('cuenta') && !lowerTitle.includes('bono') && !lowerTitle.includes('propiedad') && !lowerTitle.includes('negocio') && !lowerTitle.includes('máquina') && !lowerTitle.includes('cdt'))) {
+		return '/images/cards/oportunidad_choice.svg';
+	}
+
+	// 2. Renta Fija / CDT / Bonos / Ahorro / Fondos
+	if (fullText.includes('renta fija') || fullText.includes('fondo') || fullText.includes('cdt') || fullText.includes('bono') || fullText.includes('ahorro') || fullText.includes('fiduciari') || fullText.includes('remunerad') || fullText.includes('deuda pública')) {
+		return '/images/cards/renta_fija.svg';
+	}
+
+	// 3. Bienes Raíces / Propiedades / Viviendas
+	if (fullText.includes('bienes raíces') || fullText.includes('apartamento') || fullText.includes('casa') || fullText.includes('bodega') || fullText.includes('edificio') || fullText.includes('inmueble') || fullText.includes('penthouse') || fullText.includes('hogar') || lowerHeader === 'housing') {
+		if (lowerHeader === 'housing' || fullText.includes('mudanza') || fullText.includes('vivienda')) {
+			return '/images/cards/vivienda.svg';
+		}
+		return '/images/cards/bienes_raices.svg';
+	}
+
+	// 4. Máquinas, Vending y Tecnología
+	if (fullText.includes('máquina') || fullText.includes('tecnología') || fullText.includes('vending') || fullText.includes('lavandería') || fullText.includes('kiosco') || fullText.includes('impresión')) {
+		return '/images/cards/tecnologia_maquinas.svg';
+	}
+
+	// 5. Transporte, Vehículos y Flota
+	if (fullText.includes('transporte') || fullText.includes('auto') || fullText.includes('camión') || fullText.includes('reparto') || fullText.includes('vehículo') || fullText.includes('flete')) {
+		return '/images/cards/transporte.svg';
+	}
+
+	// 6. Negocios, Comercios, Franquicias
+	if (fullText.includes('franquicia') || fullText.includes('comercio') || fullText.includes('empresa') || fullText.includes('tienda') || fullText.includes('cafetería') || fullText.includes('panadería') || fullText.includes('restaurante') || fullText.includes('negocio') || fullText.includes('local')) {
+		return '/images/cards/negocio_empresa.svg';
+	}
+
+	// 7. Día de Pago y Salarios
+	if (lowerHeader === 'payday' || lowerType.includes('día de pago') || fullText.includes('salario') || fullText.includes('día de pago')) {
+		if (fullText.includes('aumento') || fullText.includes('antigüedad')) {
+			return '/images/cards/aumento_sueldo.svg';
+		}
+		return '/images/cards/dia_de_pago.svg';
+	}
+
+	// 8. Ascensos y Promociones
+	if (lowerHeader === 'promotion' || fullText.includes('ascenso') || fullText.includes('promoción') || fullText.includes('escalafón')) {
+		return '/images/cards/ascenso.svg';
+	}
+
+	// 9. Caprichos y Gastos
+	if (lowerHeader === 'doodad' || fullText.includes('capricho') || fullText.includes('salida') || fullText.includes('gasto') || fullText.includes('cena') || fullText.includes('pizza') || fullText.includes('compras')) {
+		return '/images/cards/caprichos.svg';
+	}
+
+	// 10. Mercado de activos
+	if (lowerHeader === 'market' || fullText.includes('mercado') || fullText.includes('comprador') || fullText.includes('liquidar') || fullText.includes('venta')) {
+		return '/images/cards/mercado.svg';
+	}
+
+	// 11. Caridad
+	if (lowerHeader === 'charity' || fullText.includes('caridad') || fullText.includes('donación') || fullText.includes('solidari')) {
+		return '/images/cards/caridad.svg';
+	}
+
+	// 12. Crisis y Emergencias
+	if (lowerHeader === 'crisis' || fullText.includes('crisis') || fullText.includes('emergencia') || fullText.includes('despido') || fullText.includes('sin fondos')) {
+		return '/images/cards/crisis.svg';
+	}
+
+	// 13. Préstamos y Deudas
+	if (lowerHeader === 'loan' || fullText.includes('préstamo') || fullText.includes('banco') || fullText.includes('deuda')) {
+		return '/images/cards/prestamo.svg';
+	}
+
+	// 14. Casilla vacía / Paso Libre
+	if (lowerHeader === 'neutral' || fullText.includes('paso libre') || fullText.includes('vacía') || fullText.includes('descanso')) {
+		return '/images/cards/paso_libre.svg';
+	}
+
+	// Fallback por categoría/header
+	switch (lowerHeader) {
+		case 'opportunity': return '/images/cards/oportunidad_choice.svg';
+		case 'payday': return '/images/cards/dia_de_pago.svg';
+		case 'doodad': return '/images/cards/caprichos.svg';
+		case 'market': return '/images/cards/mercado.svg';
+		case 'promotion': return '/images/cards/ascenso.svg';
+		case 'housing': return '/images/cards/vivienda.svg';
+		case 'charity': return '/images/cards/caridad.svg';
+		case 'crisis': return '/images/cards/crisis.svg';
+		default: return '/images/cards/oportunidad_choice.svg';
+	}
+}
+
 function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '' }) {
 	const overlay = document.getElementById('flying-card-overlay');
 	const wrapper = document.getElementById('flying-card-wrapper');
@@ -4479,11 +4579,13 @@ function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, 
 	const defaultType = typeName || (headerClass ? headerClass.toUpperCase() : 'OPORTUNIDAD');
 	if (badgeEl) badgeEl.textContent = defaultType;
 
-	// Mostrar imagen grande si existe, o icono emoji estándar
-	if (image) {
+	// Resolver imagen temática para la tarjeta (garantiza ilustraciones en todas las tarjetas)
+	const resolvedImage = image || getCardIllustrationPath({ image, headerClass, typeName, title, desc, detailedInfo });
+
+	if (resolvedImage) {
 		if (iconEl) iconEl.classList.add('hidden');
 		if (imageEl) {
-			imageEl.innerHTML = `<img src="${image}" alt="${title || 'Trabajo'}" />`;
+			imageEl.innerHTML = `<img src="${resolvedImage}" alt="${title || 'Tarjeta'}" />`;
 			imageEl.classList.remove('hidden');
 		}
 	} else {
