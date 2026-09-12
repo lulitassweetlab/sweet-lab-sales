@@ -1738,8 +1738,9 @@ class SoundEffects {
 	}
 
 	loss() {
-		this.playTone(400, 0.15, 'sawtooth', 0.1);
-		setTimeout(() => this.playTone(280, 0.3, 'sawtooth', 0.12), 150);
+		// Tono suave, redondo y musical (amable al oído, sin estridencias)
+		this.playTone(330, 0.12, 'sine', 0.045);
+		setTimeout(() => this.playTone(294, 0.16, 'sine', 0.04), 100);
 	}
 
 	victory() {
@@ -2795,6 +2796,15 @@ function showPreviousBalanceState(player) {
 		// El nombre del botón se mantiene intacto sin cambiar
 	}
 
+	// Profesión / Cargo en el encabezado
+	const jobEl = document.getElementById('side-bal-job');
+	if (jobEl) {
+		const prevJob = prev.hasJob ? (prev.profession || 'Profesión') : 'Buscando empleo 🔍';
+		jobEl.textContent = prevJob;
+		const jobChanged = player.profession !== prev.profession || player.hasJob !== prev.hasJob;
+		jobEl.classList.toggle('past-val-highlight', jobChanged);
+	}
+
 	// Efectivo y Flujo
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
@@ -3447,10 +3457,6 @@ function handlePaydayMilestones(player, count, onComplete) {
 	// 1. Cada 25 salarios cobrados: Aumento por antigüedad del 5%
 	if (count > 0 && count % 25 === 0) {
 		const raise5 = Math.round((player.salary * 0.05) / 1000) * 1000;
-		savePlayerFinancialSnapshot(player, 'Aumento 5% Antigüedad');
-		player.salary += raise5;
-		updateHUDAndHeaders();
-
 		setTimeout(() => {
 			showModal({
 				typeName: '¡AUMENTO POR ANTIGÜEDAD! 📈',
@@ -3462,7 +3468,7 @@ function handlePaydayMilestones(player, count, onComplete) {
 				stats: [
 					{ label: 'Salarios cobrados:', value: `${count} salarios` },
 					{ label: 'Aumento otorgado:', value: `+${formatCOP(raise5)} / mes (5%)`, color: 'green' },
-					{ label: 'Nuevo sueldo:', value: `${formatCOP(player.salary)} / mes`, color: 'green' }
+					{ label: 'Nuevo sueldo:', value: `${formatCOP(player.salary + raise5)} / mes`, color: 'green' }
 				],
 				buttons: [
 					{
@@ -3475,7 +3481,11 @@ function handlePaydayMilestones(player, count, onComplete) {
 									amount: raise5,
 									category: 'salary',
 									sourceEl: btnEl,
-									label: 'Aumento 5%'
+									label: 'Aumento 5%',
+									actionBefore: () => {
+										savePlayerFinancialSnapshot(player, 'Aumento 5% Antigüedad');
+										player.salary += raise5;
+									}
 								},
 								{
 									amount: raise5,
@@ -3499,12 +3509,8 @@ function handlePaydayMilestones(player, count, onComplete) {
 	// 2. Cada 10 salarios cobrados (que no sea 25): Ascenso laboral con 10%
 	else if (count > 0 && count % 10 === 0) {
 		const raise10 = Math.round((player.salary * 0.10) / 1000) * 1000;
-		player.jobTier = (player.jobTier || 1) + 1;
-		const newTitle = getPromotedTitle(player.profession, player.jobTier);
-		savePlayerFinancialSnapshot(player, `Ascenso: ${newTitle}`);
-		player.salary += raise10;
-		player.profession = newTitle;
-		updateHUDAndHeaders();
+		const nextTier = (player.jobTier || 1) + 1;
+		const newTitle = getPromotedTitle(player.profession, nextTier);
 
 		setTimeout(() => {
 			showModal({
@@ -3517,7 +3523,7 @@ function handlePaydayMilestones(player, count, onComplete) {
 				stats: [
 					{ label: 'Nuevo cargo:', value: newTitle },
 					{ label: 'Aumento por ascenso:', value: `+${formatCOP(raise10)} / mes (10%)`, color: 'green' },
-					{ label: 'Sueldo actualizado:', value: `${formatCOP(player.salary)} / mes`, color: 'green' }
+					{ label: 'Sueldo actualizado:', value: `${formatCOP(player.salary + raise10)} / mes`, color: 'green' }
 				],
 				buttons: [
 					{
@@ -3530,7 +3536,13 @@ function handlePaydayMilestones(player, count, onComplete) {
 									amount: raise10,
 									category: 'salary',
 									sourceEl: btnEl,
-									label: 'Ascenso 10%'
+									label: 'Ascenso 10%',
+									actionBefore: () => {
+										savePlayerFinancialSnapshot(player, `Ascenso: ${newTitle}`);
+										player.jobTier = nextTier;
+										player.salary += raise10;
+										player.profession = newTitle;
+									}
 								},
 								{
 									amount: raise10,
@@ -3757,6 +3769,7 @@ function presentDeal(player, deal) {
 			class: 'primary',
 			action: () => {
 				const btnEl = document.querySelector('#modal-footer button');
+				savePlayerFinancialSnapshot(player, `Compra: ${deal.title}`);
 				const steps = [
 					{
 						amount: -deal.downPayment,
