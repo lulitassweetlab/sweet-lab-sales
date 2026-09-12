@@ -2949,8 +2949,8 @@ function handleLanding(player, tile) {
 				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te han conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)}</strong>. Recuerda que no se cobra de inmediato: se cobrará en cada Día de Pago.</em>`,
 				stats: [
 					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} / mes`, color: 'green' },
-					{ label: 'Gastos fijos base:', value: `-${formatCOP(player.fixedExpenses)} / mes`, color: 'red' },
-					{ label: 'Plata libre al mes:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} / mes`, color: netFlow >= 0 ? 'green' : 'red' }
+					{ label: 'Gastos mensuales:', value: `-${formatCOP(player.fixedExpenses)} / mes`, color: 'red' },
+					{ label: 'Flujo de efectivo:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} / mes`, color: netFlow >= 0 ? 'green' : 'red' }
 				],
 				buttons: [
 					{
