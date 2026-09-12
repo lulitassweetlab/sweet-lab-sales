@@ -2194,147 +2194,30 @@
 			transform: scale(1.02);
 		}
 
-		/* Animaciones para cambio de Flujo en el Balance */
-		.flow-anim-improved {
-			animation: flowGlowImprove 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
-			border-radius: 12px;
+		/* Animación de Flujo Estilo Tragamonedas (Slot Machine Rolling & Smooth Braking) */
+		.flow-slot-machine-spinning {
+			animation: slotSpinVibrate 0.08s infinite alternate !important;
+			letter-spacing: 0.6px;
+			filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.45));
+			display: inline-block;
+			font-variant-numeric: tabular-nums;
+			transition: color 0.15s ease;
 		}
 
-		.flow-anim-worsened {
-			animation: flowShakeWorsen 0.8s ease-in-out forwards !important;
-			border-radius: 12px;
+		@keyframes slotSpinVibrate {
+			0% { transform: translateY(-1.5px) scale(1.03); }
+			100% { transform: translateY(1.5px) scale(0.98); }
 		}
 
-		@keyframes flowGlowImprove {
-			0% {
-				transform: scale(1);
-				box-shadow: 0 0 0 rgba(34, 197, 94, 0);
-				background-color: transparent;
-			}
-			25% {
-				transform: scale(1.16);
-				box-shadow: 0 0 24px rgba(34, 197, 94, 0.85);
-				background-color: rgba(34, 197, 94, 0.18);
-			}
-			60% {
-				transform: scale(1.06);
-				box-shadow: 0 0 16px rgba(34, 197, 94, 0.5);
-				background-color: rgba(34, 197, 94, 0.1);
-			}
-			100% {
-				transform: scale(1);
-				box-shadow: 0 0 0 rgba(34, 197, 94, 0);
-				background-color: transparent;
-			}
+		.flow-slot-machine-locked {
+			animation: slotLockSettle 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+			display: inline-block;
 		}
 
-		@keyframes flowShakeWorsen {
-			0%, 100% {
-				transform: translateX(0) scale(1);
-				box-shadow: 0 0 0 rgba(239, 68, 68, 0);
-			}
-			15% {
-				transform: translateX(-6px) scale(1.08);
-				box-shadow: 0 0 18px rgba(239, 68, 68, 0.8);
-				background-color: rgba(239, 68, 68, 0.15);
-			}
-			30% { transform: translateX(6px) scale(1.08); }
-			45% { transform: translateX(-4px) scale(1.04); }
-			60% { transform: translateX(4px) scale(1.02); }
-			75% { transform: translateX(-2px) scale(1); }
-		}
-
-		.flow-text-pop-improved {
-			animation: textPulseGreen 1.2s ease forwards !important;
-		}
-
-		.flow-text-pop-worsened {
-			animation: textPulseRed 1.2s ease forwards !important;
-		}
-
-		@keyframes textPulseGreen {
-			0% { transform: scale(1); color: #16a34a; }
-			30% { transform: scale(1.22); color: #15803d; text-shadow: 0 0 12px rgba(34, 197, 94, 0.6); }
-			100% { transform: scale(1); }
-		}
-
-		@keyframes textPulseRed {
-			0% { transform: scale(1); color: #dc2626; }
-			30% { transform: scale(1.18); color: #b91c1c; text-shadow: 0 0 12px rgba(220, 38, 38, 0.6); }
-			100% { transform: scale(1); }
-		}
-
-		/* Badge flotante animado de Flujo */
-		.flow-floating-badge {
-			display: flex;
-			align-items: center;
-			gap: 8px;
-			padding: 8px 14px;
-			border-radius: 24px;
-			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-			pointer-events: none;
-			transform: translate(-50%, -100%);
-			animation: badgeFloatFade 1.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-		}
-
-		.flow-floating-badge.improved {
-			background: linear-gradient(135deg, #15803d, #22c55e);
-			color: #ffffff;
-			border: 2px solid #bbf7d0;
-		}
-
-		.flow-floating-badge.worsened {
-			background: linear-gradient(135deg, #991b1b, #ef4444);
-			color: #ffffff;
-			border: 2px solid #fecaca;
-		}
-
-		.flow-floating-badge .badge-icon {
-			font-size: 1.25rem;
-		}
-
-		.flow-floating-badge .badge-content {
-			display: flex;
-			flex-direction: column;
-			text-align: left;
-			line-height: 1.1;
-		}
-
-		.flow-floating-badge .badge-title {
-			font-family: 'Outfit', sans-serif;
-			font-size: 0.72rem;
-			font-weight: 900;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
-			opacity: 0.92;
-		}
-
-		.flow-floating-badge .badge-val {
-			font-family: 'Outfit', sans-serif;
-			font-size: 1rem;
-			font-weight: 950;
-		}
-
-		@keyframes badgeFloatFade {
-			0% {
-				opacity: 0;
-				transform: translate(-50%, -60%) scale(0.6);
-			}
-			20% {
-				opacity: 1;
-				transform: translate(-50%, -120%) scale(1.12);
-			}
-			40% {
-				transform: translate(-50%, -130%) scale(1);
-			}
-			80% {
-				opacity: 1;
-				transform: translate(-50%, -160%) scale(1);
-			}
-			100% {
-				opacity: 0;
-				transform: translate(-50%, -190%) scale(0.9);
-			}
+		@keyframes slotLockSettle {
+			0% { transform: scale(1.26); filter: drop-shadow(0 0 12px rgba(34, 197, 94, 0.7)); }
+			60% { transform: scale(0.96); }
+			100% { transform: scale(1); filter: none; }
 		}
 
 		/* Desplegable comparativo antes vs ahora */
@@ -2831,7 +2714,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-planet-sphere-v8"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-slot-bank-v9"></script>
 </body>
 
 </html>

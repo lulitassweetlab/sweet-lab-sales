@@ -1796,6 +1796,11 @@ class SoundEffects {
 		this.playTone(329.63, 0.11, 'triangle', 0.035);
 		setTimeout(() => this.playTone(261.63, 0.16, 'sine', 0.03), 110);
 	}
+
+	playSlotTick() {
+		// Clic mecánico sutil, rápido y aterciopelado tipo rueda de números (muy suave)
+		this.playTone(550 + Math.random() * 120, 0.02, 'triangle', 0.014);
+	}
 }
 
 const sounds = new SoundEffects();
@@ -2879,10 +2884,126 @@ function animateTransactionNumbersToBalance({
 	});
 }
 
+// ==========================================
+// CONTROLADOR DE ANIMACIÓN DE FLUJO ESTILO TRAGAMONEDAS
+// ==========================================
+
+let slotMachineTimer = null;
+let isSlotMachineSpinning = false;
+
+/**
+ * Inicia el giro rápido de números estilo tragamonedas en el recuadro de Flujo del balance.
+ * Se ejecuta continuamente mientras ocurren las operaciones y actualizaciones financieras.
+ */
+function startCashflowSlotMachine() {
+	const flowEl = document.getElementById('side-bal-flow');
+	if (!flowEl) return;
+
+	if (isSlotMachineSpinning && slotMachineTimer) return;
+	isSlotMachineSpinning = true;
+
+	flowEl.classList.remove('flow-slot-machine-locked');
+	flowEl.classList.add('flow-slot-machine-spinning');
+
+	// Generar números aleatorios oscilantes con clic auditivo suave
+	let tickCounter = 0;
+	slotMachineTimer = setInterval(() => {
+		if (!isSlotMachineSpinning) return;
+		const randVal = Math.floor(Math.random() * 9500000) - 1000000;
+		const roundedVal = Math.round(randVal / 50000) * 50000;
+		flowEl.textContent = `${roundedVal >= 0 ? '+' : ''}${formatCOP(roundedVal)}/m`;
+
+		// Colores dinámicos mientras gira
+		if (roundedVal > 0) {
+			flowEl.className = 'val flow green flow-slot-machine-spinning';
+		} else if (roundedVal < 0) {
+			flowEl.className = 'val flow red flow-slot-machine-spinning';
+		} else {
+			flowEl.className = 'val flow zero flow-slot-machine-spinning';
+		}
+
+		tickCounter++;
+		if (tickCounter % 2 === 0) {
+			sounds.playSlotTick();
+		}
+	}, 70);
+}
+
+/**
+ * Detiene el tragamonedas frenando suavemente (desaceleración progresiva)
+ * hasta clavar con precisión el valor neto de flujo resultante final.
+ */
+function stopAndSettleCashflowSlotMachine(targetFlow, onSettled = null) {
+	const flowEl = document.getElementById('side-bal-flow');
+	if (!flowEl) {
+		if (onSettled) onSettled();
+		return;
+	}
+
+	if (!isSlotMachineSpinning) {
+		// Si no estaba girando, simplemente actualizar valor directamente
+		let flowClass = 'zero';
+		if (targetFlow > 0) flowClass = 'green';
+		else if (targetFlow < 0) flowClass = 'red';
+		flowEl.textContent = `${targetFlow >= 0 ? '+' : ''}${formatCOP(targetFlow)}/m`;
+		flowEl.className = `val flow ${flowClass}`;
+		if (onSettled) onSettled();
+		return;
+	}
+
+	isSlotMachineSpinning = false;
+	if (slotMachineTimer) {
+		clearInterval(slotMachineTimer);
+		slotMachineTimer = null;
+	}
+
+	// Secuencia de frenado suave progresivo (3 pasos de desaceleración gradual y cierre)
+	const brakeSteps = [
+		{ delay: 110, offset: targetFlow + 450000 },
+		{ delay: 240, offset: targetFlow - 150000 },
+		{ delay: 420, offset: targetFlow + 50000 },
+		{ delay: 650, offset: targetFlow }
+	];
+
+	brakeSteps.forEach((step, idx) => {
+		setTimeout(() => {
+			sounds.playSlotTick();
+			const val = step.offset;
+			let stepClass = 'zero';
+			if (val > 0) stepClass = 'green';
+			else if (val < 0) stepClass = 'red';
+
+			flowEl.textContent = `${val >= 0 ? '+' : ''}${formatCOP(val)}/m`;
+			flowEl.className = `val flow ${stepClass} flow-slot-machine-spinning`;
+
+			// En el último paso (frenado final):
+			if (idx === brakeSteps.length - 1) {
+				flowEl.classList.remove('flow-slot-machine-spinning');
+				flowEl.classList.add('flow-slot-machine-locked');
+
+				let finalClass = 'zero';
+				if (targetFlow > 0) finalClass = 'green';
+				else if (targetFlow < 0) finalClass = 'red';
+				flowEl.className = `val flow ${finalClass} flow-slot-machine-locked`;
+				flowEl.textContent = `${targetFlow >= 0 ? '+' : ''}${formatCOP(targetFlow)}/m`;
+
+				// Sonido dulce de confirmación al asentarse el flujo
+				if (targetFlow > 0) sounds.cash();
+				else sounds.tap();
+
+				setTimeout(() => {
+					flowEl.classList.remove('flow-slot-machine-locked');
+					if (onSettled) onSettled();
+				}, 550);
+			}
+		}, step.delay);
+	});
+}
+
 /**
  * Ejecuta una cadena secuencial de animaciones de números voladores hacia el balance
  * para los cuadrantes modificados (Ingresos, Gastos, Activos, Deuda, Efectivo).
- * Nota: El flujo mensual se actualiza automáticamente en el balance sin necesidad de arrastrarlo.
+ * Mientras ocurren las actualizaciones, el flujo gira en tragamonedas continuo y frena suave al final.
  */
 function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
 	if (!steps || steps.length === 0) {
@@ -2899,16 +3020,25 @@ function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
 		return;
 	}
 
-	gameState.isFlowPendingInSequence = false;
-	gameState.flowLockedValue = undefined;
+	// Iniciar giro del flujo estilo tragamonedas
+	startCashflowSlotMachine();
 
 	let currentIndex = 0;
 
 	function runNextStep() {
 		if (currentIndex >= validSteps.length) {
+			// Todas las operaciones terminaron: frenar suave en el flujo final
+			const player = gameState.players[gameState.currentPlayerIndex];
+			const finalFin = player ? getPlayerFinancials(player) : { monthlyCashFlow: 0 };
+			
 			renderModalSideBalance();
 			updateHUDAndHeaders();
-			if (onAllComplete) onAllComplete();
+
+			stopAndSettleCashflowSlotMachine(finalFin.monthlyCashFlow, () => {
+				renderModalSideBalance();
+				updateHUDAndHeaders();
+				if (onAllComplete) onAllComplete();
+			});
 			return;
 		}
 
@@ -4196,31 +4326,63 @@ function showCrisisModal(player) {
 }
 
 // ==========================================
-// 10. PRÉSTAMOS Y DEUDAS BANCARIAS (Calibrado 2026: Bloques de $500.000)
+// 10. PRÉSTAMOS Y DEUDAS BANCARIAS (Calibrado 2026: Bloques de $500.000 con Tasa Mensual Aleatoria)
 // ==========================================
+
+/**
+ * Determina aleatoriamente la tasa de interés mensual que exige el banco:
+ * 5% -> 0.5%
+ * 5% -> 1.0%
+ * 10% -> 1.5%
+ * 10% -> 2.0%
+ * 20% -> 3.0%
+ * 30% -> 5.0%
+ * 20% restante repartido en 7%, 8%, 9% y 10% (5% c/u)
+ */
+function rollLoanMonthlyInterestRate() {
+	const rand = Math.random() * 100;
+	if (rand < 5) return 0.5;
+	if (rand < 10) return 1.0;
+	if (rand < 20) return 1.5;
+	if (rand < 30) return 2.0;
+	if (rand < 50) return 3.0;
+	if (rand < 80) return 5.0;
+	if (rand < 85) return 7.0;
+	if (rand < 90) return 8.0;
+	if (rand < 95) return 9.0;
+	return 10.0;
+}
 
 function showLoanModal(callbackAfterLoan) {
 	const player = gameState.players[gameState.currentPlayerIndex];
 	const loanBlock = 500000;
-	const interest = 25000; // 5% mensual
+	const ratePct = rollLoanMonthlyInterestRate();
+	const interest = Math.round(loanBlock * (ratePct / 100)); // Cuota por bloque
+
+	// Mensaje según la tasa obtenida
+	let rateQuality = 'Tasa estándar';
+	if (ratePct <= 1.0) rateQuality = '¡Tasa preferencial súper baja!';
+	else if (ratePct <= 2.0) rateQuality = '¡Excelente tasa competitiva!';
+	else if (ratePct >= 7.0) rateQuality = 'Tasa de alto riesgo bancario';
 
 	showModal({
 		typeName: 'BANCO SWEET LAB 🏦',
 		headerClass: 'opportunity',
 		icon: '🏦',
 		title: 'Préstamo Bancario',
-		detailedInfo: `Pides dinero prestado para comprar una oportunidad que te dé ganancias mensuales. Por cada ${formatCOP(loanBlock)} prestados, sumas una cuota mensual de ${formatCOP(interest)}.`,
+		detailedInfo: `El banco evaluó tu perfil y te ofrece una tasa mensual del <strong>${ratePct}%</strong> (${rateQuality}). Por cada ${formatCOP(loanBlock)} que pidas prestados, pagarás <strong>${formatCOP(interest)} al mes</strong> de intereses.`,
 		stats: [
+			{ label: 'Tasa asignada:', value: `${ratePct}% mensual`, color: ratePct <= 2 ? 'green' : (ratePct >= 7 ? 'red' : 'dark') },
 			{ label: 'Dinero prestado:', value: `+${formatCOP(loanBlock)}`, color: 'green' },
 			{ label: 'Cuota mensual:', value: `${formatCOP(interest)} / mes`, color: 'red' },
 			{ label: 'Tu deuda acumulada:', value: `${formatCOP(player.totalDebt)}` }
 		],
 		buttons: [
 			{
-				text: `Pedir ${formatCOP(loanBlock)} al Banco 🏦`,
+				text: `Pedir ${formatCOP(loanBlock)} (${ratePct}%) 🏦`,
 				class: 'primary',
 				action: () => {
-					savePlayerFinancialSnapshot(player, 'Préstamo Bancario');
+					savePlayerFinancialSnapshot(player, `Préstamo Bancario (${ratePct}%)`);
 					const btnEl = document.querySelector('#modal-footer button');
 					animateSequentialFinancialUpdate([
 						{
@@ -4255,11 +4417,12 @@ function showLoanModal(callbackAfterLoan) {
 				}
 			},
 			{
-				text: `Pedir ${formatCOP(loanBlock * 2)} al Banco 🏦`,
+				text: `Pedir ${formatCOP(loanBlock * 2)} (${ratePct}%) 🏦`,
 				class: 'primary',
 				action: () => {
 					const block2 = loanBlock * 2;
-					savePlayerFinancialSnapshot(player, 'Préstamo Bancario 2x');
+					const interest2 = interest * 2;
+					savePlayerFinancialSnapshot(player, `Préstamo Bancario 2x (${ratePct}%)`);
 					const btnEl = document.querySelector('#modal-footer button');
 					animateSequentialFinancialUpdate([
 						{
@@ -4278,11 +4441,11 @@ function showLoanModal(callbackAfterLoan) {
 							label: 'Nueva Deuda',
 							actionBefore: () => {
 								player.totalDebt += block2;
-								player.debtExpenses += (interest * 2);
+								player.debtExpenses += interest2;
 							}
 						},
 						{
-							amount: -(interest * 2),
+							amount: -interest2,
 							category: 'expense',
 							sourceEl: btnEl,
 							label: 'Cuota Interés'
@@ -4314,15 +4477,20 @@ function showPayDebtModal() {
 
 	const payAmount = Math.min(player.totalDebt, 500000);
 	const canAfford = player.cash >= payAmount;
+	// Proporción de intereses que se reducen dinámicamente según la deuda total
+	const interestReduction = player.totalDebt > 0 
+		? Math.round((player.debtExpenses / player.totalDebt) * payAmount)
+		: 0;
 
 	showModal({
 		typeName: 'PAGAR DEUDA 💳',
 		headerClass: 'opportunity',
 		icon: '💳',
 		title: 'Abonar a tu Deuda',
-		detailedInfo: `Pagar <strong>${formatCOP(payAmount)}</strong> de tu deuda bancaria reduce tus gastos en $25.000 al mes, aumentando tu plata libre.`,
+		detailedInfo: `Pagar <strong>${formatCOP(payAmount)}</strong> de tu deuda bancaria reduce tus gastos en <strong>${formatCOP(interestReduction)} al mes</strong>, aumentando directamente tu plata libre mensual.`,
 		stats: [
 			{ label: 'Deuda que debes:', value: `${formatCOP(player.totalDebt)}` },
+			{ label: 'Ahorro mensual de cuota:', value: `+${formatCOP(interestReduction)} / mes`, color: 'green' },
 			{ label: 'Tu Plata en Mano:', value: `${formatCOP(player.cash)}`, color: canAfford ? 'green' : 'red' }
 		],
 		buttons: [
@@ -4352,8 +4520,8 @@ function showPayDebtModal() {
 							sourceEl: btnEl,
 							label: 'Deuda Reducida',
 							actionBefore: () => {
-								player.totalDebt -= payAmount;
-								player.debtExpenses = Math.max(0, player.debtExpenses - 25000);
+								player.totalDebt = Math.max(0, player.totalDebt - payAmount);
+								player.debtExpenses = Math.max(0, player.debtExpenses - interestReduction);
 							}
 						}
 					], () => {
@@ -4749,60 +4917,7 @@ function endTurn() {
 	transitionCameraToPlayer(nextPlayer);
 }
 
-/**
- * Lanza una animación visual y acústica cuando el flujo mensual del balance cambia:
- * - Si mejora (sube): resplandor verde esmeralda, rebote elástico, badge flotante animado y arpegio alegre.
- * - Si empeora (baja): temblor de advertencia, resplandor ámbar/rojo, badge flotante de descenso y tono sutil.
- */
-function triggerCashflowChangeAnimation(diff, flowEl, containerEl) {
-	if (!flowEl || diff === 0) return;
-	const parent = containerEl || flowEl.parentElement || flowEl;
 
-	parent.classList.remove('flow-anim-improved', 'flow-anim-worsened');
-	flowEl.classList.remove('flow-text-pop-improved', 'flow-text-pop-worsened');
-	void parent.offsetWidth; // forzar reflow
-
-	const badge = document.createElement('div');
-	const isImprovement = diff > 0;
-	badge.className = `flow-floating-badge ${isImprovement ? 'improved' : 'worsened'}`;
-
-	if (isImprovement) {
-		sounds.flowImproved();
-		parent.classList.add('flow-anim-improved');
-		flowEl.classList.add('flow-text-pop-improved');
-		badge.innerHTML = `
-			<span class="badge-icon">🚀</span>
-			<div class="badge-content">
-				<span class="badge-title">¡Flujo Mejoró!</span>
-				<span class="badge-val">+${formatCOP(diff)}/m</span>
-			</div>
-		`;
-	} else {
-		sounds.flowWorsened();
-		parent.classList.add('flow-anim-worsened');
-		flowEl.classList.add('flow-text-pop-worsened');
-		badge.innerHTML = `
-			<span class="badge-icon">🔻</span>
-			<div class="badge-content">
-				<span class="badge-title">Flujo Reducido</span>
-				<span class="badge-val">-${formatCOP(Math.abs(diff))}/m</span>
-			</div>
-		`;
-	}
-
-	const rect = parent.getBoundingClientRect();
-	badge.style.position = 'fixed';
-	badge.style.left = `${rect.left + rect.width / 2}px`;
-	badge.style.top = `${rect.top - 8}px`;
-	badge.style.zIndex = '999999';
-	document.body.appendChild(badge);
-
-	setTimeout(() => {
-		badge.remove();
-		parent.classList.remove('flow-anim-improved', 'flow-anim-worsened');
-		flowEl.classList.remove('flow-text-pop-improved', 'flow-text-pop-worsened');
-	}, 1500);
-}
 
 /**
  * Renderiza el widget de balance a mano derecha mientras se muestra la tarjeta central
@@ -4838,7 +4953,6 @@ function renderModalSideBalance() {
 	// Resumen Superior: Efectivo y Flujo
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
-	const metricFlowBox = document.getElementById('side-bal-metric-flow');
 	const isViewingPast = sideBalanceEl && sideBalanceEl.classList.contains('viewing-past-state');
 
 	if (cashEl) {
@@ -4847,18 +4961,13 @@ function renderModalSideBalance() {
 	}
 	if (flowEl) {
 		const displayFlow = fin.monthlyCashFlow;
-		flowEl.textContent = `${displayFlow >= 0 ? '+' : ''}${formatCOP(displayFlow)}/m`;
-		let flowClass = 'zero';
-		if (displayFlow > 0) flowClass = 'green';
-		else if (displayFlow < 0) flowClass = 'red';
-		flowEl.className = `val flow ${flowClass}`;
-
-		// Detectar si el flujo cambió respecto al último valor conocido del jugador
-		if (!isViewingPast && typeof player.lastKnownCashFlow === 'number') {
-			const diff = displayFlow - player.lastKnownCashFlow;
-			if (diff !== 0) {
-				triggerCashflowChangeAnimation(diff, flowEl, metricFlowBox);
-			}
+		// Si el tragamonedas está girando activamente en plena animación, no sobreescribir con valor estático
+		if (!isSlotMachineSpinning) {
+			flowEl.textContent = `${displayFlow >= 0 ? '+' : ''}${formatCOP(displayFlow)}/m`;
+			let flowClass = 'zero';
+			if (displayFlow > 0) flowClass = 'green';
+			else if (displayFlow < 0) flowClass = 'red';
+			flowEl.className = `val flow ${flowClass}`;
 		}
 		if (!isViewingPast) {
 			player.lastKnownCashFlow = displayFlow;
