@@ -2082,14 +2082,14 @@ function startGame() {
 			salary: 0,
 			initialExpensePct: initialExpensePct,
 			housingLevel: 0,
-			rentExpense: DEFAULT_FIXED_EXPENSES.rent,
-			groceriesExpense: DEFAULT_FIXED_EXPENSES.groceries,
-			utilitiesExpense: DEFAULT_FIXED_EXPENSES.utilities,
-			transportExpense: DEFAULT_FIXED_EXPENSES.transport,
-			internetExpense: DEFAULT_FIXED_EXPENSES.internet,
-			phoneExpense: DEFAULT_FIXED_EXPENSES.phone,
-			otherExpenses: DEFAULT_FIXED_EXPENSES.other,
-			fixedExpenses: DEFAULT_FIXED_EXPENSES.rent + DEFAULT_FIXED_EXPENSES.groceries + DEFAULT_FIXED_EXPENSES.utilities + DEFAULT_FIXED_EXPENSES.transport + DEFAULT_FIXED_EXPENSES.internet + DEFAULT_FIXED_EXPENSES.phone + DEFAULT_FIXED_EXPENSES.other,
+			rentExpense: 0,
+			groceriesExpense: 0,
+			utilitiesExpense: 0,
+			transportExpense: 0,
+			internetExpense: 0,
+			phoneExpense: 0,
+			otherExpenses: 0,
+			fixedExpenses: 0,
 			debtExpenses: 0,
 			totalDebt: 0,
 			cash: 500000, // Efectivo inicial calibrado a escala salario actual (500.000)
@@ -3931,9 +3931,9 @@ function showPayDebtModal() {
 function getPlayerFinancials(player) {
 	const passiveIncome = player.assets.reduce((sum, a) => sum + (a.cashFlow || 0), 0);
 	const totalIncome = player.salary + passiveIncome;
-	const totalExpenses = player.fixedExpenses + player.debtExpenses;
-	const monthlyCashFlow = totalIncome - totalExpenses;
-	const freedomProgress = Math.min(100, Math.round((passiveIncome / (totalExpenses || 1)) * 100));
+	const totalExpenses = player.hasJob ? (player.fixedExpenses + player.debtExpenses) : 0;
+	const monthlyCashFlow = player.hasJob ? (totalIncome - totalExpenses) : 0;
+	const freedomProgress = totalExpenses > 0 ? Math.min(100, Math.round((passiveIncome / totalExpenses) * 100)) : 0;
 
 	return {
 		passiveIncome,
@@ -3997,14 +3997,14 @@ function updateDrawerFinancials(playerIndex) {
 	const drawerFixedEl = document.getElementById('drawer-fixed-exp');
 	const drawerDebtEl = document.getElementById('drawer-debt-exp');
 
-	if (drawerRentEl) drawerRentEl.textContent = formatCOP(p.rentExpense || DEFAULT_FIXED_EXPENSES.rent);
-	if (drawerGroceriesEl) drawerGroceriesEl.textContent = formatCOP(p.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries);
-	if (drawerUtilitiesEl) drawerUtilitiesEl.textContent = formatCOP(p.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities);
-	if (drawerTransportEl) drawerTransportEl.textContent = formatCOP(p.transportExpense || DEFAULT_FIXED_EXPENSES.transport);
-	if (drawerInternetEl) drawerInternetEl.textContent = formatCOP(p.internetExpense || DEFAULT_FIXED_EXPENSES.internet);
-	if (drawerPhoneEl) drawerPhoneEl.textContent = formatCOP(p.phoneExpense || DEFAULT_FIXED_EXPENSES.phone);
-	if (drawerOtherEl) drawerOtherEl.textContent = formatCOP(p.otherExpenses || DEFAULT_FIXED_EXPENSES.other);
-	if (drawerFixedEl) drawerFixedEl.textContent = formatCOP(p.fixedExpenses || 1500000);
+	if (drawerRentEl) drawerRentEl.textContent = formatCOP(p.hasJob ? (p.rentExpense || 0) : 0);
+	if (drawerGroceriesEl) drawerGroceriesEl.textContent = formatCOP(p.hasJob ? (p.groceriesExpense || 0) : 0);
+	if (drawerUtilitiesEl) drawerUtilitiesEl.textContent = formatCOP(p.hasJob ? (p.utilitiesExpense || 0) : 0);
+	if (drawerTransportEl) drawerTransportEl.textContent = formatCOP(p.hasJob ? (p.transportExpense || 0) : 0);
+	if (drawerInternetEl) drawerInternetEl.textContent = formatCOP(p.hasJob ? (p.internetExpense || 0) : 0);
+	if (drawerPhoneEl) drawerPhoneEl.textContent = formatCOP(p.hasJob ? (p.phoneExpense || 0) : 0);
+	if (drawerOtherEl) drawerOtherEl.textContent = formatCOP(p.hasJob ? (p.otherExpenses || 0) : 0);
+	if (drawerFixedEl) drawerFixedEl.textContent = formatCOP(p.hasJob ? (p.fixedExpenses || 0) : 0);
 	if (drawerDebtEl) drawerDebtEl.textContent = formatCOP(p.debtExpenses || 0);
 
 	const assetsList = document.getElementById('drawer-assets-list');
@@ -4269,14 +4269,14 @@ function renderModalSideBalance() {
 	const otherExpEl = document.getElementById('side-bal-other-exp');
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
-	if (rentExpEl) rentExpEl.textContent = `-${formatCOP(player.rentExpense ?? DEFAULT_FIXED_EXPENSES.rent)}`;
-	if (groceriesExpEl) groceriesExpEl.textContent = `-${formatCOP(player.groceriesExpense ?? DEFAULT_FIXED_EXPENSES.groceries)}`;
-	if (utilitiesExpEl) utilitiesExpEl.textContent = `-${formatCOP(player.utilitiesExpense ?? DEFAULT_FIXED_EXPENSES.utilities)}`;
-	if (transportExpEl) transportExpEl.textContent = `-${formatCOP(player.transportExpense ?? DEFAULT_FIXED_EXPENSES.transport)}`;
-	if (internetExpEl) internetExpEl.textContent = `-${formatCOP(player.internetExpense ?? DEFAULT_FIXED_EXPENSES.internet)}`;
-	if (phoneExpEl) phoneExpEl.textContent = `-${formatCOP(player.phoneExpense ?? DEFAULT_FIXED_EXPENSES.phone)}`;
-	if (otherExpEl) otherExpEl.textContent = `-${formatCOP(player.otherExpenses ?? DEFAULT_FIXED_EXPENSES.other)}`;
-	if (debtExpEl) debtExpEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
+	if (rentExpEl) rentExpEl.textContent = `-${formatCOP(player.hasJob ? (player.rentExpense || 0) : 0)}`;
+	if (groceriesExpEl) groceriesExpEl.textContent = `-${formatCOP(player.hasJob ? (player.groceriesExpense || 0) : 0)}`;
+	if (utilitiesExpEl) utilitiesExpEl.textContent = `-${formatCOP(player.hasJob ? (player.utilitiesExpense || 0) : 0)}`;
+	if (transportExpEl) transportExpEl.textContent = `-${formatCOP(player.hasJob ? (player.transportExpense || 0) : 0)}`;
+	if (internetExpEl) internetExpEl.textContent = `-${formatCOP(player.hasJob ? (player.internetExpense || 0) : 0)}`;
+	if (phoneExpEl) phoneExpEl.textContent = `-${formatCOP(player.hasJob ? (player.phoneExpense || 0) : 0)}`;
+	if (otherExpEl) otherExpEl.textContent = `-${formatCOP(player.hasJob ? (player.otherExpenses || 0) : 0)}`;
+	if (debtExpEl) debtExpEl.textContent = (player.debtExpenses || 0) > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
 	if (totalExpEl) totalExpEl.textContent = `-${formatCOP(fin.totalExpenses)}`;
 
 	// 3. ACTIVOS
