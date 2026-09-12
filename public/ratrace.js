@@ -1,6 +1,6 @@
 /**
  * RatRace - Carrera de la Rata (CashFlow)
- * Edición Sweet Lab Finanzas - Versión Colombia (Pesos Colombianos COP)
+ * Edición Sweet Lab Finanzas - Versión Colombia (Pesos Colombianos)
  * - 2 Dados Grandes 3D simultáneos
  * - Fichas con nombre en la mitad, bien visible, sin '#'
  * - Exploración hacia adelante/atrás sin mover la ficha (Botones ▲ / 🎯 / ▼)
@@ -28,7 +28,7 @@ const AVATARS = [
 	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#e11d48', bg: 'rgba(225, 29, 72, 0.12)' }
 ];
 
-// 12 Empleos básicos de inicio seleccionados por el usuario (Calibrados 2026: Salario mínimo base $1.750.000 COP)
+// 12 Empleos básicos de inicio seleccionados por el usuario (Calibrados 2026: Salario mínimo base $1.750.000)
 const STARTER_JOBS = [
 	{ id: 1, title: 'Cocinero 👨‍🍳', salary: 1850000, icon: '👨‍🍳', desc: 'Preparas platos deliciosos y coordinas la cocina con gran sazón.' },
 	{ id: 2, title: 'Tendero 🏪', salary: 1780000, icon: '🏪', desc: 'Atiendes a los clientes de tu barrio y mantienes la tienda surtida.' },
@@ -440,7 +440,7 @@ const HOUSING_LEVELS = [
 	{ level: 14, title: 'Casa Campestre Familiar', rent: 3200000, icon: '🌳', desc: 'Residencia campestre privada rodeada de naturaleza y amplios jardines.' }
 ];
 
-// Gastos fijos obligatorios de inicio calibrados a solicitud del usuario (Total: $1.500.000 COP)
+// Gastos fijos obligatorios de inicio calibrados a solicitud del usuario (Total: $1.500.000)
 const DEFAULT_FIXED_EXPENSES = {
 	rent: 500000,           // Arriendo (Habitación Básica inicial)
 	groceries: 450000,      // Mercado
@@ -451,7 +451,7 @@ const DEFAULT_FIXED_EXPENSES = {
 	other: 90000            // Otros
 };
 
-// Barajas de cartas adaptadas al capital inicial ($500.000 COP) y salarios 2026
+// Barajas de cartas adaptadas al capital inicial ($500.000) y salarios 2026
 // Utilidades mensuales calibradas a solicitud del usuario:
 // - Ocasiones regulares: 0.3%, 0.5%, 0.7%, 0.8%, 0.9%, 1%, 1.2%, 1.5%, 1.6%, 1.7%, 2%
 // - En extrañas ocasiones: 2.5%, 3%, 3.5%
@@ -1083,7 +1083,7 @@ const SMALL_DEALS = [
 // Gastos imprevistos y antojos calibrados a escala real 2026 (6x más variedad, 64 opciones):
 // "una salida con amigos debe salir en 120.000 más o menos, pero no siempre el mismo valor"
 const DOODADS = [
-	// --- 1. SALIDAS Y REUNIONES CON AMIGOS (~$120.000 COP con variación natural) ---
+	// --- 1. SALIDAS Y REUNIONES CON AMIGOS (~$120.000 con variación natural) ---
 	{
 		title: 'Salida a Cenar Pizzas con Amigos 🍕',
 		desc: 'Una pizza grande con gaseosas y buena charla de fin de semana con tus amigos.',
@@ -2091,7 +2091,7 @@ function startGame() {
 			fixedExpenses: DEFAULT_FIXED_EXPENSES.rent + DEFAULT_FIXED_EXPENSES.groceries + DEFAULT_FIXED_EXPENSES.utilities + DEFAULT_FIXED_EXPENSES.transport + DEFAULT_FIXED_EXPENSES.internet + DEFAULT_FIXED_EXPENSES.phone + DEFAULT_FIXED_EXPENSES.other,
 			debtExpenses: 0,
 			totalDebt: 0,
-			cash: 500000, // Efectivo inicial calibrado a escala salario actual (500.000 COP)
+			cash: 500000, // Efectivo inicial calibrado a escala salario actual (500.000)
 			position: 0,
 			assets: [],
 			skipTurns: 0,
@@ -2711,7 +2711,7 @@ function showPreviousBalanceState(player) {
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
 	if (cashEl) {
-		cashEl.textContent = `${formatCOP(prev.cash)} COP`;
+		cashEl.textContent = `${formatCOP(prev.cash)}`;
 		cashEl.className = `val cash ${prev.cash < 0 ? 'red' : ''} past-val-highlight`;
 	}
 	if (flowEl) {
@@ -2945,12 +2945,11 @@ function handleLanding(player, tile) {
 				headerClass: 'job',
 				icon: job.icon,
 				title: `¡Eres ${job.title}!`,
-				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te han conseguido el empleo de <strong>${job.title}</strong>.<br><br>Tus gastos fijos iniciales se calibraron aleatoriamente en el <strong>${expensePct}%</strong> de tu salario mensual.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)} COP</strong>. Recuerda que no se cobra de inmediato: se cobrará periódicamente cada vez que cruces o caigas en las casillas de Día de Pago.</em>`,
+				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te han conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)}</strong>. Recuerda que no se cobra de inmediato: se cobrará en cada Día de Pago.</em>`,
 				stats: [
-					{ label: 'Empleo obtenido:', value: job.title },
-					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' },
-					{ label: `Gastos fijos base (${expensePct}%):`, value: `-${formatCOP(player.fixedExpenses)} COP / mes`, color: 'red' },
-					{ label: 'Plata libre al mes:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} COP / mes (${100 - expensePct}%)`, color: netFlow >= 0 ? 'green' : 'red' }
+					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} / mes`, color: 'green' },
+					{ label: 'Gastos fijos base:', value: `-${formatCOP(player.fixedExpenses)} / mes`, color: 'red' },
+					{ label: 'Plata libre al mes:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} / mes`, color: netFlow >= 0 ? 'green' : 'red' }
 				],
 				buttons: [
 					{
@@ -3048,10 +3047,10 @@ function showHousingModal(player) {
 			headerClass: 'housing',
 			icon: currentHousing.icon,
 			title: currentHousing.title,
-			detailedInfo: `¡Increíble, <strong>${player.name}</strong>! Ya vives en el nivel máximo de vivienda: <strong>${currentHousing.title}</strong>.<br><em>${currentHousing.desc}</em><br><br>Disfrutas del mayor confort pagando tu alquiler de <strong>${formatCOP(currentHousing.rent)} COP/mes</strong> sin necesidad de mudarte más.`,
+			detailedInfo: `¡Increíble, <strong>${player.name}</strong>! Ya vives en el nivel máximo de vivienda: <strong>${currentHousing.title}</strong>.<br><em>${currentHousing.desc}</em><br><br>Disfrutas del mayor confort pagando tu alquiler de <strong>${formatCOP(currentHousing.rent)}/mes</strong> sin necesidad de mudarte más.`,
 			stats: [
 				{ label: 'Vivienda actual:', value: currentHousing.title },
-				{ label: 'Alquiler actual:', value: `${formatCOP(currentHousing.rent)} COP/mes`, color: 'red' }
+				{ label: 'Alquiler actual:', value: `${formatCOP(currentHousing.rent)}/mes`, color: 'red' }
 			],
 			buttons: [
 				{
@@ -3079,8 +3078,8 @@ function showHousingModal(player) {
 		stats: [
 			{ label: 'Vivienda anterior:', value: `${currentHousing.title} (${formatCOP(currentHousing.rent)}/mes)` },
 			{ label: 'Nueva vivienda:', value: nextHousing.title },
-			{ label: 'Nuevo alquiler mensual:', value: `${formatCOP(nextHousing.rent)} COP / mes`, color: 'red' },
-			{ label: 'Aumento en alquiler:', value: `+${formatCOP(rentDiff)} COP / mes`, color: 'red' }
+			{ label: 'Nuevo alquiler mensual:', value: `${formatCOP(nextHousing.rent)} / mes`, color: 'red' },
+			{ label: 'Aumento en alquiler:', value: `+${formatCOP(rentDiff)} / mes`, color: 'red' }
 		],
 		buttons: [
 			{
@@ -3123,12 +3122,12 @@ function showFloatingPaydayBubble(tileIndex, laneIndex, amount) {
 	bubble.className = 'floating-payday-bubble';
 
 	if (amount > 0) {
-		bubble.innerHTML = `+${formatCOP(amount)} COP 💵`;
+		bubble.innerHTML = `+${formatCOP(amount)} 💵`;
 	} else if (amount < 0) {
-		bubble.innerHTML = `-${formatCOP(Math.abs(amount))} COP 💸`;
+		bubble.innerHTML = `-${formatCOP(Math.abs(amount))} 💸`;
 		bubble.classList.add('negative');
 	} else {
-		bubble.innerHTML = `+$0 COP ⚖️`;
+		bubble.innerHTML = `+$0 ⚖️`;
 		bubble.classList.add('neutral');
 	}
 
@@ -3190,11 +3189,11 @@ function collectPayday(player, isLanding) {
 				headerClass: 'promotion',
 				icon: '🎖️',
 				title: '¡Aumento del 5% por Constancia!',
-				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Has cobrado <strong>${count} salarios</strong> en tu trayectoria laboral.<br><br>Por tu antigüedad, recibes un aumento automático del <strong>5%</strong> (+${formatCOP(raise5)} COP/mes) sin cambio de puesto.`,
+				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Has cobrado <strong>${count} salarios</strong> en tu trayectoria laboral.<br><br>Por tu antigüedad, recibes un aumento automático del <strong>5%</strong> (+${formatCOP(raise5)}/mes) sin cambio de puesto.`,
 				stats: [
 					{ label: 'Salarios cobrados:', value: `${count} salarios` },
-					{ label: 'Aumento otorgado:', value: `+${formatCOP(raise5)} COP / mes (5%)`, color: 'green' },
-					{ label: 'Nuevo sueldo:', value: `${formatCOP(player.salary)} COP / mes`, color: 'green' }
+					{ label: 'Aumento otorgado:', value: `+${formatCOP(raise5)} / mes (5%)`, color: 'green' },
+					{ label: 'Nuevo sueldo:', value: `${formatCOP(player.salary)} / mes`, color: 'green' }
 				],
 				buttons: [
 					{
@@ -3238,8 +3237,8 @@ function collectPayday(player, isLanding) {
 				detailedInfo: `¡Bravo, <strong>${player.name}</strong>! Has acumulado <strong>${count} salarios</strong> cobrados en tu trabajo.<br><br>Tu esfuerzo ha sido premiado: ¡recibes un <strong>Ascenso de Cargo</strong> con un <strong>10% de aumento</strong> redondeado!`,
 				stats: [
 					{ label: 'Nuevo cargo:', value: newTitle },
-					{ label: 'Aumento por ascenso:', value: `+${formatCOP(raise10)} COP / mes (10%)`, color: 'green' },
-					{ label: 'Sueldo actualizado:', value: `${formatCOP(player.salary)} COP / mes`, color: 'green' }
+					{ label: 'Aumento por ascenso:', value: `+${formatCOP(raise10)} / mes (10%)`, color: 'green' },
+					{ label: 'Sueldo actualizado:', value: `${formatCOP(player.salary)} / mes`, color: 'green' }
 				],
 				buttons: [
 					{
@@ -3277,8 +3276,8 @@ function collectPayday(player, isLanding) {
 				: `¡Llegó tu plata del mes (Cobro #${count})! Cobraste tu sueldo y las ganancias de tus negocios.`,
 			stats: [
 				{ label: 'Cobros acumulados:', value: `${count} salarios cobrados` },
-				{ label: 'Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)} COP`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
-				{ label: 'Total en tu bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
+				{ label: 'Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
+				{ label: 'Total en tu bolsillo:', value: `${formatCOP(player.cash)}`, color: 'green' }
 			],
 			buttons: [
 				{
@@ -3332,7 +3331,7 @@ function showJobModal(player) {
 		headerClass: 'job',
 		icon: '💼',
 		title: newJob.title,
-		detailedInfo: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)} COP/mes</strong>.`,
+		detailedInfo: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)}/mes</strong>.`,
 		stats: stats,
 		buttons: [
 			{
@@ -3359,9 +3358,9 @@ function showJobModal(player) {
 						headerClass: 'job',
 						icon: '🎉',
 						title: newJob.title,
-						detailedInfo: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)} COP</strong> al mes.`,
+						detailedInfo: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)}</strong> al mes.`,
 						stats: [
-							{ label: 'Nuevo sueldo:', value: `${formatCOP(newJob.salary)} COP/mes`, color: 'green' }
+							{ label: 'Nuevo sueldo:', value: `${formatCOP(newJob.salary)}/mes`, color: 'green' }
 						],
 						buttons: [
 							{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
@@ -3471,10 +3470,10 @@ function presentDeal(player, deal) {
 	}
 
 	const stats = [
-		{ label: 'Inversión inicial:', value: `${formatCOP(deal.downPayment)} COP` },
+		{ label: 'Inversión inicial:', value: `${formatCOP(deal.downPayment)}` },
 		{
 			label: 'Ganancia al mes:',
-			value: `+${formatCOP(deal.cashFlow)} COP (${deal.roiPercent}% ganancia)`,
+			value: `+${formatCOP(deal.cashFlow)} (${deal.roiPercent}% ganancia)`,
 			color: 'green'
 		}
 	];
@@ -3510,7 +3509,7 @@ function presentDeal(player, deal) {
 					}, 220);
 				}
 
-				const successDesc = `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra (${deal.roiPercent}% de ganancia mensual)</strong> todos los meses en tu Día de Pago.`;
+				const successDesc = `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} extra (${deal.roiPercent}% de ganancia mensual)</strong> todos los meses en tu Día de Pago.`;
 
 				showModal({
 					typeName: deal.rarity === 'very_rare' ? '¡OCASIÓN EXTRAORDINARIA! 🔥💎' : (deal.rarity === 'rare' ? '¡OCASIÓN EXTRAÑA APROVECHADA! ⭐' : '¡ÉXITO! 🎉'),
@@ -3521,7 +3520,7 @@ function presentDeal(player, deal) {
 					stats: [
 						{
 							label: 'Ganancia agregada:',
-							value: `+${formatCOP(deal.cashFlow)} COP/mes (${deal.roiPercent}%)`,
+							value: `+${formatCOP(deal.cashFlow)}/mes (${deal.roiPercent}%)`,
 							color: 'green'
 						}
 					],
@@ -3554,7 +3553,7 @@ function presentDeal(player, deal) {
 		headerClass: 'opportunity',
 		icon: deal.icon || '💼',
 		title: deal.title,
-		detailedInfo: `${rarityBadgeHtml}${deal.desc}<br><br><small style="color:#64748b;">💡 Inviertes <strong>${formatCOP(deal.downPayment)} COP</strong> y genera <strong>+${formatCOP(deal.cashFlow)} COP cada mes (${deal.roiPercent}% de ganancia mensual)</strong> en tus Días de Pago.</small>`,
+		detailedInfo: `${rarityBadgeHtml}${deal.desc}<br><br><small style="color:#64748b;">💡 Inviertes <strong>${formatCOP(deal.downPayment)}</strong> y genera <strong>+${formatCOP(deal.cashFlow)} cada mes (${deal.roiPercent}% de ganancia mensual)</strong> en tus Días de Pago.</small>`,
 		stats,
 		buttons
 	});
@@ -3576,8 +3575,8 @@ function showDoodadModal(player) {
 		title: doodad.title,
 		detailedInfo: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para imprevistos te protege sin frenar tus inversiones en negocios.</small>`,
 		stats: [
-			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
-			{ label: 'Te quedará en bolsillo:', value: `${formatCOP(remaining)} COP`, color: remaining >= 0 ? 'green' : 'red' }
+			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)}`, color: 'red' },
+			{ label: 'Te quedará en bolsillo:', value: `${formatCOP(remaining)}`, color: remaining >= 0 ? 'green' : 'red' }
 		],
 		buttons: [
 			{
@@ -3672,11 +3671,11 @@ function showMarketModal(player) {
 		title: event.title,
 		detailedInfo: `Hay un comprador interesado en adquirir tu negocio <strong>${asset.title}</strong> hoy mismo. ¿Deseas venderlo y recibir el pago en efectivo?`,
 		stats: [
-			{ label: 'Pago en efectivo:', value: `${formatCOP(event.salePrice)} COP`, color: 'green' }
+			{ label: 'Pago en efectivo:', value: `${formatCOP(event.salePrice)}`, color: 'green' }
 		],
 		buttons: [
 			{
-				text: `¡Vender por ${formatCOP(event.salePrice)} COP! 💰`,
+				text: `¡Vender por ${formatCOP(event.salePrice)}! 💰`,
 				class: 'primary',
 				action: () => {
 					savePlayerFinancialSnapshot(player, `Venta: ${asset.title}`);
@@ -3698,9 +3697,9 @@ function showMarketModal(player) {
 						headerClass: 'market',
 						icon: '🎉',
 						title: asset.title,
-						detailedInfo: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)} COP</strong> en efectivo para comprar nuevas oportunidades.`,
+						detailedInfo: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)}</strong> en efectivo para comprar nuevas oportunidades.`,
 						stats: [
-							{ label: 'Cobraste:', value: `+${formatCOP(event.salePrice)} COP`, color: 'green' }
+							{ label: 'Cobraste:', value: `+${formatCOP(event.salePrice)}`, color: 'green' }
 						],
 						buttons: [{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }]
 					});
@@ -3725,13 +3724,13 @@ function showCharityModal(player) {
 		headerClass: 'charity',
 		icon: '💛',
 		title: 'Apoyo a la Comunidad',
-		detailedInfo: `Puedes aportar <strong>${formatCOP(donation)} COP</strong> para apoyar a una fundación o causa social del barrio.`,
+		detailedInfo: `Puedes aportar <strong>${formatCOP(donation)}</strong> para apoyar a una fundación o causa social del barrio.`,
 		stats: [
-			{ label: 'Aporte solidario:', value: `-${formatCOP(donation)} COP`, color: 'red' }
+			{ label: 'Aporte solidario:', value: `-${formatCOP(donation)}`, color: 'red' }
 		],
 		buttons: [
 			...(canAfford ? [{
-				text: `Donar ${formatCOP(donation)} COP 💛`,
+				text: `Donar ${formatCOP(donation)} 💛`,
 				class: 'primary',
 				action: () => {
 					savePlayerFinancialSnapshot(player, 'Donación Solidaria');
@@ -3776,7 +3775,7 @@ function showCrisisModal(player) {
 		detailedInfo: `Te tomas unos días de vacaciones para recargar pilas, compartir con amigos y pensar nuevas metas financieras.`,
 		stats: [
 			{ label: 'Descanso:', value: 'Pausas 1 turno' },
-			{ label: 'Tu plata en bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
+			{ label: 'Tu plata en bolsillo:', value: `${formatCOP(player.cash)}`, color: 'green' }
 		],
 		buttons: [
 			{ text: '¡Descansar y Continuar! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
@@ -3785,7 +3784,7 @@ function showCrisisModal(player) {
 }
 
 // ==========================================
-// 10. PRÉSTAMOS Y DEUDAS BANCARIAS (Calibrado 2026: Bloques de $500.000 COP)
+// 10. PRÉSTAMOS Y DEUDAS BANCARIAS (Calibrado 2026: Bloques de $500.000)
 // ==========================================
 
 function showLoanModal(callbackAfterLoan) {
@@ -3798,15 +3797,15 @@ function showLoanModal(callbackAfterLoan) {
 		headerClass: 'opportunity',
 		icon: '🏦',
 		title: 'Préstamo Bancario',
-		detailedInfo: `Pides dinero prestado para comprar una oportunidad que te dé ganancias mensuales. Por cada ${formatCOP(loanBlock)} COP prestados, sumas una cuota mensual de ${formatCOP(interest)} COP.`,
+		detailedInfo: `Pides dinero prestado para comprar una oportunidad que te dé ganancias mensuales. Por cada ${formatCOP(loanBlock)} prestados, sumas una cuota mensual de ${formatCOP(interest)}.`,
 		stats: [
-			{ label: 'Dinero prestado:', value: `+${formatCOP(loanBlock)} COP`, color: 'green' },
-			{ label: 'Cuota mensual:', value: `${formatCOP(interest)} COP / mes`, color: 'red' },
-			{ label: 'Tu deuda acumulada:', value: `${formatCOP(player.totalDebt)} COP` }
+			{ label: 'Dinero prestado:', value: `+${formatCOP(loanBlock)}`, color: 'green' },
+			{ label: 'Cuota mensual:', value: `${formatCOP(interest)} / mes`, color: 'red' },
+			{ label: 'Tu deuda acumulada:', value: `${formatCOP(player.totalDebt)}` }
 		],
 		buttons: [
 			{
-				text: `Pedir ${formatCOP(loanBlock)} COP al Banco 🏦`,
+				text: `Pedir ${formatCOP(loanBlock)} al Banco 🏦`,
 				class: 'primary',
 				action: () => {
 					savePlayerFinancialSnapshot(player, 'Préstamo Bancario');
@@ -3830,7 +3829,7 @@ function showLoanModal(callbackAfterLoan) {
 				}
 			},
 			{
-				text: `Pedir ${formatCOP(loanBlock * 2)} COP al Banco 🏦`,
+				text: `Pedir ${formatCOP(loanBlock * 2)} al Banco 🏦`,
 				class: 'primary',
 				action: () => {
 					const block2 = loanBlock * 2;
@@ -3881,14 +3880,14 @@ function showPayDebtModal() {
 		headerClass: 'opportunity',
 		icon: '💳',
 		title: 'Abonar a tu Deuda',
-		detailedInfo: `Pagar <strong>${formatCOP(payAmount)} COP</strong> de tu deuda bancaria reduce tus gastos en $25.000 COP al mes, aumentando tu plata libre.`,
+		detailedInfo: `Pagar <strong>${formatCOP(payAmount)}</strong> de tu deuda bancaria reduce tus gastos en $25.000 al mes, aumentando tu plata libre.`,
 		stats: [
-			{ label: 'Deuda que debes:', value: `${formatCOP(player.totalDebt)} COP` },
-			{ label: 'Tu Plata en Mano:', value: `${formatCOP(player.cash)} COP`, color: canAfford ? 'green' : 'red' }
+			{ label: 'Deuda que debes:', value: `${formatCOP(player.totalDebt)}` },
+			{ label: 'Tu Plata en Mano:', value: `${formatCOP(player.cash)}`, color: canAfford ? 'green' : 'red' }
 		],
 		buttons: [
 			{
-				text: `Pagar cuota de ${formatCOP(payAmount)} COP`,
+				text: `Pagar cuota de ${formatCOP(payAmount)}`,
 				class: 'primary',
 				action: () => {
 					if (!canAfford) {
@@ -3972,7 +3971,7 @@ function updateDrawerFinancials(playerIndex) {
 	document.getElementById('drawer-freedom-pct').textContent = `${fin.freedomProgress}%`;
 	document.getElementById('drawer-freedom-fill').style.width = `${fin.freedomProgress}%`;
 
-	document.getElementById('drawer-cash-val').textContent = `${formatCOP(p.cash)} COP`;
+	document.getElementById('drawer-cash-val').textContent = `${formatCOP(p.cash)}`;
 	const cashflowEl = document.getElementById('drawer-cashflow-val');
 	cashflowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`;
 	cashflowEl.style.color = fin.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
@@ -4063,7 +4062,7 @@ function showPreviousDrawerState(player) {
 	const debtEl = document.getElementById('drawer-debt-exp');
 
 	if (cashValEl) {
-		cashValEl.textContent = `${formatCOP(prev.cash)} COP`;
+		cashValEl.textContent = `${formatCOP(prev.cash)}`;
 		cashValEl.classList.add('past-val-highlight');
 	}
 	if (cashflowEl) {
@@ -4153,7 +4152,7 @@ function triggerVictory(player) {
 	if (msg) {
 		msg.innerHTML = `
 			¡Enhorabuena, <strong>${player.name}</strong>! 🎉<br><br>
-			Tus <strong>Ingresos Pasivos (${formatCOP(fin.passiveIncome)} COP/mes)</strong> han superado por completo tus <strong>Gastos Totales (${formatCOP(fin.totalExpenses)} COP/mes)</strong>.<br><br>
+			Tus <strong>Ingresos Pasivos (${formatCOP(fin.passiveIncome)}/mes)</strong> han superado por completo tus <strong>Gastos Totales (${formatCOP(fin.totalExpenses)}/mes)</strong>.<br><br>
 			¡Ya no dependes de un salario! Has alcanzado la <strong>Libertad Financiera</strong> y escapaste de la Carrera de la Rata.
 		`;
 	}
@@ -4162,11 +4161,11 @@ function triggerVictory(player) {
 		summary.innerHTML = `
 			<div class="card-stat-line">
 				<span class="lbl">Ingresos Pasivos Mensuales</span>
-				<span class="val green">+${formatCOP(fin.passiveIncome)} COP/mes</span>
+				<span class="val green">+${formatCOP(fin.passiveIncome)}/mes</span>
 			</div>
 			<div class="card-stat-line">
 				<span class="lbl">Gastos Totales Mensuales</span>
-				<span class="val red">-${formatCOP(fin.totalExpenses)} COP/mes</span>
+				<span class="val red">-${formatCOP(fin.totalExpenses)}/mes</span>
 			</div>
 			<div class="card-stat-line">
 				<span class="lbl">Activos Construidos</span>
@@ -4174,7 +4173,7 @@ function triggerVictory(player) {
 			</div>
 			<div class="card-stat-line">
 				<span class="lbl">Efectivo en Mano</span>
-				<span class="val green">${formatCOP(player.cash)} COP</span>
+				<span class="val green">${formatCOP(player.cash)}</span>
 			</div>
 		`;
 	}
@@ -4235,7 +4234,7 @@ function renderModalSideBalance() {
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
 	if (cashEl) {
-		cashEl.textContent = `${formatCOP(player.cash)} COP`;
+		cashEl.textContent = `${formatCOP(player.cash)}`;
 		cashEl.className = `val cash ${player.cash < 0 ? 'red' : ''}`;
 	}
 	if (flowEl) {
