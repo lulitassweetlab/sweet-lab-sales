@@ -2493,23 +2493,25 @@ function savePlayerFinancialSnapshot(player, reason = 'Transacción') {
 	const fin = getPlayerFinancials(player);
 	player.previousSnapshot = {
 		reason,
+		hasJob: player.hasJob,
+		profession: player.profession,
 		time: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
 		cash: player.cash,
 		salary: player.salary,
 		passiveIncome: fin.passiveIncome,
 		fixedExpenses: player.fixedExpenses,
-		rentExpense: player.rentExpense || DEFAULT_FIXED_EXPENSES.rent,
-		groceriesExpense: player.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries,
-		utilitiesExpense: player.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities,
-		transportExpense: player.transportExpense || DEFAULT_FIXED_EXPENSES.transport,
-		internetExpense: player.internetExpense || DEFAULT_FIXED_EXPENSES.internet,
-		phoneExpense: player.phoneExpense || DEFAULT_FIXED_EXPENSES.phone,
-		otherExpenses: player.otherExpenses || DEFAULT_FIXED_EXPENSES.other,
+		rentExpense: player.hasJob ? (player.rentExpense || 0) : 0,
+		groceriesExpense: player.hasJob ? (player.groceriesExpense || 0) : 0,
+		utilitiesExpense: player.hasJob ? (player.utilitiesExpense || 0) : 0,
+		transportExpense: player.hasJob ? (player.transportExpense || 0) : 0,
+		internetExpense: player.hasJob ? (player.internetExpense || 0) : 0,
+		phoneExpense: player.hasJob ? (player.phoneExpense || 0) : 0,
+		otherExpenses: player.hasJob ? (player.otherExpenses || 0) : 0,
 		housingLevel: player.housingLevel || 0,
-		debtExpenses: player.debtExpenses,
+		debtExpenses: player.debtExpenses || 0,
 		totalExpenses: fin.totalExpenses,
 		monthlyCashFlow: fin.monthlyCashFlow,
-		totalDebt: player.totalDebt,
+		totalDebt: player.totalDebt || 0,
 		assetsCount: player.assets.length,
 		assets: player.assets.map(a => ({ title: a.title, cashFlow: a.cashFlow || 0 }))
 	};
@@ -2698,6 +2700,7 @@ function animateTransactionNumbersToBalance({
 function showPreviousBalanceState(player) {
 	if (!player || !player.previousSnapshot) return;
 	const prev = player.previousSnapshot;
+	const fin = getPlayerFinancials(player);
 
 	const sideBalanceEl = document.getElementById('modal-side-balance');
 	if (sideBalanceEl) sideBalanceEl.classList.add('viewing-past-state');
@@ -2705,7 +2708,7 @@ function showPreviousBalanceState(player) {
 	const historyBtn = document.getElementById('btn-side-bal-history');
 	if (historyBtn) {
 		historyBtn.classList.add('active');
-		historyBtn.innerHTML = '⏪ Viendo ANTES (suelta para volver)';
+		// El nombre del botón se mantiene intacto sin cambiar
 	}
 
 	// Efectivo y Flujo
@@ -2713,28 +2716,34 @@ function showPreviousBalanceState(player) {
 	const flowEl = document.getElementById('side-bal-flow');
 	if (cashEl) {
 		cashEl.textContent = `${formatCOP(prev.cash)}`;
-		cashEl.className = `val cash ${prev.cash < 0 ? 'red' : ''} past-val-highlight`;
+		const cashChanged = player.cash !== prev.cash;
+		cashEl.className = `val cash ${prev.cash < 0 ? 'red' : ''} ${cashChanged ? 'past-val-highlight' : ''}`;
 	}
 	if (flowEl) {
 		flowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}/m`;
-		flowEl.className = `val flow ${prev.monthlyCashFlow < 0 ? 'red' : ''} past-val-highlight`;
+		const flowChanged = fin.monthlyCashFlow !== prev.monthlyCashFlow;
+		flowEl.className = `val flow ${prev.monthlyCashFlow < 0 ? 'red' : ''} ${flowChanged ? 'past-val-highlight' : ''}`;
 	}
 
 	// 1. Ingresos
 	const salaryEl = document.getElementById('side-bal-salary');
 	const passiveEl = document.getElementById('side-bal-passive');
 	const totalIncomeEl = document.getElementById('side-bal-total-income');
+	const prevSalary = prev.salary || 0;
+	const prevPassive = prev.passiveIncome || 0;
+	const prevTotalIncome = prevSalary + prevPassive;
+
 	if (salaryEl) {
-		salaryEl.textContent = formatCOP(prev.salary);
-		salaryEl.classList.add('past-val-highlight');
+		salaryEl.textContent = formatCOP(prevSalary);
+		salaryEl.classList.toggle('past-val-highlight', player.salary !== prevSalary);
 	}
 	if (passiveEl) {
-		passiveEl.textContent = `+${formatCOP(prev.passiveIncome)}`;
-		passiveEl.classList.add('past-val-highlight');
+		passiveEl.textContent = `+${formatCOP(prevPassive)}`;
+		passiveEl.classList.toggle('past-val-highlight', fin.passiveIncome !== prevPassive);
 	}
 	if (totalIncomeEl) {
-		totalIncomeEl.textContent = formatCOP((prev.salary || 0) + (prev.passiveIncome || 0));
-		totalIncomeEl.classList.add('past-val-highlight');
+		totalIncomeEl.textContent = formatCOP(prevTotalIncome);
+		totalIncomeEl.classList.toggle('past-val-highlight', fin.totalIncome !== prevTotalIncome);
 	}
 
 	// 2. Salidas / Gastos
@@ -2748,67 +2757,82 @@ function showPreviousBalanceState(player) {
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
 
-	const prevRent = prev.rentExpense || DEFAULT_FIXED_EXPENSES.rent;
-	const prevGroceries = prev.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries;
-	const prevUtilities = prev.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities;
-	const prevTransport = prev.transportExpense || DEFAULT_FIXED_EXPENSES.transport;
-	const prevInternet = prev.internetExpense || DEFAULT_FIXED_EXPENSES.internet;
-	const prevPhone = prev.phoneExpense || DEFAULT_FIXED_EXPENSES.phone;
-	const prevOther = prev.otherExpenses || DEFAULT_FIXED_EXPENSES.other;
+	const currRent = player.hasJob ? (player.rentExpense || 0) : 0;
+	const currGroceries = player.hasJob ? (player.groceriesExpense || 0) : 0;
+	const currUtilities = player.hasJob ? (player.utilitiesExpense || 0) : 0;
+	const currTransport = player.hasJob ? (player.transportExpense || 0) : 0;
+	const currInternet = player.hasJob ? (player.internetExpense || 0) : 0;
+	const currPhone = player.hasJob ? (player.phoneExpense || 0) : 0;
+	const currOther = player.hasJob ? (player.otherExpenses || 0) : 0;
+	const currDebt = player.debtExpenses || 0;
+	const currTotalExp = fin.totalExpenses;
+
+	const prevRent = prev.rentExpense || 0;
+	const prevGroceries = prev.groceriesExpense || 0;
+	const prevUtilities = prev.utilitiesExpense || 0;
+	const prevTransport = prev.transportExpense || 0;
+	const prevInternet = prev.internetExpense || 0;
+	const prevPhone = prev.phoneExpense || 0;
+	const prevOther = prev.otherExpenses || 0;
 	const prevDebt = prev.debtExpenses || 0;
-	const prevTotalExp = prev.totalExpenses || (prevRent + prevGroceries + prevUtilities + prevTransport + prevInternet + prevPhone + prevOther + prevDebt);
+	const prevTotalExp = prev.totalExpenses !== undefined ? prev.totalExpenses : (prevRent + prevGroceries + prevUtilities + prevTransport + prevInternet + prevPhone + prevOther + prevDebt);
 
 	if (rentExpEl) {
-		rentExpEl.textContent = `-${formatCOP(prevRent)}`;
-		rentExpEl.classList.add('past-val-highlight');
+		rentExpEl.textContent = prevRent > 0 ? `-${formatCOP(prevRent)}` : '$0';
+		rentExpEl.classList.toggle('past-val-highlight', currRent !== prevRent);
 	}
 	if (groceriesExpEl) {
-		groceriesExpEl.textContent = `-${formatCOP(prevGroceries)}`;
-		groceriesExpEl.classList.add('past-val-highlight');
+		groceriesExpEl.textContent = prevGroceries > 0 ? `-${formatCOP(prevGroceries)}` : '$0';
+		groceriesExpEl.classList.toggle('past-val-highlight', currGroceries !== prevGroceries);
 	}
 	if (utilitiesExpEl) {
-		utilitiesExpEl.textContent = `-${formatCOP(prevUtilities)}`;
-		utilitiesExpEl.classList.add('past-val-highlight');
+		utilitiesExpEl.textContent = prevUtilities > 0 ? `-${formatCOP(prevUtilities)}` : '$0';
+		utilitiesExpEl.classList.toggle('past-val-highlight', currUtilities !== prevUtilities);
 	}
 	if (transportExpEl) {
-		transportExpEl.textContent = `-${formatCOP(prevTransport)}`;
-		transportExpEl.classList.add('past-val-highlight');
+		transportExpEl.textContent = prevTransport > 0 ? `-${formatCOP(prevTransport)}` : '$0';
+		transportExpEl.classList.toggle('past-val-highlight', currTransport !== prevTransport);
 	}
 	if (internetExpEl) {
-		internetExpEl.textContent = `-${formatCOP(prevInternet)}`;
-		internetExpEl.classList.add('past-val-highlight');
+		internetExpEl.textContent = prevInternet > 0 ? `-${formatCOP(prevInternet)}` : '$0';
+		internetExpEl.classList.toggle('past-val-highlight', currInternet !== prevInternet);
 	}
 	if (phoneExpEl) {
-		phoneExpEl.textContent = `-${formatCOP(prevPhone)}`;
-		phoneExpEl.classList.add('past-val-highlight');
+		phoneExpEl.textContent = prevPhone > 0 ? `-${formatCOP(prevPhone)}` : '$0';
+		phoneExpEl.classList.toggle('past-val-highlight', currPhone !== prevPhone);
 	}
 	if (otherExpEl) {
-		otherExpEl.textContent = `-${formatCOP(prevOther)}`;
-		otherExpEl.classList.add('past-val-highlight');
+		otherExpEl.textContent = prevOther > 0 ? `-${formatCOP(prevOther)}` : '$0';
+		otherExpEl.classList.toggle('past-val-highlight', currOther !== prevOther);
 	}
 	if (debtExpEl) {
 		debtExpEl.textContent = prevDebt > 0 ? `-${formatCOP(prevDebt)}` : '$0';
-		debtExpEl.classList.add('past-val-highlight');
+		debtExpEl.classList.toggle('past-val-highlight', currDebt !== prevDebt);
 	}
 	if (totalExpEl) {
-		totalExpEl.textContent = `-${formatCOP(prevTotalExp)}`;
-		totalExpEl.classList.add('past-val-highlight');
+		totalExpEl.textContent = prevTotalExp > 0 ? `-${formatCOP(prevTotalExp)}` : '$0';
+		totalExpEl.classList.toggle('past-val-highlight', currTotalExp !== prevTotalExp);
 	}
 
 	// 3. Activos
 	const assetsCountEl = document.getElementById('side-bal-assets-count');
 	const assetsListEl = document.getElementById('side-bal-assets-list');
-	if (assetsCountEl) assetsCountEl.textContent = `${prev.assetsCount || 0} negocios (Antes)`;
+	const prevCount = prev.assetsCount !== undefined ? prev.assetsCount : (prev.assets ? prev.assets.length : 0);
+	const currCount = player.assets.length;
+	if (assetsCountEl) {
+		assetsCountEl.textContent = prevCount === 1 ? '1 negocio' : `${prevCount} negocios`;
+		assetsCountEl.classList.toggle('past-val-highlight', currCount !== prevCount);
+	}
 	if (assetsListEl && prev.assets) {
 		if (prev.assets.length > 0) {
 			assetsListEl.innerHTML = prev.assets.map(a => `
-				<div class="k-item past-val-highlight">
+				<div class="k-item">
 					<span class="lbl" title="${a.title}">${a.title}</span>
 					<span class="val green">+${formatCOP(a.cashFlow || 0)}/m</span>
 				</div>
 			`).join('');
 		} else {
-			assetsListEl.innerHTML = `<span class="k-empty">Sin negocios antes</span>`;
+			assetsListEl.innerHTML = `<span class="k-empty">Sin negocios aún</span>`;
 		}
 	}
 
@@ -2816,9 +2840,20 @@ function showPreviousBalanceState(player) {
 	const totalDebtEl = document.getElementById('side-bal-total-debt');
 	const debtValEl = document.getElementById('side-bal-debt-val');
 	const debtPayEl = document.getElementById('side-bal-debt-payment');
-	if (totalDebtEl) totalDebtEl.textContent = prev.totalDebt > 0 ? `${formatCOP(prev.totalDebt)}` : '$0';
-	if (debtValEl) debtValEl.textContent = prev.totalDebt > 0 ? `${formatCOP(prev.totalDebt)}` : '$0';
-	if (debtPayEl) debtPayEl.textContent = prev.debtExpenses > 0 ? `-${formatCOP(prev.debtExpenses)}/m` : '$0/m';
+	const currTotalDebt = player.totalDebt || 0;
+	const prevTotalDebt = prev.totalDebt || 0;
+	if (totalDebtEl) {
+		totalDebtEl.textContent = prevTotalDebt > 0 ? `${formatCOP(prevTotalDebt)}` : '$0';
+		totalDebtEl.classList.toggle('past-val-highlight', currTotalDebt !== prevTotalDebt);
+	}
+	if (debtValEl) {
+		debtValEl.textContent = prevTotalDebt > 0 ? `${formatCOP(prevTotalDebt)}` : '$0';
+		debtValEl.classList.toggle('past-val-highlight', currTotalDebt !== prevTotalDebt);
+	}
+	if (debtPayEl) {
+		debtPayEl.textContent = prevDebt > 0 ? `-${formatCOP(prevDebt)}/m` : '$0/m';
+		debtPayEl.classList.toggle('past-val-highlight', currDebt !== prevDebt);
+	}
 }
 
 /**
@@ -2831,7 +2866,7 @@ function restoreCurrentBalanceState() {
 	const historyBtn = document.getElementById('btn-side-bal-history');
 	if (historyBtn) {
 		historyBtn.classList.remove('active');
-		historyBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+		historyBtn.textContent = '¿Cómo era antes?';
 	}
 
 	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
@@ -2948,6 +2983,9 @@ function handleLanding(player, tile) {
 						text: '¡Comenzar mi Carrera! 🚀',
 						class: 'primary',
 						action: () => {
+							// Guardar estado previo (sin empleo) antes de aplicar
+							savePlayerFinancialSnapshot(player, `Primer Empleo: ${job.title}`);
+
 							// Aplicar datos del empleo y gastos al confirmar con el botón
 							player.hasJob = true;
 							player.profession = job.title;
@@ -2965,7 +3003,6 @@ function handleLanding(player, tile) {
 							player.salariesCollected = 0;
 							player.jobTier = 1;
 
-							savePlayerFinancialSnapshot(player, `Primer Empleo: ${job.title}`);
 							const btnEl = document.querySelector('#modal-footer button');
 							animateTransactionNumbersToBalance({
 								amount: job.salary,
@@ -4039,7 +4076,7 @@ function updateDrawerFinancials(playerIndex) {
 	if (drawerHistBtn) {
 		if (p.previousSnapshot) {
 			drawerHistBtn.parentElement?.classList.remove('hidden');
-			drawerHistBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+			drawerHistBtn.textContent = '¿Cómo era antes?';
 			attachHoldToPeekEvents(
 				drawerHistBtn,
 				() => showPreviousDrawerState(p),
@@ -4057,11 +4094,12 @@ function updateDrawerFinancials(playerIndex) {
 function showPreviousDrawerState(player) {
 	if (!player || !player.previousSnapshot) return;
 	const prev = player.previousSnapshot;
+	const fin = getPlayerFinancials(player);
 
 	const drawerHistBtn = document.getElementById('btn-drawer-history');
 	if (drawerHistBtn) {
 		drawerHistBtn.classList.add('active');
-		drawerHistBtn.innerHTML = '⏪ Mostrando ANTES (suelta para volver)';
+		// El nombre del botón se mantiene intacto sin cambiar
 	}
 
 	const cashValEl = document.getElementById('drawer-cash-val');
@@ -4080,56 +4118,85 @@ function showPreviousDrawerState(player) {
 
 	if (cashValEl) {
 		cashValEl.textContent = `${formatCOP(prev.cash)}`;
-		cashValEl.classList.add('past-val-highlight');
+		cashValEl.classList.toggle('past-val-highlight', player.cash !== prev.cash);
 	}
 	if (cashflowEl) {
 		cashflowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}`;
 		cashflowEl.style.color = prev.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
-		cashflowEl.classList.add('past-val-highlight');
+		cashflowEl.classList.toggle('past-val-highlight', fin.monthlyCashFlow !== prev.monthlyCashFlow);
 	}
+	const prevSalary = prev.salary || 0;
 	if (salaryEl) {
-		salaryEl.textContent = formatCOP(prev.salary);
-		salaryEl.classList.add('past-val-highlight');
+		salaryEl.textContent = formatCOP(prevSalary);
+		salaryEl.classList.toggle('past-val-highlight', player.salary !== prevSalary);
 	}
+	const prevPassive = prev.passiveIncome || 0;
 	if (passiveEl) {
-		passiveEl.textContent = formatCOP(prev.passiveIncome);
-		passiveEl.classList.add('past-val-highlight');
+		passiveEl.textContent = formatCOP(prevPassive);
+		passiveEl.classList.toggle('past-val-highlight', fin.passiveIncome !== prevPassive);
 	}
+
+	const currRent = player.hasJob ? (player.rentExpense || 0) : 0;
+	const prevRent = prev.rentExpense || 0;
 	if (rentEl) {
-		rentEl.textContent = formatCOP(prev.rentExpense || DEFAULT_FIXED_EXPENSES.rent);
-		rentEl.classList.add('past-val-highlight');
+		rentEl.textContent = prevRent > 0 ? formatCOP(prevRent) : '$0';
+		rentEl.classList.toggle('past-val-highlight', currRent !== prevRent);
 	}
+
+	const currGroceries = player.hasJob ? (player.groceriesExpense || 0) : 0;
+	const prevGroceries = prev.groceriesExpense || 0;
 	if (groceriesEl) {
-		groceriesEl.textContent = formatCOP(prev.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries);
-		groceriesEl.classList.add('past-val-highlight');
+		groceriesEl.textContent = prevGroceries > 0 ? formatCOP(prevGroceries) : '$0';
+		groceriesEl.classList.toggle('past-val-highlight', currGroceries !== prevGroceries);
 	}
+
+	const currUtilities = player.hasJob ? (player.utilitiesExpense || 0) : 0;
+	const prevUtilities = prev.utilitiesExpense || 0;
 	if (utilitiesEl) {
-		utilitiesEl.textContent = formatCOP(prev.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities);
-		utilitiesEl.classList.add('past-val-highlight');
+		utilitiesEl.textContent = prevUtilities > 0 ? formatCOP(prevUtilities) : '$0';
+		utilitiesEl.classList.toggle('past-val-highlight', currUtilities !== prevUtilities);
 	}
+
+	const currTransport = player.hasJob ? (player.transportExpense || 0) : 0;
+	const prevTransport = prev.transportExpense || 0;
 	if (transportEl) {
-		transportEl.textContent = formatCOP(prev.transportExpense || DEFAULT_FIXED_EXPENSES.transport);
-		transportEl.classList.add('past-val-highlight');
+		transportEl.textContent = prevTransport > 0 ? formatCOP(prevTransport) : '$0';
+		transportEl.classList.toggle('past-val-highlight', currTransport !== prevTransport);
 	}
+
+	const currInternet = player.hasJob ? (player.internetExpense || 0) : 0;
+	const prevInternet = prev.internetExpense || 0;
 	if (internetEl) {
-		internetEl.textContent = formatCOP(prev.internetExpense || DEFAULT_FIXED_EXPENSES.internet);
-		internetEl.classList.add('past-val-highlight');
+		internetEl.textContent = prevInternet > 0 ? formatCOP(prevInternet) : '$0';
+		internetEl.classList.toggle('past-val-highlight', currInternet !== prevInternet);
 	}
+
+	const currPhone = player.hasJob ? (player.phoneExpense || 0) : 0;
+	const prevPhone = prev.phoneExpense || 0;
 	if (phoneEl) {
-		phoneEl.textContent = formatCOP(prev.phoneExpense || DEFAULT_FIXED_EXPENSES.phone);
-		phoneEl.classList.add('past-val-highlight');
+		phoneEl.textContent = prevPhone > 0 ? formatCOP(prevPhone) : '$0';
+		phoneEl.classList.toggle('past-val-highlight', currPhone !== prevPhone);
 	}
+
+	const currOther = player.hasJob ? (player.otherExpenses || 0) : 0;
+	const prevOther = prev.otherExpenses || 0;
 	if (otherEl) {
-		otherEl.textContent = formatCOP(prev.otherExpenses || DEFAULT_FIXED_EXPENSES.other);
-		otherEl.classList.add('past-val-highlight');
+		otherEl.textContent = prevOther > 0 ? formatCOP(prevOther) : '$0';
+		otherEl.classList.toggle('past-val-highlight', currOther !== prevOther);
 	}
+
+	const currFixed = player.hasJob ? (player.fixedExpenses || 0) : 0;
+	const prevFixed = prev.fixedExpenses || 0;
 	if (fixedEl) {
-		fixedEl.textContent = formatCOP(prev.fixedExpenses || 1500000);
-		fixedEl.classList.add('past-val-highlight');
+		fixedEl.textContent = prevFixed > 0 ? formatCOP(prevFixed) : '$0';
+		fixedEl.classList.toggle('past-val-highlight', currFixed !== prevFixed);
 	}
+
+	const currDebt = player.debtExpenses || 0;
+	const prevDebt = prev.debtExpenses || 0;
 	if (debtEl) {
-		debtEl.textContent = formatCOP(prev.debtExpenses || 0);
-		debtEl.classList.add('past-val-highlight');
+		debtEl.textContent = prevDebt > 0 ? formatCOP(prevDebt) : '$0';
+		debtEl.classList.toggle('past-val-highlight', currDebt !== prevDebt);
 	}
 }
 
@@ -4140,7 +4207,7 @@ function restoreCurrentDrawerState(playerIndex) {
 	const drawerHistBtn = document.getElementById('btn-drawer-history');
 	if (drawerHistBtn) {
 		drawerHistBtn.classList.remove('active');
-		drawerHistBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+		drawerHistBtn.textContent = '¿Cómo era antes?';
 	}
 	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
 	updateDrawerFinancials(playerIndex);
@@ -4326,7 +4393,7 @@ function renderModalSideBalance() {
 	if (prev) {
 		if (historyBtn) {
 			historyBtn.classList.remove('hidden');
-			historyBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+			historyBtn.textContent = '¿Cómo era antes?';
 			attachHoldToPeekEvents(
 				historyBtn,
 				() => showPreviousBalanceState(player),
@@ -4339,7 +4406,7 @@ function renderModalSideBalance() {
 		if (cashDeltaEl) {
 			if (cashDiff !== 0) {
 				const sign = cashDiff > 0 ? '+' : '-';
-				cashDeltaEl.textContent = `${sign}${formatCOP(Math.abs(cashDiff))} (Antes: ${formatCOP(prev.cash)})`;
+				cashDeltaEl.textContent = `${sign}${formatCOP(Math.abs(cashDiff))}`;
 				cashDeltaEl.className = `bal-delta-pill ${cashDiff > 0 ? 'gain' : 'loss'}`;
 				cashDeltaEl.classList.remove('hidden');
 			} else {
@@ -4352,7 +4419,7 @@ function renderModalSideBalance() {
 		if (flowDeltaEl) {
 			if (flowDiff !== 0) {
 				const sign = flowDiff > 0 ? '+' : '-';
-				flowDeltaEl.textContent = `${sign}${formatCOP(Math.abs(flowDiff))}/m (Antes: ${formatCOP(prev.monthlyCashFlow)}/m)`;
+				flowDeltaEl.textContent = `${sign}${formatCOP(Math.abs(flowDiff))}/m`;
 				flowDeltaEl.className = `bal-delta-pill ${flowDiff > 0 ? 'gain' : 'loss'}`;
 				flowDeltaEl.classList.remove('hidden');
 			} else {
