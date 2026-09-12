@@ -2417,48 +2417,46 @@ function applySphericalPerspective(focalPosition = null, smooth = false, duratio
 	const transitionStyle = smooth ? `transform ${durationMs}ms cubic-bezier(0.25, 1, 0.5, 1), opacity ${durationMs}ms ease` : 'none';
 
 	function getSphericalTransform(delta) {
-		if (delta < -2 || delta > 12) {
+		// Visibilidad en el arco visible de la rueda planetaria: desde -2 (atrás) hasta +10 (horizonte frontal)
+		if (delta < -2.2 || delta > 10.2) {
 			return { visible: false };
 		}
 
-		let y = 0;
-		let z = 0;
-		let rotX = 16;
-		let scale = 1.0;
-		let opacity = 1.0;
-		let zIndex = 50;
+		// Geometría cilíndrica pura continua (como una rueda de hámster vista desde arriba o el arco terrestre):
+		// Radio del cilindro rodante en px:
+		const R = 720;
+		// Longitud de arco de cada casilla = 130px.
+		// Ángulo por casilla: θ = arcLen / R (aprox. 0.1805 rad ≈ 10.34°)
+		const stepRad = 130 / R;
+		const theta = delta * stepRad; // ángulo con respecto a la cúspide (delta = 0)
 
-		if (delta === 0) {
-			// Cúspide frontal: posición óptima plana y legible
-			y = 0;
-			z = 0;
-			rotX = 16;
-			scale = 1.0;
-			opacity = 1.0;
-			zIndex = 50;
-		} else if (delta > 0) {
-			// Hacia el horizonte: curvatura exponencial descendente sobre el arco del planeta
-			const d = delta;
-			y = -(d * 86 - Math.pow(d, 1.38) * 11);
-			z = -Math.pow(d, 1.54) * 44;
-			rotX = 16 + Math.min(70, d * 8.6);
-			scale = Math.max(0.38, 1.0 - d * 0.058);
-			opacity = d >= 8 ? Math.max(0, 1.0 - (d - 7.5) * 0.45) : 1.0;
-			zIndex = 50 - Math.min(40, Math.round(d));
-		} else {
-			// Hacia atrás (casillas ya pasadas): caen curvándose hacia la base de la pantalla
-			const d = Math.abs(delta);
-			y = d * 110;
-			z = -d * 42;
-			rotX = Math.max(-10, 16 - d * 13);
-			scale = Math.max(0.75, 1.0 - d * 0.08);
-			opacity = Math.max(0, 1.0 - d * 0.48);
-			zIndex = 40 - Math.min(30, Math.round(d));
+		// Coordenadas cilíndricas en el plano Y-Z:
+		// Cúspide (theta = 0): Y = 0, Z = 0, rotX = 0°.
+		// Hacia adelante (theta > 0):
+		//   Y va hacia el fondo/arriba: y = -R * sin(theta)
+		//   Z se hunde hacia la profundidad: z = -(R * (1 - cos(theta)))
+		//   rotX se inclina tangencialmente a la rueda: rotX = theta (en grados)
+		const sinT = Math.sin(theta);
+		const cosT = Math.cos(theta);
+
+		const y = -R * sinT;
+		const z = -R * (1 - cosT);
+		const rotXDeg = (theta * 180) / Math.PI;
+
+		// Suave desvanecimiento en el borde lejano del horizonte (más allá de 7 casillas)
+		let opacity = 1.0;
+		if (delta > 7) {
+			opacity = Math.max(0, 1.0 - (delta - 7) * 0.32);
+		} else if (delta < -1) {
+			opacity = Math.max(0, 1.0 - (-delta - 1) * 0.7);
 		}
+
+		// z-index: las casillas más cercanas a la cámara (menor delta positivo o 0) van arriba
+		const zIndex = 60 - Math.round(Math.abs(delta) * 3);
 
 		return {
 			visible: true,
-			transform: `translate3d(0, ${y}px, ${z}px) rotateX(${rotX}deg) scale(${scale})`,
+			transform: `translate3d(0, ${y.toFixed(2)}px, ${z.toFixed(2)}px) rotateX(${rotXDeg.toFixed(2)}deg)`,
 			opacity: opacity,
 			zIndex: zIndex
 		};
