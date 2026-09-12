@@ -1422,6 +1422,28 @@
 			line-height: 1;
 		}
 
+		.modal-illustration {
+			width: 100%;
+			max-width: 320px;
+			height: 155px;
+			margin: 2px 0 12px;
+			border-radius: 18px;
+			overflow: hidden;
+			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+			border: 1.5px solid #e2e8f0;
+			background: #ffffff;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.modal-illustration img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			display: block;
+		}
+
 		.card-mini-center h3 {
 			margin: 0 0 8px;
 			font-family: 'Outfit', sans-serif;
@@ -2292,6 +2314,7 @@
 
 					<div class="card-mini-center">
 						<div id="modal-icon" class="mini-icon">🚀</div>
+						<div id="modal-image" class="modal-illustration hidden"></div>
 						<h3 id="modal-title">OPORTUNIDAD</h3>
 						<div id="modal-stats" class="card-mini-stats"></div>
 						<div id="modal-desc" class="card-mini-desc hidden"></div>
@@ -2474,7 +2497,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-zero-start-flow-v1"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-job-illustrations-v1"></script>
 </body>
 
 </html>

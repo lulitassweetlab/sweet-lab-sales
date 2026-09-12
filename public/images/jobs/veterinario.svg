@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgVet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <filter id="shVet" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bgVet)"/>
+  <circle cx="80" cy="160" r="40" fill="#bfdbfe" opacity="0.4"/>
+  <circle cx="320" cy="70" r="40" fill="#bfdbfe" opacity="0.4"/>
+  <g filter="url(#shVet)" transform="translate(80, 25)">
+    <ellipse cx="120" cy="110" rx="45" ry="35" fill="#3b82f6"/>
+    <circle cx="80" cy="55" r="16" fill="#3b82f6"/>
+    <circle cx="110" cy="42" r="17" fill="#3b82f6"/>
+    <circle cx="145" cy="46" r="17" fill="#3b82f6"/>
+    <circle cx="170" cy="65" r="15" fill="#3b82f6"/>
+    <rect x="110" y="90" width="20" height="40" fill="#ffffff" rx="3"/>
+    <rect x="100" y="100" width="40" height="20" fill="#ffffff" rx="3"/>
+    <path d="M 40,70 C 40,160 80,180 120,180 C 160,180 200,160 200,70" stroke="#1e293b" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <circle cx="40" cy="65" r="10" fill="#64748b"/>
+    <circle cx="200" cy="65" r="10" fill="#64748b"/>
+    <circle cx="120" cy="180" r="16" fill="#94a3b8" stroke="#0f172a" stroke-width="4"/>
+  </g>
+</svg>

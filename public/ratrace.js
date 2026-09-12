@@ -30,18 +30,18 @@ const AVATARS = [
 
 // 12 Empleos básicos de inicio seleccionados por el usuario (Calibrados 2026: Salario mínimo base $1.750.000)
 const STARTER_JOBS = [
-	{ id: 1, title: 'Cocinero 👨‍🍳', salary: 1850000, icon: '👨‍🍳', desc: 'Preparas platos deliciosos y coordinas la cocina con gran sazón.' },
-	{ id: 2, title: 'Tendero 🏪', salary: 1780000, icon: '🏪', desc: 'Atiendes a los clientes de tu barrio y mantienes la tienda surtida.' },
-	{ id: 3, title: 'Auxiliar Veterinario 🐾', salary: 1950000, icon: '🐾', desc: 'Cuidas y asistes en la atención médica de perritos y gatos.' },
-	{ id: 4, title: 'Domiciliario 🛵', salary: 1800000, icon: '🛵', desc: 'Entregas pedidos y paquetes de manera ágil por toda la zona.' },
-	{ id: 5, title: 'Recreacionista 🎈', salary: 1920000, icon: '🎈', desc: 'Organizas dinámicas, juegos y figuras con globos en fiestas.' },
-	{ id: 6, title: 'Jardinero 🌱', salary: 1760000, icon: '🌱', desc: 'Siembras flores, podas prados y cuidas zonas verdes hermosas.' },
-	{ id: 7, title: 'Constructor 🔨', salary: 1980000, icon: '🔨', desc: 'Ayudas en obras, mampostería y acabados de edificaciones.' },
-	{ id: 8, title: 'Vendedor 🏷️', salary: 1900000, icon: '🏷️', desc: 'Asesoras a clientes para elegir los mejores productos en el local.' },
-	{ id: 9, title: 'Fotógrafo 📸', salary: 2100000, icon: '📸', desc: 'Tomas fotografías en eventos sociales y sesiones de retratos.' },
-	{ id: 10, title: 'Lavacarros 🚗', salary: 1750000, icon: '🚗', desc: 'Dejas brillantes los automóviles con lavado y encerado profesional.' },
-	{ id: 11, title: 'Servicio al Cliente 🎧', salary: 1880000, icon: '🎧', desc: 'Resuelves dudas y ayudas a personas con amabilidad y paciencia.' },
-	{ id: 12, title: 'Traductor 🗣️', salary: 2250000, icon: '🗣️', desc: 'Traduces textos y conversaciones entre diferentes idiomas.' }
+	{ id: 1, title: 'Cocinero 👨‍🍳', salary: 1850000, icon: '👨‍🍳', image: '/images/jobs/cocinero.svg', desc: 'Preparas platos deliciosos y coordinas la cocina con gran sazón.' },
+	{ id: 2, title: 'Tendero 🏪', salary: 1780000, icon: '🏪', image: '/images/jobs/tendero.svg', desc: 'Atiendes a los clientes de tu barrio y mantienes la tienda surtida.' },
+	{ id: 3, title: 'Auxiliar Veterinario 🐾', salary: 1950000, icon: '🐾', image: '/images/jobs/veterinario.svg', desc: 'Cuidas y asistes en la atención médica de perritos y gatos.' },
+	{ id: 4, title: 'Domiciliario 🛵', salary: 1800000, icon: '🛵', image: '/images/jobs/domiciliario.svg', desc: 'Entregas pedidos y paquetes de manera ágil por toda la zona.' },
+	{ id: 5, title: 'Recreacionista 🎈', salary: 1920000, icon: '🎈', image: '/images/jobs/recreacionista.svg', desc: 'Organizas dinámicas, juegos y figuras con globos en fiestas.' },
+	{ id: 6, title: 'Jardinero 🌱', salary: 1760000, icon: '🌱', image: '/images/jobs/jardinero.svg', desc: 'Siembras flores, podas prados y cuidas zonas verdes hermosas.' },
+	{ id: 7, title: 'Constructor 🔨', salary: 1980000, icon: '🔨', image: '/images/jobs/constructor.svg', desc: 'Ayudas en obras, mampostería y acabados de edificaciones.' },
+	{ id: 8, title: 'Vendedor 🏷️', salary: 1900000, icon: '🏷️', image: '/images/jobs/vendedor.svg', desc: 'Asesoras a clientes para elegir los mejores productos en el local.' },
+	{ id: 9, title: 'Fotógrafo 📸', salary: 2100000, icon: '📸', image: '/images/jobs/fotografo.svg', desc: 'Tomas fotografías en eventos sociales y sesiones de retratos.' },
+	{ id: 10, title: 'Lavacarros 🚗', salary: 1750000, icon: '🚗', image: '/images/jobs/lavacarros.svg', desc: 'Dejas brillantes los automóviles con lavado y encerado profesional.' },
+	{ id: 11, title: 'Servicio al Cliente 🎧', salary: 1880000, icon: '🎧', image: '/images/jobs/servicio-cliente.svg', desc: 'Resuelves dudas y ayudas a personas con amabilidad y paciencia.' },
+	{ id: 12, title: 'Traductor 🗣️', salary: 2250000, icon: '🗣️', image: '/images/jobs/traductor.svg', desc: 'Traduces textos y conversaciones entre diferentes idiomas.' }
 ];
 
 // Escalafón completo de 20 títulos de ascenso para cada una de las 12 profesiones
@@ -2944,6 +2944,7 @@ function handleLanding(player, tile) {
 				typeName: '🎉 ¡CONTRATADO EN TU PRIMER EMPLEO!',
 				headerClass: 'job',
 				icon: job.icon,
+				image: job.image,
 				title: `¡Eres ${job.title}!`,
 				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te han conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)}</strong>. Recuerda que no se cobra de inmediato: se cobrará en cada Día de Pago.</em>`,
 				stats: [
@@ -4381,7 +4382,7 @@ function renderModalSideBalance() {
 // 13. MODALES DE TARJETAS (Efecto 3D Levantar, Voltear y Regresar)
 // ==========================================
 
-function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '' }) {
+function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '' }) {
 	const overlay = document.getElementById('flying-card-overlay');
 	const wrapper = document.getElementById('flying-card-wrapper');
 	const flipper = document.getElementById('flying-card-flipper');
@@ -4390,6 +4391,7 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	const badgeEl = document.getElementById('modal-badge');
 	const infoToggleEl = document.getElementById('modal-info-toggle');
 	const iconEl = document.getElementById('modal-icon');
+	const imageEl = document.getElementById('modal-image');
 	const titleEl = document.getElementById('modal-title');
 	const descEl = document.getElementById('modal-desc');
 	const statsEl = document.getElementById('modal-stats');
@@ -4403,7 +4405,25 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	// Configurar contenido de la tarjeta minimalista (blanco y gris 1%)
 	const defaultType = typeName || (headerClass ? headerClass.toUpperCase() : 'OPORTUNIDAD');
 	if (badgeEl) badgeEl.textContent = defaultType;
-	if (iconEl) iconEl.textContent = icon || '🚀';
+
+	// Mostrar imagen grande si existe, o icono emoji estándar
+	if (image) {
+		if (iconEl) iconEl.classList.add('hidden');
+		if (imageEl) {
+			imageEl.innerHTML = `<img src="${image}" alt="${title || 'Trabajo'}" />`;
+			imageEl.classList.remove('hidden');
+		}
+	} else {
+		if (imageEl) {
+			imageEl.innerHTML = '';
+			imageEl.classList.add('hidden');
+		}
+		if (iconEl) {
+			iconEl.classList.remove('hidden');
+			iconEl.textContent = icon || '🚀';
+		}
+	}
+
 	if (titleEl) titleEl.textContent = title || '';
 
 	// Botón de información alejado (Top-Right) y descripción oculta por defecto
