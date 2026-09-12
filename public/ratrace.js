@@ -1783,6 +1783,19 @@ class SoundEffects {
 			setTimeout(() => this.playTone(n, 0.3, 'triangle', 0.2), idx * 180);
 		});
 	}
+
+	flowImproved() {
+		// Arpegio ascendente armónico, sutil y alegre (Do5 - Mi5 - Sol5)
+		this.playTone(523.25, 0.10, 'sine', 0.04);
+		setTimeout(() => this.playTone(659.25, 0.12, 'sine', 0.045), 90);
+		setTimeout(() => this.playTone(783.99, 0.18, 'sine', 0.05), 190);
+	}
+
+	flowWorsened() {
+		// Tono descendente cálido y sutil (Mi4 -> Do4)
+		this.playTone(329.63, 0.11, 'triangle', 0.035);
+		setTimeout(() => this.playTone(261.63, 0.16, 'sine', 0.03), 110);
+	}
 }
 
 const sounds = new SoundEffects();
@@ -2130,7 +2143,8 @@ function startGame() {
 			skipTurns: 0,
 			hasJob: false, // Inician sin empleo
 			salariesCollected: 0,
-			jobTier: 1
+			jobTier: 1,
+			lastKnownCashFlow: 0
 		});
 	}
 
@@ -2557,6 +2571,10 @@ function showModalContinueButton(onContinue) {
 	contBtn.style.boxShadow = '0 6px 20px rgba(22, 163, 74, 0.4)';
 	contBtn.innerHTML = '¡Balance Actualizado! Continuar Turno ➔';
 	contBtn.addEventListener('click', () => {
+		if (contBtn.disabled) return;
+		contBtn.disabled = true;
+		contBtn.style.pointerEvents = 'none';
+		contBtn.style.opacity = '0.75';
 		if (onContinue) onContinue();
 	});
 	footerEl.appendChild(contBtn);
@@ -3372,11 +3390,12 @@ function collectPayday(player, isLanding, onComplete = null) {
 				</div>
 			</div>
 
-			<!-- ETAPA 3: FLUJO NETO -->
-			<div class="payday-step payday-step-net payday-step-dimmed" id="payday-step-3">
+			<!-- ETAPA 3: FLUJO (BOTÓN INTERACTIVO) -->
+			<div class="payday-step payday-step-net payday-step-dimmed payday-step-btn" id="payday-step-3" role="button" tabindex="0" title="Toca para recibir tu flujo">
 				<div class="payday-net-banner">
-					<span class="payday-net-label">Flujo Neto</span>
+					<span class="payday-net-label">Flujo</span>
 					<span class="payday-net-val">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
+					<span class="payday-net-hint" id="payday-step-hint">👉 Toca para recibir</span>
 				</div>
 			</div>
 		</div>
@@ -3390,56 +3409,68 @@ function collectPayday(player, isLanding, onComplete = null) {
 		title: '¡Día de Pago! 💰',
 		detailedInfo: '',
 		customHtml: paydayCustomHtml,
-		buttons: [
-			{
-				text: `¡Cobrar Flujo +${formatCOP(fin.monthlyCashFlow)}! 🚀`,
-				class: 'primary',
-				action: () => {
-					// 1. Deshabilitar botón inmediatamente para evitar congelamientos o dobles clics
-					const btnEl = document.querySelector('#modal-footer button');
-					if (btnEl) {
-						btnEl.disabled = true;
-						btnEl.style.opacity = '0.75';
-						btnEl.style.pointerEvents = 'none';
-						btnEl.textContent = '¡Flujo Recibido! 💸';
-					}
-
-					// 2. Acreditar dinero al jugador
-					player.cash += fin.monthlyCashFlow;
-					sounds.cash();
-					updateHUDAndHeaders();
-
-					// 3. Destello en HUD del jugador
-					const playerPills = document.querySelectorAll('.player-hud-pill');
-					if (playerPills[gameState.currentPlayerIndex]) {
-						const targetPill = playerPills[gameState.currentPlayerIndex];
-						targetPill.classList.remove('pill-payday-flash');
-						void targetPill.offsetWidth;
-						targetPill.classList.add('pill-payday-flash');
-					}
-
-					// 4. Volar el dinero al balance y continuar fluidamente
-					if (fin.monthlyCashFlow !== 0) {
-						animateTransactionNumbersToBalance({
-							amount: fin.monthlyCashFlow,
-							category: 'cash',
-							sourceEl: btnEl,
-							label: 'Flujo del Mes',
-							onComplete: () => {
-								closeModal(() => {
-									handlePaydayMilestones(player, count, onComplete);
-								});
-							}
-						});
-					} else {
-						closeModal(() => {
-							handlePaydayMilestones(player, count, onComplete);
-						});
-					}
-				}
-			}
-		]
+		buttons: [] // Sin botón debajo: el recuadro de Flujo es el botón
 	});
+
+	// Conectar el botón interactivo de Flujo con protección estricta contra múltiples clics
+	let paydayClaimed = false;
+	const step3 = document.getElementById('payday-step-3');
+
+	const handleClaimPayday = () => {
+		if (paydayClaimed) return;
+		if (!step3 || !step3.classList.contains('payday-step-active')) return;
+
+		paydayClaimed = true;
+		step3.style.pointerEvents = 'none';
+		step3.classList.remove('payday-step-clickable');
+		step3.classList.add('payday-step-claimed');
+
+		const hintEl = document.getElementById('payday-step-hint');
+		if (hintEl) hintEl.textContent = '¡Flujo Recibido! 💸';
+
+		// 1. Acreditar dinero al jugador
+		player.cash += fin.monthlyCashFlow;
+		sounds.cash();
+		updateHUDAndHeaders();
+
+		// 2. Destello en HUD del jugador
+		const playerPills = document.querySelectorAll('.player-hud-pill');
+		if (playerPills[gameState.currentPlayerIndex]) {
+			const targetPill = playerPills[gameState.currentPlayerIndex];
+			targetPill.classList.remove('pill-payday-flash');
+			void targetPill.offsetWidth;
+			targetPill.classList.add('pill-payday-flash');
+		}
+
+		// 3. Volar el dinero al balance y continuar fluidamente
+		if (fin.monthlyCashFlow !== 0) {
+			animateTransactionNumbersToBalance({
+				amount: fin.monthlyCashFlow,
+				category: 'cash',
+				sourceEl: step3,
+				label: 'Flujo del Mes',
+				onComplete: () => {
+					closeModal(() => {
+						handlePaydayMilestones(player, count, onComplete);
+					});
+				}
+			});
+		} else {
+			closeModal(() => {
+				handlePaydayMilestones(player, count, onComplete);
+			});
+		}
+	};
+
+	if (step3) {
+		step3.addEventListener('click', handleClaimPayday);
+		step3.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				handleClaimPayday();
+			}
+		});
+	}
 
 	// Animación secuencial en 3 tiempos con pausas agradables
 	sounds.cash();
@@ -3454,12 +3485,12 @@ function collectPayday(player, isLanding, onComplete = null) {
 		}
 	}, 650);
 
-	// Tiempo 2 (1350ms): Se activa la Etapa 3 con gran protagonismo
+	// Tiempo 2 (1350ms): Se activa la Etapa 3 con gran protagonismo y se habilita el clic
 	setTimeout(() => {
-		const step3 = document.getElementById('payday-step-3');
 		if (step3) {
 			step3.classList.remove('payday-step-dimmed');
 			step3.classList.add('payday-step-active');
+			step3.classList.add('payday-step-clickable');
 			sounds.cash();
 		}
 	}, 1350);
@@ -4591,6 +4622,61 @@ function endTurn() {
 }
 
 /**
+ * Lanza una animación visual y acústica cuando el flujo mensual del balance cambia:
+ * - Si mejora (sube): resplandor verde esmeralda, rebote elástico, badge flotante animado y arpegio alegre.
+ * - Si empeora (baja): temblor de advertencia, resplandor ámbar/rojo, badge flotante de descenso y tono sutil.
+ */
+function triggerCashflowChangeAnimation(diff, flowEl, containerEl) {
+	if (!flowEl || diff === 0) return;
+	const parent = containerEl || flowEl.parentElement || flowEl;
+
+	parent.classList.remove('flow-anim-improved', 'flow-anim-worsened');
+	flowEl.classList.remove('flow-text-pop-improved', 'flow-text-pop-worsened');
+	void parent.offsetWidth; // forzar reflow
+
+	const badge = document.createElement('div');
+	const isImprovement = diff > 0;
+	badge.className = `flow-floating-badge ${isImprovement ? 'improved' : 'worsened'}`;
+
+	if (isImprovement) {
+		sounds.flowImproved();
+		parent.classList.add('flow-anim-improved');
+		flowEl.classList.add('flow-text-pop-improved');
+		badge.innerHTML = `
+			<span class="badge-icon">🚀</span>
+			<div class="badge-content">
+				<span class="badge-title">¡Flujo Mejoró!</span>
+				<span class="badge-val">+${formatCOP(diff)}/m</span>
+			</div>
+		`;
+	} else {
+		sounds.flowWorsened();
+		parent.classList.add('flow-anim-worsened');
+		flowEl.classList.add('flow-text-pop-worsened');
+		badge.innerHTML = `
+			<span class="badge-icon">🔻</span>
+			<div class="badge-content">
+				<span class="badge-title">Flujo Reducido</span>
+				<span class="badge-val">-${formatCOP(Math.abs(diff))}/m</span>
+			</div>
+		`;
+	}
+
+	const rect = parent.getBoundingClientRect();
+	badge.style.position = 'fixed';
+	badge.style.left = `${rect.left + rect.width / 2}px`;
+	badge.style.top = `${rect.top - 8}px`;
+	badge.style.zIndex = '999999';
+	document.body.appendChild(badge);
+
+	setTimeout(() => {
+		badge.remove();
+		parent.classList.remove('flow-anim-improved', 'flow-anim-worsened');
+		flowEl.classList.remove('flow-text-pop-improved', 'flow-text-pop-worsened');
+	}, 1500);
+}
+
+/**
  * Renderiza el widget de balance a mano derecha mientras se muestra la tarjeta central
  */
 function renderModalSideBalance() {
@@ -4624,6 +4710,9 @@ function renderModalSideBalance() {
 	// Resumen Superior: Efectivo y Flujo
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
+	const metricFlowBox = document.getElementById('side-bal-metric-flow');
+	const isViewingPast = sideBalanceEl && sideBalanceEl.classList.contains('viewing-past-state');
+
 	if (cashEl) {
 		cashEl.textContent = `${formatCOP(player.cash)}`;
 		cashEl.className = `val cash ${player.cash < 0 ? 'red' : ''}`;
@@ -4635,6 +4724,17 @@ function renderModalSideBalance() {
 		if (displayFlow > 0) flowClass = 'green';
 		else if (displayFlow < 0) flowClass = 'red';
 		flowEl.className = `val flow ${flowClass}`;
+
+		// Detectar si el flujo cambió respecto al último valor conocido del jugador
+		if (!isViewingPast && typeof player.lastKnownCashFlow === 'number') {
+			const diff = displayFlow - player.lastKnownCashFlow;
+			if (diff !== 0) {
+				triggerCashflowChangeAnimation(diff, flowEl, metricFlowBox);
+			}
+		}
+		if (!isViewingPast) {
+			player.lastKnownCashFlow = displayFlow;
+		}
 	}
 
 	// 1. INGRESOS
@@ -4945,12 +5045,21 @@ function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, 
 	// Botones predominantes
 	if (footerEl) {
 		footerEl.innerHTML = '';
+		let isActionExecuting = false;
 		buttons.forEach(b => {
 			const btn = document.createElement('button');
 			btn.className = `cf-dialog-btn ${b.class || 'primary'}`;
 			btn.textContent = b.text;
-			btn.addEventListener('click', () => {
-				if (b.action) b.action();
+			btn.addEventListener('click', (e) => {
+				if (isActionExecuting) return;
+				isActionExecuting = true;
+				// Inhabilitar inmediatamente todos los botones del footer para evitar dobles clics o cobros/gastos duplicados
+				footerEl.querySelectorAll('button').forEach(bEl => {
+					bEl.disabled = true;
+					bEl.style.pointerEvents = 'none';
+					bEl.style.opacity = '0.65';
+				});
+				if (b.action) b.action(e);
 			});
 			footerEl.appendChild(btn);
 		});
