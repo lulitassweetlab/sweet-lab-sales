@@ -1910,6 +1910,157 @@
 			border-radius: 8px;
 		}
 
+		/* ==========================================
+		   DESGLOSE VISUAL Y ANIMACIÓN DÍA DE PAGO
+		   ========================================== */
+		.payday-flow-breakdown {
+			display: flex;
+			flex-direction: column;
+			gap: 9px;
+			width: 100%;
+			margin: 4px 0 6px;
+		}
+
+		.payday-step {
+			padding: 9px 12px;
+			border-radius: 14px;
+			background: #ffffff;
+			border: 1.5px solid #e2e8f0;
+			transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+			text-align: left;
+		}
+
+		.payday-step.payday-step-dimmed {
+			opacity: 0.32;
+			filter: grayscale(0.6);
+			transform: scale(0.98);
+		}
+
+		.payday-step.payday-step-active {
+			opacity: 1;
+			filter: none;
+			transform: scale(1);
+		}
+
+		.payday-step-in.payday-step-active {
+			border-color: #22c55e;
+			background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.02));
+			box-shadow: 0 4px 14px rgba(34, 197, 94, 0.18);
+		}
+
+		.payday-step-out.payday-step-active {
+			border-color: #f97316;
+			background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.02));
+			box-shadow: 0 4px 14px rgba(249, 115, 22, 0.15);
+		}
+
+		.payday-step-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 3px;
+		}
+
+		.payday-step-badge {
+			font-family: 'Outfit', sans-serif;
+			font-size: 0.72rem;
+			font-weight: 900;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			padding: 2px 8px;
+			border-radius: 6px;
+		}
+
+		.payday-step-badge.in {
+			background: #dcfce7;
+			color: #15803d;
+		}
+
+		.payday-step-badge.out {
+			background: #ffedd5;
+			color: #c2410c;
+		}
+
+		.payday-step-amount {
+			font-family: 'Outfit', sans-serif;
+			font-size: 1.15rem;
+			font-weight: 950;
+		}
+
+		.payday-step-amount.green {
+			color: #16a34a;
+		}
+
+		.payday-step-amount.red {
+			color: #dc2626;
+		}
+
+		.payday-step-detail {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			font-size: 0.78rem;
+			color: #64748b;
+			line-height: 1.3;
+		}
+
+		.payday-covered-tag {
+			font-weight: 800;
+			color: #059669;
+			margin-top: 1px;
+		}
+
+		/* Paso 3: Destacado Máximo de Cuánto Quedó */
+		.payday-net-banner {
+			padding: 12px 14px;
+			border-radius: 14px;
+			background: linear-gradient(135deg, #15803d, #166534);
+			color: #ffffff;
+			text-align: center;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			box-shadow: 0 6px 20px rgba(22, 101, 52, 0.35);
+			border: 2px solid #86efac;
+			transition: all 0.4s ease;
+		}
+
+		.payday-step-net.payday-step-active .payday-net-banner {
+			animation: paydayNetPulse 1.8s infinite alternate;
+		}
+
+		@keyframes paydayNetPulse {
+			0% { transform: scale(1); box-shadow: 0 6px 20px rgba(22, 101, 52, 0.35); }
+			100% { transform: scale(1.02); box-shadow: 0 10px 28px rgba(34, 197, 94, 0.55); border-color: #fef08a; }
+		}
+
+		.payday-net-label {
+			font-family: 'Outfit', sans-serif;
+			font-size: 0.78rem;
+			font-weight: 900;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: #bbf7d0;
+			margin-bottom: 2px;
+		}
+
+		.payday-net-val {
+			font-family: 'Outfit', sans-serif;
+			font-size: 1.75rem;
+			font-weight: 950;
+			color: #ffffff;
+			text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+			line-height: 1.1;
+			margin: 2px 0 3px;
+		}
+
+		.payday-net-sub {
+			font-size: 0.8rem;
+			font-weight: 700;
+			color: #dcfce7;
+		}
+
 		/* Botón de historial "Cómo era antes" */
 		.btn-side-bal-history {
 			background: #f1f5f9;
@@ -2497,7 +2648,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-card-illustrations-soft-sound-v1"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-payday-ceremony-v1"></script>
 </body>
 
 </html>

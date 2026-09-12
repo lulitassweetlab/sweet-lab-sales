@@ -2439,7 +2439,7 @@ function rollTwoDice() {
 	}, 75);
 }
 
-function stepForwardOnRoad(player, totalSteps) {
+function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 	let stepsRemaining = totalSteps;
 	const pill = document.getElementById('floating-status-pill');
 	const isParallelTwo = gameState.players.length === 2;
@@ -2465,11 +2465,16 @@ function stepForwardOnRoad(player, totalSteps) {
 		if (tileEl) tileEl.classList.add('active-step');
 
 		const currentTileData = gameState.generatedTiles[player.position];
-		pill.textContent = `${player.name} avanzando hacia el frente... (${totalSteps - stepsRemaining}/${totalSteps})`;
+		pill.textContent = `${player.name} avanzando hacia el frente... (${originalTotal - stepsRemaining}/${originalTotal})`;
 
-		// Cobro al pasar por Día de Pago durante el camino
-		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0) {
-			collectPayday(player, false);
+		// Pausa y ceremonia al pasar por Día de Pago durante el camino
+		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0 && player.hasJob) {
+			clearInterval(stepInterval);
+			const remainingAfterPayday = stepsRemaining;
+			collectPayday(player, false, () => {
+				stepForwardOnRoad(player, remainingAfterPayday, originalTotal);
+			});
+			return;
 		}
 
 		if (stepsRemaining <= 0) {
@@ -3049,7 +3054,9 @@ function handleLanding(player, tile) {
 
 	switch (tile.type) {
 		case 'payday':
-			collectPayday(player, true);
+			collectPayday(player, true, () => {
+				endTurn();
+			});
 			break;
 		case 'opportunity':
 			showOpportunityModal(player);
@@ -3187,55 +3194,173 @@ function showFloatingPaydayBubble(tileIndex, laneIndex, amount) {
 	}, 1050);
 }
 
-// 1. Día de Pago
-function collectPayday(player, isLanding) {
+// 1. Día de Pago con Animación Especial y Didáctica de 3 Etapas
+function collectPayday(player, isLanding, onComplete = null) {
 	if (!player.hasJob || player.salary === 0) {
+		if (onComplete) onComplete();
 		return;
 	}
 
 	player.salariesCollected = (player.salariesCollected || 0) + 1;
 	const count = player.salariesCollected;
-
 	const fin = getPlayerFinancials(player);
+
+	// Guardar snapshot previo para comparativa
 	savePlayerFinancialSnapshot(player, `Día de Pago (Cobro #${count})`);
-	player.cash += fin.monthlyCashFlow;
-	sounds.cash();
-	updateHUDAndHeaders();
 
-	// Destello visual al actualizar el saldo en la casilla del jugador
-	const playerPills = document.querySelectorAll('.player-hud-pill');
-	if (playerPills[gameState.currentPlayerIndex]) {
-		const targetPill = playerPills[gameState.currentPlayerIndex];
-		targetPill.classList.remove('pill-payday-flash');
-		void targetPill.offsetWidth;
-		targetPill.classList.add('pill-payday-flash');
-	}
+	// Sonido festivo de apertura
+	sounds.cardAppear();
 
-	// Si el balance lateral o modal están visibles, actualizarlos en tiempo real con destello
-	renderModalSideBalance();
-	const sideCash = document.getElementById('side-bal-cash');
-	if (sideCash) {
-		sideCash.classList.remove('value-payday-flash');
-		void sideCash.offsetWidth;
-		sideCash.classList.add('value-payday-flash');
-	}
-
-	// Efecto visual flotante del valor del pago sobre la casilla física
+	// Efecto flotante sobre la casilla física en el tablero
 	const isParallelTwo = gameState.players.length === 2;
 	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 	showFloatingPaydayBubble(player.position, laneIndex, fin.monthlyCashFlow);
 
-	// 1. Cada 25 salarios cobrados: Aumento por antigüedad del 5% sin cambio de puesto
+	// Desglose de ingresos
+	const salaryVal = player.salary || 0;
+	const passiveVal = fin.passiveIncome || 0;
+	let incomeDetails = `Sueldo: ${formatCOP(salaryVal)}`;
+	if (passiveVal > 0) {
+		incomeDetails += ` + Ganancias de Negocios: ${formatCOP(passiveVal)}`;
+	}
+
+	// Desglose de gastos
+	let expenseDetails = 'Arriendo, mercado, servicios, transporte y deudas';
+	const fixedExp = player.fixedExpenses || fin.totalExpenses;
+
+	// HTML de las 3 etapas didácticas y visuales
+	const paydayCustomHtml = `
+		<div class="payday-flow-breakdown" id="payday-breakdown-box">
+			<!-- ETAPA 1: DINERO QUE INGRESÓ -->
+			<div class="payday-step payday-step-in payday-step-active" id="payday-step-1">
+				<div class="payday-step-header">
+					<span class="payday-step-badge in">1. Dinero que Ingresó</span>
+					<span class="payday-step-amount green">+${formatCOP(fin.totalIncome)}</span>
+				</div>
+				<div class="payday-step-detail">
+					<span>${incomeDetails}</span>
+					<span style="color: #16a34a; font-weight: 700;">¡Tu esfuerzo del mes rinde frutos!</span>
+				</div>
+			</div>
+
+			<!-- ETAPA 2: DINERO QUE SALIÓ (GASTOS CUBIERTOS) -->
+			<div class="payday-step payday-step-out payday-step-dimmed" id="payday-step-2">
+				<div class="payday-step-header">
+					<span class="payday-step-badge out">2. Dinero que Salió: Gastos</span>
+					<span class="payday-step-amount red">-${formatCOP(fin.totalExpenses)}</span>
+				</div>
+				<div class="payday-step-detail">
+					<span>${expenseDetails}</span>
+					<span class="payday-covered-tag">✓ ¡100% de tus gastos mensuales cubiertos y al día!</span>
+				</div>
+			</div>
+
+			<!-- ETAPA 3: CUÁNTO TE QUEDÓ (FLUJO LIMPIO) -->
+			<div class="payday-step payday-step-net payday-step-dimmed" id="payday-step-3">
+				<div class="payday-net-banner">
+					<span class="payday-net-label">3. Tu Dinero Disponible Este Mes</span>
+					<span class="payday-net-val">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
+					<span class="payday-net-sub">¡Dinero limpio que entra directo a tu efectivo!</span>
+				</div>
+			</div>
+		</div>
+	`;
+
+	showModal({
+		typeName: 'DÍA DE PAGO 💰',
+		headerClass: 'payday',
+		icon: '💰',
+		image: '/images/cards/dia_de_pago.svg',
+		title: '¡Día de Pago!',
+		detailedInfo: `Cobro #${count} del mes. En cada Día de Pago recibes tus ingresos, se pagan automáticamente todos tus gastos mensuales para mantenerte al día, y la diferencia es tu flujo de efectivo disponible.`,
+		customHtml: paydayCustomHtml,
+		buttons: [
+			{
+				text: `¡Cobrar +${formatCOP(fin.monthlyCashFlow)} a mi Efectivo! 🚀`,
+				class: 'primary',
+				action: () => {
+					// 1. Acreditar dinero al jugador
+					player.cash += fin.monthlyCashFlow;
+					sounds.cash();
+					updateHUDAndHeaders();
+
+					// 2. Destello en HUD del jugador
+					const playerPills = document.querySelectorAll('.player-hud-pill');
+					if (playerPills[gameState.currentPlayerIndex]) {
+						const targetPill = playerPills[gameState.currentPlayerIndex];
+						targetPill.classList.remove('pill-payday-flash');
+						void targetPill.offsetWidth;
+						targetPill.classList.add('pill-payday-flash');
+					}
+
+					// 3. Volar el dinero al balance
+					const btnEl = document.querySelector('#modal-footer button');
+					if (fin.monthlyCashFlow !== 0) {
+						animateTransactionNumbersToBalance({
+							amount: fin.monthlyCashFlow,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: 'Cobro de Mes',
+							onComplete: () => {
+								showModalContinueButton(() => {
+									closeModal(() => {
+										handlePaydayMilestones(player, count, onComplete);
+									});
+								});
+							}
+						});
+					} else {
+						closeModal(() => {
+							handlePaydayMilestones(player, count, onComplete);
+						});
+					}
+				}
+			}
+		]
+	});
+
+	// Animación secuencial en 3 tiempos con pausas agradables
+	// Tiempo 0: Etapa 1 activa (sonido caja)
+	sounds.cash();
+
+	// Tiempo 1 (850ms): Se activa la Etapa 2 de Gastos Cubiertos
+	setTimeout(() => {
+		const step2 = document.getElementById('payday-step-2');
+		if (step2) {
+			step2.classList.remove('payday-step-dimmed');
+			step2.classList.add('payday-step-active');
+			sounds.loss();
+		}
+	}, 850);
+
+	// Tiempo 2 (1750ms): Se activa la Etapa 3 con gran protagonismo
+	setTimeout(() => {
+		const step3 = document.getElementById('payday-step-3');
+		if (step3) {
+			step3.classList.remove('payday-step-dimmed');
+			step3.classList.add('payday-step-active');
+			sounds.cash();
+		}
+	}, 1750);
+}
+
+/**
+ * Revisa hitos de ascenso o aumento tras completar el cobro de nómina
+ */
+function handlePaydayMilestones(player, count, onComplete) {
+	// 1. Cada 25 salarios cobrados: Aumento por antigüedad del 5%
 	if (count > 0 && count % 25 === 0) {
 		const raise5 = Math.round((player.salary * 0.05) / 1000) * 1000;
 		savePlayerFinancialSnapshot(player, 'Aumento 5% Antigüedad');
 		player.salary += raise5;
 		updateHUDAndHeaders();
+
 		setTimeout(() => {
 			showModal({
 				typeName: '¡AUMENTO POR ANTIGÜEDAD! 📈',
 				headerClass: 'promotion',
 				icon: '🎖️',
+				image: '/images/cards/aumento_sueldo.svg',
 				title: '¡Aumento del 5% por Constancia!',
 				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Has cobrado <strong>${count} salarios</strong> en tu trayectoria laboral.<br><br>Por tu antigüedad, recibes un aumento automático del <strong>5%</strong> (+${formatCOP(raise5)}/mes) sin cambio de puesto.`,
 				stats: [
@@ -3256,7 +3381,9 @@ function collectPayday(player, isLanding) {
 								label: 'Aumento 5%',
 								onComplete: () => {
 									showModalContinueButton(() => {
-										closeModal();
+										closeModal(() => {
+											if (onComplete) onComplete();
+										});
 									});
 								}
 							});
@@ -3264,9 +3391,9 @@ function collectPayday(player, isLanding) {
 					}
 				]
 			});
-		}, 1200);
+		}, 400);
 	}
-	// 2. Cada 10 salarios cobrados (que no sea 25): Ascenso laboral con 10% redondeado
+	// 2. Cada 10 salarios cobrados (que no sea 25): Ascenso laboral con 10%
 	else if (count > 0 && count % 10 === 0) {
 		const raise10 = Math.round((player.salary * 0.10) / 1000) * 1000;
 		player.jobTier = (player.jobTier || 1) + 1;
@@ -3281,8 +3408,9 @@ function collectPayday(player, isLanding) {
 				typeName: '¡ASCENSO LABORAL! ⭐',
 				headerClass: 'promotion',
 				icon: '⭐',
+				image: '/images/cards/ascenso.svg',
 				title: '¡Has sido Ascendido!',
-				detailedInfo: `¡Bravo, <strong>${player.name}</strong>! Has acumulado <strong>${count} salarios</strong> cobrados en tu trabajo.<br><br>Tu esfuerzo ha sido premiado: ¡recibes un <strong>Ascenso de Cargo</strong> con un <strong>10% de aumento</strong> redondeado!`,
+				detailedInfo: `¡Bravo, <strong>${player.name}</strong>! Has acumulado <strong>${count} salarios</strong> cobrados en tu trabajo.<br><br>Tu esfuerzo ha sido premiado: ¡recibes un <strong>Ascenso de Cargo</strong> con un <strong>10% de aumento</strong>!`,
 				stats: [
 					{ label: 'Nuevo cargo:', value: newTitle },
 					{ label: 'Aumento por ascenso:', value: `+${formatCOP(raise10)} / mes (10%)`, color: 'green' },
@@ -3301,7 +3429,9 @@ function collectPayday(player, isLanding) {
 								label: 'Ascenso 10%',
 								onComplete: () => {
 									showModalContinueButton(() => {
-										closeModal();
+										closeModal(() => {
+											if (onComplete) onComplete();
+										});
 									});
 								}
 							});
@@ -3309,49 +3439,9 @@ function collectPayday(player, isLanding) {
 					}
 				]
 			});
-		}, 1200);
-	}
-
-	if (isLanding) {
-		const isZeroFlow = fin.monthlyCashFlow === 0;
-		showModal({
-			typeName: 'DÍA DE PAGO 💰',
-			headerClass: 'payday',
-			icon: '💰',
-			title: '¡Día de Pago!',
-			detailedInfo: isZeroFlow
-				? `Tus ingresos cubrieron tus gastos del mes (Cobro #${count}).<br><br>💡 <em>¡Llega a 10 cobros para conseguir un ascenso, cambia a un trabajo mejor o compra una oportunidad para aumentar tu plata libre!</em>`
-				: `¡Llegó tu plata del mes (Cobro #${count})! Cobraste tu sueldo y las ganancias de tus negocios.`,
-			stats: [
-				{ label: 'Cobros acumulados:', value: `${count} salarios cobrados` },
-				{ label: 'Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
-				{ label: 'Total en tu bolsillo:', value: `${formatCOP(player.cash)}`, color: 'green' }
-			],
-			buttons: [
-				{
-					text: '¡Guardar Plata y Seguir! ➔',
-					class: 'primary',
-					action: () => {
-						if (fin.monthlyCashFlow !== 0) {
-							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: fin.monthlyCashFlow,
-								category: 'cash',
-								sourceEl: btnEl,
-								label: 'Cobro de Mes',
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal(() => endTurn());
-									});
-								}
-							});
-						} else {
-							closeModal(() => endTurn());
-						}
-					}
-				}
-			]
-		});
+		}, 400);
+	} else {
+		if (onComplete) onComplete();
 	}
 }
 
@@ -4555,7 +4645,7 @@ function getCardIllustrationPath({ image, headerClass, typeName, title, desc, de
 	}
 }
 
-function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '' }) {
+function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '', customHtml = '' }) {
 	const overlay = document.getElementById('flying-card-overlay');
 	const wrapper = document.getElementById('flying-card-wrapper');
 	const flipper = document.getElementById('flying-card-flipper');
@@ -4622,9 +4712,12 @@ function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, 
 		}
 	}
 
-	// Estadísticas minimalistas
+	// Estadísticas minimalistas o HTML personalizado
 	if (statsEl) {
-		if (stats && stats.length > 0) {
+		if (customHtml) {
+			statsEl.innerHTML = customHtml;
+			statsEl.style.display = 'flex';
+		} else if (stats && stats.length > 0) {
 			statsEl.innerHTML = stats.map(s => `
 				<div class="mini-stat-line">
 					<span class="lbl">${s.label}</span>
