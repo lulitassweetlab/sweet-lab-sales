@@ -311,77 +311,52 @@
 			flex-direction: column;
 			align-items: center;
 			justify-content: flex-end;
-			background: linear-gradient(180deg, #e0f2fe 0%, #f0fdf4 30%, #ffffff 70%, #f8fafc 100%);
-			perspective: 780px; /* Perspectiva más lejana para ver más recuadros hacia el horizonte */
-			perspective-origin: 50% 20%;
+			background: linear-gradient(180deg, #0284c7 0%, #38bdf8 22%, #7dd3fc 42%, #e0f2fe 65%, #f0fdf4 100%);
+			perspective: 880px;
+			perspective-origin: 50% 36%;
 			cursor: grab;
 		}
 
-		.setup-screen-card {
-			max-width: 520px;
-			margin: 60px auto 40px;
-			background: #ffffff;
-			border: 1.5px solid var(--border-color);
-			border-radius: 28px;
-			padding: 32px;
-			box-shadow: 0 20px 50px rgba(0,0,0,0.06);
-			position: relative;
-			z-index: 50;
-		}
-
-		@media (max-width: 768px) {
-			.floating-brand-pill .brand-sub,
-			.floating-brand-pill .brand-divider {
-				display: none;
-			}
-			.floating-action-btn .btn-lbl {
-				display: none;
-			}
-			.floating-action-btn {
-				padding: 0 10px;
-			}
-			.floating-players-hud {
-				top: 56px;
-				gap: 6px;
-				max-width: 48vw;
-				overflow: visible;
-			}
-			.floating-players-hud.hud-left {
-				left: 6px;
-			}
-			.floating-players-hud.hud-right {
-				right: 6px;
-			}
-			.player-hud-pill {
-				padding: 5px 10px 5px 6px;
-				gap: 6px;
-				max-width: 100%;
-			}
-			.hud-right .player-hud-pill {
-				padding: 5px 6px 5px 10px;
-			}
-			.player-hud-avatar {
-				width: 36px;
-				height: 36px;
-				font-size: 1.3rem;
-			}
-			.p-name { font-size: 0.88rem; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-			.p-cash { font-size: 0.92rem; }
-			.p-flow { font-size: 0.82rem; }
-		}
-
-		/* Suavizado curvado de atmósfera planetaria en el horizonte */
-		.horizon-line {
+		/* Cúpula Esférica del Planeta Visto desde un Avión */
+		.planet-globe-dome {
 			position: absolute;
-			top: -45px;
-			left: -20%;
-			width: 140%;
-			height: 95px;
-			border-radius: 50%;
-			background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(224, 242, 254, 0.45) 55%, rgba(255, 255, 255, 0) 100%);
-			box-shadow: 0 16px 36px rgba(56, 189, 248, 0.18);
-			z-index: 50;
+			top: 24%;
+			left: -25%;
+			width: 150%;
+			height: 115%;
+			border-radius: 50% 50% 0 0 / 190px 190px 0 0;
+			background: radial-gradient(ellipse at 50% 0%, #ffffff 0%, #ecfdf5 30%, #d1fae5 60%, #a7f3d0 100%);
+			box-shadow: 0 -26px 65px rgba(56, 189, 248, 0.85), inset 0 26px 70px rgba(255, 255, 255, 0.95);
+			border-top: 3.5px solid #ffffff;
+			z-index: 1;
 			pointer-events: none;
+		}
+
+		/* Halo atmosférico en el limbo curvo de la Tierra */
+		.planet-atmosphere-halo {
+			position: absolute;
+			top: 18%;
+			left: -30%;
+			width: 160%;
+			height: 110px;
+			border-radius: 50%;
+			background: radial-gradient(ellipse at 50% 50%, rgba(56, 189, 248, 0.75) 0%, rgba(125, 211, 252, 0.4) 45%, transparent 80%);
+			filter: blur(18px);
+			z-index: 2;
+			pointer-events: none;
+		}
+
+		/* Nubes en la alta atmósfera */
+		.planet-high-clouds {
+			position: absolute;
+			top: 5%;
+			left: 0;
+			width: 100%;
+			height: 30%;
+			background: radial-gradient(ellipse at 18% 40%, rgba(255, 255, 255, 0.45) 0%, transparent 55%),
+			            radial-gradient(ellipse at 82% 30%, rgba(255, 255, 255, 0.38) 0%, transparent 50%);
+			pointer-events: none;
+			z-index: 3;
 		}
 
 		.road-3d-scene {
@@ -395,15 +370,16 @@
 			align-items: flex-end;
 			gap: 16px;
 			transform-style: preserve-3d;
-			transform-origin: 50% 90%;
-			transform: scale(0.86) translateY(20px);
-			transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+			transform-origin: 50% 88%;
+			transform: scale(0.92) translateY(18px);
+			transition: transform 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+			z-index: 10;
 		}
 
-		/* Modo Cámara Retirada (Zoom Out Aéreo Panorámico entre Turnos) */
+		/* Modo Cámara Retirada (Zoom Out Aéreo Panorámico entre Turnos - Elevación de Vuelo) */
 		.road-3d-scene.camera-pull-back {
-			transform: scale(0.62) translateY(85px) rotateX(12deg) !important;
-			transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1) !important;
+			transform: scale(0.68) translateY(115px) rotateX(15deg) !important;
+			transition: transform 0.75s cubic-bezier(0.25, 1, 0.5, 1) !important;
 		}
 
 		/* Camino Único Central Compartido */
@@ -414,21 +390,16 @@
 			align-items: center;
 			position: relative;
 			width: 320px;
+			height: 100%;
 			transform-style: preserve-3d;
 		}
 
-		/* La Pista Inclinada en 3D Esférico (Globo Terráqueo Rodante) */
+		/* La Pista en 3D Esférico Rodante */
 		.road-3d-track {
 			width: 320px;
-			display: flex;
-			flex-direction: column-reverse; /* La casilla actual abajo y el futuro arriba en el horizonte */
-			align-items: center;
-			gap: 14px;
-			padding-bottom: 56px;
-			transform-origin: 50% 100%;
+			height: 100%;
+			position: relative;
 			transform-style: preserve-3d;
-			transform: rotateX(40deg);
-			transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 		}
 
 		/* ====================================================
@@ -463,6 +434,7 @@
 			align-items: center;
 			position: relative;
 			width: 110px;
+			height: 100%;
 			transform-style: preserve-3d;
 			pointer-events: none;
 			user-select: none;
@@ -470,27 +442,23 @@
 
 		.scenery-3d-track {
 			width: 100px;
-			display: flex;
-			flex-direction: column-reverse;
-			align-items: center;
-			gap: 16px;
-			padding-bottom: 40px;
-			transform-origin: 50% 100%;
+			height: 100%;
+			position: relative;
 			transform-style: preserve-3d;
-			transform: rotateX(42deg);
-			transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 		}
 
 		.scenery-item-3d {
+			position: absolute;
+			bottom: 44px;
+			left: 0;
 			width: 96px;
 			height: 115px;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
-			position: relative;
 			transform-style: preserve-3d;
-			flex-shrink: 0;
+			will-change: transform, opacity;
 		}
 
 		.scenery-ground-patch {
@@ -534,8 +502,11 @@
 			}
 		}
 
-		/* Casilla Individual con Profundidad 3D */
+		/* Casilla Individual con Profundidad y Curvatura Esférica */
 		.tile-lane-card {
+			position: absolute;
+			bottom: 44px;
+			left: 0;
 			width: 320px;
 			height: 122px;
 			background: #ffffff;
@@ -545,12 +516,21 @@
 			display: flex;
 			flex-direction: column;
 			justify-content: space-between;
-			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06), inset 0 2px 4px rgba(255, 255, 255, 0.8);
-			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-			position: relative;
-			flex-shrink: 0;
+			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08), inset 0 2px 4px rgba(255, 255, 255, 0.8);
 			transform-style: preserve-3d;
 			overflow: hidden;
+			will-change: transform, opacity;
+		}
+
+		/* Salto de Ficha Suave */
+		.pawn-hop-anim {
+			animation: pawnHopSmooth 0.44s cubic-bezier(0.25, 1, 0.5, 1) !important;
+		}
+
+		@keyframes pawnHopSmooth {
+			0% { transform: translateY(0) scale(1); }
+			45% { transform: translateY(-24px) scale(1.18); }
+			100% { transform: translateY(0) scale(1); }
 		}
 
 		.tile-lane-card.active-step {
@@ -2494,11 +2474,13 @@
 
 		<!-- 2. Pantalla Principal de Juego (Caminos en Paralelo con Perspectiva Frontal 3D Profunda) -->
 		<section id="game-screen" class="hidden">
-			<!-- Pista con Sensación de Avanzar hacia el Horizonte (Desplazable con Trackpad/Cursor) -->
+			<!-- Pista con Sensación de Planeta Esférico Rodante Visto desde un Avión -->
 			<div class="stage-perspective-viewport" id="viewport-touch-track">
+				<div class="planet-high-clouds"></div>
+				<div class="planet-atmosphere-halo"></div>
+				<div class="planet-globe-dome"></div>
 				<div class="landscape-meadow-bg"></div>
 				<div class="landscape-beach-bg"></div>
-				<div class="horizon-line"></div>
 				<div class="road-3d-scene" id="road-3d-scene-container"></div>
 			</div>
 
@@ -2849,7 +2831,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-flow-anim-v7"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-planet-sphere-v8"></script>
 </body>
 
 </html>

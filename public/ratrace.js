@@ -1807,6 +1807,8 @@ const sounds = new SoundEffects();
 function extendPerspectiveRoad(countToAdd = 25) {
 	const startIdx = gameState.generatedTiles.length;
 	const track0 = document.getElementById('road-lane-track-0');
+	const trackLeft = document.getElementById('scenery-lane-left');
+	const trackRight = document.getElementById('scenery-lane-right');
 
 	for (let i = 0; i < countToAdd; i++) {
 		const globalIndex = startIdx + i;
@@ -1815,7 +1817,33 @@ function extendPerspectiveRoad(countToAdd = 25) {
 		gameState.generatedTiles.push(tileData);
 
 		if (track0) track0.appendChild(createLaneTileDOM(tileData, 0));
+
+		if (trackLeft) {
+			const prop = MEADOW_PROPS[globalIndex % MEADOW_PROPS.length];
+			const item = document.createElement('div');
+			item.className = 'scenery-item-3d';
+			item.id = `scenery-left-${globalIndex}`;
+			item.innerHTML = `
+				<div class="scenery-ground-patch meadow"></div>
+				<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
+			`;
+			trackLeft.appendChild(item);
+		}
+
+		if (trackRight) {
+			const prop = BEACH_PROPS[globalIndex % BEACH_PROPS.length];
+			const item = document.createElement('div');
+			item.className = 'scenery-item-3d';
+			item.id = `scenery-right-${globalIndex}`;
+			item.innerHTML = `
+				<div class="scenery-ground-patch sand"></div>
+				<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
+			`;
+			trackRight.appendChild(item);
+		}
 	}
+
+	applySphericalPerspective(null, false);
 }
 
 function pickTileForIndex(index) {
@@ -2218,6 +2246,7 @@ function setupRoad3DScene() {
 		const prop = MEADOW_PROPS[i % MEADOW_PROPS.length];
 		const item = document.createElement('div');
 		item.className = 'scenery-item-3d';
+		item.id = `scenery-left-${i}`;
 		item.innerHTML = `
 			<div class="scenery-ground-patch meadow"></div>
 			<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
@@ -2243,6 +2272,7 @@ function setupRoad3DScene() {
 		const prop = BEACH_PROPS[i % BEACH_PROPS.length];
 		const item = document.createElement('div');
 		item.className = 'scenery-item-3d';
+		item.id = `scenery-right-${i}`;
 		item.innerHTML = `
 			<div class="scenery-ground-patch sand"></div>
 			<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
@@ -2265,7 +2295,7 @@ function updatePawnsOnRoad(activeHoppingIndex = -1) {
 		const slot = document.getElementById(`lane-pawns-0-${p.position}`);
 		if (slot) {
 			const pawn = document.createElement('div');
-			pawn.className = `mini-pawn ${idx === activeHoppingIndex ? 'pawn-hopping' : ''}`;
+			pawn.className = `mini-pawn ${idx === activeHoppingIndex ? 'pawn-hopping pawn-hop-anim' : ''}`;
 			pawn.style.background = p.color;
 			pawn.title = `${p.name} (Posición #${p.position})`;
 			pawn.innerHTML = p.avatar;
@@ -2368,36 +2398,132 @@ function updateHUDAndHeaders() {
 }
 
 /**
+ * Aplica la curvatura matemática tridimensional del planeta esférico visto desde un avión:
+ * Las casillas y la escenografía ruedan sobre el domo convexo del globo terrestre.
+ * - La casilla focal (posición actual) queda en la cúspide frontal, plana y 100% legible.
+ * - Hacia adelante, las casillas se curvan hacia abajo y hacia el fondo, hundiéndose suavemente en el horizonte.
+ * - Hacia atrás, las casillas ya recorridas se curvan descendiendo fuera de pantalla.
+ */
+function applySphericalPerspective(focalPosition = null, smooth = false, durationMs = 450) {
+	const current = gameState.players[gameState.currentPlayerIndex];
+	const pos = (typeof focalPosition === 'number') ? focalPosition : (current ? current.position : 0);
+	const effectivePos = pos + gameState.cameraViewOffset;
+
+	const transitionStyle = smooth ? `transform ${durationMs}ms cubic-bezier(0.25, 1, 0.5, 1), opacity ${durationMs}ms ease` : 'none';
+
+	function getSphericalTransform(delta) {
+		if (delta < -2 || delta > 12) {
+			return { visible: false };
+		}
+
+		let y = 0;
+		let z = 0;
+		let rotX = 16;
+		let scale = 1.0;
+		let opacity = 1.0;
+		let zIndex = 50;
+
+		if (delta === 0) {
+			// Cúspide frontal: posición óptima plana y legible
+			y = 0;
+			z = 0;
+			rotX = 16;
+			scale = 1.0;
+			opacity = 1.0;
+			zIndex = 50;
+		} else if (delta > 0) {
+			// Hacia el horizonte: curvatura exponencial descendente sobre el arco del planeta
+			const d = delta;
+			y = -(d * 86 - Math.pow(d, 1.38) * 11);
+			z = -Math.pow(d, 1.54) * 44;
+			rotX = 16 + Math.min(70, d * 8.6);
+			scale = Math.max(0.38, 1.0 - d * 0.058);
+			opacity = d >= 8 ? Math.max(0, 1.0 - (d - 7.5) * 0.45) : 1.0;
+			zIndex = 50 - Math.min(40, Math.round(d));
+		} else {
+			// Hacia atrás (casillas ya pasadas): caen curvándose hacia la base de la pantalla
+			const d = Math.abs(delta);
+			y = d * 110;
+			z = -d * 42;
+			rotX = Math.max(-10, 16 - d * 13);
+			scale = Math.max(0.75, 1.0 - d * 0.08);
+			opacity = Math.max(0, 1.0 - d * 0.48);
+			zIndex = 40 - Math.min(30, Math.round(d));
+		}
+
+		return {
+			visible: true,
+			transform: `translate3d(0, ${y}px, ${z}px) rotateX(${rotX}deg) scale(${scale})`,
+			opacity: opacity,
+			zIndex: zIndex
+		};
+	}
+
+	// 1. Aplicar a las casillas del camino central compartido
+	const totalTiles = gameState.generatedTiles.length;
+	const minIdx = Math.max(0, Math.floor(effectivePos - 3));
+	const maxIdx = Math.min(totalTiles - 1, Math.ceil(effectivePos + 13));
+
+	for (let i = 0; i < totalTiles; i++) {
+		const tileEl = document.getElementById(`lane-tile-0-${i}`);
+		if (!tileEl) continue;
+
+		if (i < minIdx || i > maxIdx) {
+			if (tileEl.style.display !== 'none') {
+				tileEl.style.display = 'none';
+			}
+			continue;
+		}
+
+		tileEl.style.display = '';
+		tileEl.style.transition = transitionStyle;
+		const geom = getSphericalTransform(i - effectivePos);
+		if (geom.visible) {
+			tileEl.style.transform = geom.transform;
+			tileEl.style.opacity = geom.opacity;
+			tileEl.style.zIndex = geom.zIndex;
+			tileEl.style.pointerEvents = (Math.abs(i - effectivePos) < 0.5) ? 'auto' : 'none';
+		} else {
+			tileEl.style.opacity = '0';
+			tileEl.style.pointerEvents = 'none';
+		}
+	}
+
+	// 2. Aplicar a la escenografía lateral (Praderas izquierda y Playa derecha)
+	['scenery-lane-left', 'scenery-lane-right'].forEach(laneId => {
+		const laneEl = document.getElementById(laneId);
+		if (!laneEl) return;
+		const items = laneEl.children;
+		const count = items.length;
+		for (let i = 0; i < count; i++) {
+			const item = items[i];
+			if (i < minIdx || i > maxIdx) {
+				if (item.style.display !== 'none') item.style.display = 'none';
+				continue;
+			}
+			item.style.display = '';
+			item.style.transition = transitionStyle;
+			const geom = getSphericalTransform(i - effectivePos);
+			if (geom.visible) {
+				item.style.transform = geom.transform;
+				item.style.opacity = geom.opacity;
+				item.style.zIndex = geom.zIndex;
+			} else {
+				item.style.opacity = '0';
+			}
+		}
+	});
+}
+
+/**
  * Centra la perspectiva esférica del planeta rodante sobre la posición del jugador.
  * La casilla actual queda en la cúspide focal frontal para máxima legibilidad.
- * Sincroniza tanto la pista central como la escenografía esférica lateral.
  */
 function centerPerspective(smooth = false, customDuration = null, targetPlayer = null) {
 	const current = targetPlayer || gameState.players[gameState.currentPlayerIndex];
 	if (!current) return;
-
-	const effectivePos = current.position + gameState.cameraViewOffset;
-	// Posiciona la cámara para que la casilla actual del jugador quede en la cúspide focal frontal
-	const cameraTileIndex = Math.max(0, effectivePos);
-	const stepHeight = 136; // 122px altura de casilla + 14px de separación
-	const translateY = cameraTileIndex * stepHeight;
-
-	const track0 = document.getElementById('road-lane-track-0');
-	const sceneryLeft = document.getElementById('scenery-lane-left');
-	const sceneryRight = document.getElementById('scenery-lane-right');
-
-	let transitionStyle = 'none';
-	if (smooth) {
-		const dur = customDuration ? `${customDuration}ms` : '0.4s';
-		transitionStyle = `transform ${dur} cubic-bezier(0.22, 1, 0.36, 1)`;
-	}
-
-	[track0, sceneryLeft, sceneryRight].forEach(el => {
-		if (el) {
-			el.style.transition = transitionStyle;
-			el.style.transform = `rotateX(40deg) translateY(${translateY}px)`;
-		}
-	});
+	const dur = customDuration || (smooth ? 440 : 0);
+	applySphericalPerspective(current.position, smooth, dur);
 }
 
 // ==========================================
@@ -2474,7 +2600,7 @@ function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 		sounds.step();
 
 		// El mundo rueda hacia adelante suavemente trayendo la casilla a primer plano
-		centerPerspective(true, 240);
+		centerPerspective(true, 440);
 
 		// Cargar más casillas si se acerca al final visible
 		if (player.position >= gameState.generatedTiles.length - 18) {
@@ -2513,7 +2639,7 @@ function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 				handleLanding(player, currentTileData);
 			}, 1000);
 		}
-	}, 230);
+	}, 480);
 }
 
 // ==========================================
@@ -4575,7 +4701,7 @@ function transitionCameraToPlayer(nextPlayer, onComplete = null) {
 	const btnRoll = document.getElementById('btn-roll-dice');
 
 	if (!scene || gameState.players.length <= 1) {
-		centerPerspective(true, 450, nextPlayer);
+		centerPerspective(true, 700, nextPlayer);
 		if (onComplete) onComplete();
 		return;
 	}
@@ -4583,24 +4709,26 @@ function transitionCameraToPlayer(nextPlayer, onComplete = null) {
 	// Inhabilitar tiro de dados mientras se realiza la maniobra de vuelo
 	if (btnRoll) btnRoll.disabled = true;
 
-	// Fase 1: Elevarse un poco (zoom out / pull back)
+	// Fase 1: Ascenso suave y pausado (zoom out aéreo de avión)
 	sounds.whoosh();
 	scene.classList.add('camera-pull-back');
 
 	setTimeout(() => {
-		// Fase 2: Desplazamiento orbital/rotatorio hacia la casilla destino
-		centerPerspective(true, 650, nextPlayer);
+		// Fase 2: Vuelo orbital suave hacia la posición del siguiente jugador
+		centerPerspective(true, 1100, nextPlayer);
 
 		setTimeout(() => {
-			// Fase 3: Descender a altitud normal / zoom de enfoque
+			// Fase 3: Descenso suave a la altitud de crucero / zoom normal
 			scene.classList.remove('camera-pull-back');
-			if (btnRoll && nextPlayer.skipTurns <= 0) {
-				btnRoll.disabled = false;
-			}
-			updateRollButtonTooltip();
-			if (onComplete) onComplete();
-		}, 450);
-	}, 350);
+			setTimeout(() => {
+				if (btnRoll && nextPlayer.skipTurns <= 0) {
+					btnRoll.disabled = false;
+				}
+				updateRollButtonTooltip();
+				if (onComplete) onComplete();
+			}, 700);
+		}, 1100);
+	}, 650);
 }
 
 function endTurn() {
