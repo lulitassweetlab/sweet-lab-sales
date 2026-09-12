@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgServ" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#faf5ff"/>
+      <stop offset="100%" stop-color="#f3e8ff"/>
+    </linearGradient>
+    <filter id="shServ" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bgServ)"/>
+  <circle cx="70" cy="60" r="35" fill="#e9d5ff" opacity="0.4"/>
+  <circle cx="330" cy="170" r="40" fill="#e9d5ff" opacity="0.4"/>
+  <g filter="url(#shServ)" transform="translate(90, 20)">
+    <path d="M 40,110 C 40,40 180,40 180,110" stroke="#7c3aed" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <rect x="25" y="100" width="30" height="55" rx="14" fill="#9333ea"/>
+    <rect x="165" y="100" width="30" height="55" rx="14" fill="#9333ea"/>
+    <path d="M 180,135 C 180,175 140,185 110,185" stroke="#475569" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <ellipse cx="105" cy="185" rx="10" ry="7" fill="#1e293b"/>
+    <path d="M 85,90 L 135,90 C 145,90 150,95 150,105 L 150,125 C 150,135 145,140 135,140 L 115,140 L 95,155 L 100,140 L 85,140 C 75,140 70,135 70,125 L 70,105 C 70,95 75,90 85,90 Z" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <circle cx="95" cy="115" r="4" fill="#7c3aed"/>
+    <circle cx="110" cy="115" r="4" fill="#7c3aed"/>
+    <circle cx="125" cy="115" r="4" fill="#7c3aed"/>
+  </g>
+</svg>

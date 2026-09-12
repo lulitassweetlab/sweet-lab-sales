@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgTrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eef2ff"/>
+      <stop offset="100%" stop-color="#e0e7ff"/>
+    </linearGradient>
+    <filter id="shTrad" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bgTrad)"/>
+  <circle cx="60" cy="60" r="35" fill="#c7d2fe" opacity="0.4"/>
+  <circle cx="340" cy="170" r="40" fill="#c7d2fe" opacity="0.4"/>
+  <g filter="url(#shTrad)" transform="translate(50, 25)">
+    <circle cx="150" cy="95" r="75" fill="#ffffff" stroke="#4f46e5" stroke-width="3"/>
+    <ellipse cx="150" cy="95" rx="35" ry="75" fill="none" stroke="#818cf8" stroke-width="2"/>
+    <line x1="75" y1="95" x2="225" y2="95" stroke="#818cf8" stroke-width="2"/>
+    <path d="M 90,55 Q 150,75 210,55" stroke="#818cf8" stroke-width="2" fill="none"/>
+    <path d="M 90,135 Q 150,115 210,135" stroke="#818cf8" stroke-width="2" fill="none"/>
+    <rect x="30" y="30" width="65" height="50" rx="10" fill="#4f46e5"/>
+    <text x="62" y="65" font-family="'Outfit', sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle">A</text>
+    <rect x="205" y="110" width="65" height="50" rx="10" fill="#4338ca"/>
+    <text x="237" y="145" font-family="'Outfit', sans-serif" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle">文</text>
+    <path d="M 105,45 Q 140,25 190,40" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <polygon points="192,34 198,44 186,45" fill="#f59e0b"/>
+    <path d="M 195,145 Q 160,165 110,150" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <polygon points="108,156 102,146 114,145" fill="#f59e0b"/>
+  </g>
+</svg>

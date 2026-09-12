@@ -95,120 +95,149 @@
 			letter-spacing: 0.5px;
 		}
 
-		/* 2. Casillas Flotantes de Jugadores (A un lado del camino para dejarlo 100% visible) */
+		/* 2. Cápsula / Ficha de Estado del Jugador (A los lados de cada camino) */
 		.floating-players-hud {
 			position: fixed;
-			top: 60px;
-			left: 18px;
+			top: 68px;
 			z-index: 150;
 			display: flex;
 			flex-direction: column;
-			align-items: flex-start;
 			gap: 8px;
-			max-height: calc(100vh - 120px);
-			overflow-y: auto;
 			pointer-events: auto;
+			overflow: visible;
+		}
+
+		.floating-players-hud.hud-left {
+			left: 20px;
+			align-items: flex-start;
+		}
+
+		.floating-players-hud.hud-right {
+			right: 20px;
+			align-items: flex-end;
+		}
+
+		.hud-right .player-hud-pill {
+			flex-direction: row-reverse;
+			padding: 8px 10px 8px 18px;
+		}
+
+		.hud-right .player-hud-data {
+			align-items: flex-end;
+			text-align: right;
+		}
+
+		.hud-right .player-hud-name-row {
+			justify-content: flex-end;
+		}
+
+		.hud-right .player-hud-stats-row {
+			justify-content: flex-end;
 		}
 
 		.player-hud-pill {
 			display: flex;
 			align-items: center;
-			gap: 14px;
-			padding: 10px 22px 10px 12px;
+			gap: 12px;
+			padding: 8px 18px 8px 10px;
 			border-radius: 999px;
-			background: rgba(255, 255, 255, 0.94);
-			backdrop-filter: blur(16px);
-			-webkit-backdrop-filter: blur(16px);
-			border: 2.5px solid var(--border-color);
-			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+			background: rgba(255, 255, 255, 0.96);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			border: 1.5px solid rgba(226, 232, 240, 0.9);
+			box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
 			cursor: pointer;
-			transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+			transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 			user-select: none;
+			max-width: fit-content;
 		}
 
 		.player-hud-pill:hover {
-			transform: translateX(4px);
+			transform: translateY(-2px);
 			background: #ffffff;
-			box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+			box-shadow: 0 8px 24px -2px rgba(0, 0, 0, 0.12);
 		}
 
 		.player-hud-pill.is-turn {
 			border-color: #16a34a !important;
-			background: rgba(240, 253, 244, 0.98);
-			box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.3), 0 10px 28px rgba(22, 163, 74, 0.22);
-			transform: translateX(6px) scale(1.02);
+			background: #ffffff;
+			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.22), 0 10px 28px -2px rgba(22, 163, 74, 0.22);
+			transform: scale(1.02);
 		}
 
 		.player-hud-avatar {
-			width: 60px;
-			height: 60px;
+			width: 48px;
+			height: 48px;
 			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 2.2rem;
-			border: 3px solid white;
-			box-shadow: 0 3px 10px rgba(0,0,0,0.16);
+			font-size: 1.75rem;
+			border: 2.5px solid white;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 			flex-shrink: 0;
 		}
 
 		.player-hud-data {
 			display: flex;
 			flex-direction: column;
-			line-height: 1.25;
+			justify-content: center;
+			gap: 2px;
+			line-height: 1.2;
 		}
 
 		.player-hud-name-row {
 			display: flex;
 			align-items: center;
-			gap: 10px;
+			gap: 8px;
 		}
 
 		.p-name {
 			font-family: 'Outfit', sans-serif;
-			font-size: 1.45rem;
-			font-weight: 900;
+			font-size: 1.15rem;
+			font-weight: 800;
 			color: var(--text-main);
-			letter-spacing: -0.3px;
+			letter-spacing: -0.2px;
+			white-space: nowrap;
 		}
 
 		.p-turn-indicator {
-			font-size: 0.92rem;
-			font-weight: 850;
+			font-size: 0.72rem;
+			font-weight: 800;
 			color: #15803d;
 			background: #dcfce7;
-			padding: 3px 10px;
-			border-radius: 8px;
+			padding: 2px 8px;
+			border-radius: 6px;
 			text-transform: uppercase;
-			letter-spacing: 0.5px;
+			letter-spacing: 0.4px;
+			white-space: nowrap;
 		}
 
 		.player-hud-stats-row {
 			display: flex;
-			align-items: center;
-			gap: 10px;
-			font-size: 1.22rem;
+			align-items: baseline;
+			gap: 8px;
 			font-family: 'Outfit', sans-serif;
-			font-weight: 800;
-			margin-top: 3px;
+			white-space: nowrap;
 		}
 
 		.p-te-quedan {
 			color: #475569;
-			font-size: 1.22rem;
+			font-size: 1.05rem;
 			font-weight: 750;
 		}
 
 		.p-cash {
 			color: #16a34a;
-			font-weight: 950;
-			font-size: 1.6rem;
-			letter-spacing: -0.4px;
+			font-weight: 900;
+			font-size: 1.22rem;
+			letter-spacing: -0.3px;
 		}
 
-		.p-divider { color: #94a3b8; font-size: 1.15rem; }
-		.p-flow.green { color: #2563eb; font-weight: 900; font-size: 1.22rem; }
-		.p-flow.red { color: #dc2626; font-weight: 900; font-size: 1.22rem; }
+		.p-divider { color: #cbd5e1; font-size: 0.95rem; }
+		.p-flow.green { color: #16a34a; font-weight: 850; font-size: 1.05rem; }
+		.p-flow.zero { color: #0f172a; font-weight: 850; font-size: 1.05rem; }
+		.p-flow.red { color: #dc2626; font-weight: 850; font-size: 1.05rem; }
 
 		/* 3. Dock Flotante de Acciones (Arriba Derecha) */
 		.floating-actions-dock {
@@ -282,115 +311,95 @@
 			flex-direction: column;
 			align-items: center;
 			justify-content: flex-end;
-			background: linear-gradient(180deg, #e0f2fe 0%, #f0fdf4 30%, #ffffff 70%, #f8fafc 100%);
-			perspective: 780px; /* Perspectiva más lejana para ver más recuadros hacia el horizonte */
-			perspective-origin: 50% 20%;
+			background: linear-gradient(180deg, #0284c7 0%, #38bdf8 22%, #7dd3fc 42%, #e0f2fe 65%, #f0fdf4 100%);
+			perspective: 880px;
+			perspective-origin: 50% 36%;
 			cursor: grab;
 		}
 
-		.setup-screen-card {
-			max-width: 520px;
-			margin: 60px auto 40px;
-			background: #ffffff;
-			border: 1.5px solid var(--border-color);
-			border-radius: 28px;
-			padding: 32px;
-			box-shadow: 0 20px 50px rgba(0,0,0,0.06);
-			position: relative;
-			z-index: 50;
-		}
-
-		@media (max-width: 768px) {
-			.floating-brand-pill .brand-sub,
-			.floating-brand-pill .brand-divider {
-				display: none;
-			}
-			.floating-action-btn .btn-lbl {
-				display: none;
-			}
-			.floating-action-btn {
-				padding: 0 10px;
-			}
-			.floating-players-hud {
-				top: 54px;
-				left: 10px;
-				gap: 6px;
-				max-width: 80vw;
-			}
-			.player-hud-pill {
-				padding: 6px 14px 6px 8px;
-				gap: 8px;
-			}
-			.player-hud-avatar {
-				width: 40px;
-				height: 40px;
-				font-size: 1.4rem;
-			}
-			.p-name { font-size: 1.05rem; }
-			.p-cash { font-size: 1.15rem; }
-			.p-flow { font-size: 0.95rem; }
-		}
-
-		/* Suavizado mínimo en la línea del horizonte para no tapar los 12 recuadros futuros */
-		.horizon-line {
+		/* Cúpula Esférica del Planeta Visto desde un Avión */
+		.planet-globe-dome {
 			position: absolute;
-			top: 0;
+			top: 24%;
+			left: -25%;
+			width: 150%;
+			height: 115%;
+			border-radius: 50% 50% 0 0 / 190px 190px 0 0;
+			background: radial-gradient(ellipse at 50% 0%, #ffffff 0%, #ecfdf5 30%, #d1fae5 60%, #a7f3d0 100%);
+			box-shadow: 0 -26px 65px rgba(56, 189, 248, 0.85), inset 0 26px 70px rgba(255, 255, 255, 0.95);
+			border-top: 3.5px solid #ffffff;
+			z-index: 1;
+			pointer-events: none;
+		}
+
+		/* Halo atmosférico en el limbo curvo de la Tierra */
+		.planet-atmosphere-halo {
+			position: absolute;
+			top: 18%;
+			left: -30%;
+			width: 160%;
+			height: 110px;
+			border-radius: 50%;
+			background: radial-gradient(ellipse at 50% 50%, rgba(56, 189, 248, 0.75) 0%, rgba(125, 211, 252, 0.4) 45%, transparent 80%);
+			filter: blur(18px);
+			z-index: 2;
+			pointer-events: none;
+		}
+
+		/* Nubes en la alta atmósfera */
+		.planet-high-clouds {
+			position: absolute;
+			top: 5%;
 			left: 0;
 			width: 100%;
-			height: 35px;
-			background: linear-gradient(to bottom, rgba(203, 213, 225, 0.35) 0%, rgba(255, 255, 255, 0) 100%);
-			z-index: 50;
+			height: 30%;
+			background: radial-gradient(ellipse at 18% 40%, rgba(255, 255, 255, 0.45) 0%, transparent 55%),
+			            radial-gradient(ellipse at 82% 30%, rgba(255, 255, 255, 0.38) 0%, transparent 50%);
 			pointer-events: none;
+			z-index: 3;
 		}
 
 		.road-3d-scene {
 			position: absolute;
 			bottom: 0;
 			width: 100%;
-			max-width: 950px;
+			max-width: 980px;
 			height: 100%;
 			display: flex;
 			justify-content: center;
 			align-items: flex-end;
 			gap: 16px;
 			transform-style: preserve-3d;
-			transform-origin: 50% 92%;
-			transform: scale(0.76) translateY(38px); /* Vista lejana que abarca anterior, actual y 12 casillas siguientes */
-			transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+			transform-origin: 50% 88%;
+			transform: scale(0.92) translateY(18px);
+			transition: transform 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+			z-index: 10;
 		}
 
-		/* Contenedor de caminos paralelos pegados uno al lado del otro */
-		.road-lanes-group {
-			display: flex;
-			align-items: flex-end;
-			justify-content: center;
-			gap: 4px; /* Casillas una al lado de la otra, justo donde terminan sus recuadros */
-			transform-style: preserve-3d;
+		/* Modo Cámara Retirada (Zoom Out Aéreo Panorámico entre Turnos - Elevación de Vuelo) */
+		.road-3d-scene.camera-pull-back {
+			transform: scale(0.68) translateY(115px) rotateX(15deg) !important;
+			transition: transform 0.75s cubic-bezier(0.25, 1, 0.5, 1) !important;
 		}
 
-		/* Cada columna de pista */
+		/* Camino Único Central Compartido */
+		.parallel-road-column.unified-road-column,
 		.parallel-road-column {
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			position: relative;
-			width: 236px;
+			width: 320px;
+			height: 100%;
 			transform-style: preserve-3d;
 		}
 
-		/* La Pista Inclinada en 3D Hacia el Fondo (Perspectiva de Carretera) */
+		/* La Pista en 3D Esférico Rodante */
 		.road-3d-track {
-			width: 236px;
-			display: flex;
-			flex-direction: column-reverse; /* La casilla actual abajo y el futuro arriba en el horizonte */
-			align-items: center;
-			gap: 14px;
-			padding-bottom: 52px;
-			transform-origin: 50% 100%;
+			width: 320px;
+			height: 100%;
+			position: relative;
 			transform-style: preserve-3d;
-			/* Inclinación 3D para abarcar 14 casillas simultáneas */
-			transform: rotateX(44deg);
-			transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 		}
 
 		/* ====================================================
@@ -425,6 +434,7 @@
 			align-items: center;
 			position: relative;
 			width: 110px;
+			height: 100%;
 			transform-style: preserve-3d;
 			pointer-events: none;
 			user-select: none;
@@ -432,27 +442,23 @@
 
 		.scenery-3d-track {
 			width: 100px;
-			display: flex;
-			flex-direction: column-reverse;
-			align-items: center;
-			gap: 16px;
-			padding-bottom: 40px;
-			transform-origin: 50% 100%;
+			height: 100%;
+			position: relative;
 			transform-style: preserve-3d;
-			transform: rotateX(42deg);
-			transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 		}
 
 		.scenery-item-3d {
+			position: absolute;
+			bottom: 44px;
+			left: 0;
 			width: 96px;
 			height: 115px;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
-			position: relative;
 			transform-style: preserve-3d;
-			flex-shrink: 0;
+			will-change: transform, opacity;
 		}
 
 		.scenery-ground-patch {
@@ -489,31 +495,52 @@
 			.scenery-column {
 				display: none;
 			}
+			.parallel-road-column,
+			.road-3d-track,
+			.tile-lane-card {
+				width: 290px !important;
+			}
 		}
 
-		/* Casilla Individual con Profundidad 3D */
+		/* Casilla Continua Integrada a la Rueda Planetaria (Unidas, sin escalones) */
 		.tile-lane-card {
-			width: 236px;
-			height: 115px;
+			position: absolute;
+			bottom: 44px;
+			left: 0;
+			width: 320px;
+			height: 130px;
 			background: #ffffff;
-			border: 2px solid var(--border-color);
-			border-radius: 20px;
-			padding: 9px 12px;
+			border-top: 1px solid rgba(255, 255, 255, 0.7);
+			border-bottom: 1.5px solid rgba(0, 0, 0, 0.14);
+			border-left: 2.5px solid var(--border-color);
+			border-right: 2.5px solid var(--border-color);
+			border-radius: 0;
+			padding: 10px 14px;
 			display: flex;
 			flex-direction: column;
 			justify-content: space-between;
-			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06), inset 0 2px 4px rgba(255, 255, 255, 0.8);
-			transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-			position: relative;
-			flex-shrink: 0;
+			box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.04);
 			transform-style: preserve-3d;
+			transform-origin: 50% 50%;
 			overflow: hidden;
+			will-change: transform, opacity;
+		}
+
+		/* Salto de Ficha Suave */
+		.pawn-hop-anim {
+			animation: pawnHopSmooth 0.44s cubic-bezier(0.25, 1, 0.5, 1) !important;
+		}
+
+		@keyframes pawnHopSmooth {
+			0% { transform: translateY(0) scale(1); }
+			45% { transform: translateY(-24px) scale(1.18); }
+			100% { transform: translateY(0) scale(1); }
 		}
 
 		.tile-lane-card.active-step {
 			border-color: #16a34a !important;
-			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.4), 0 16px 36px rgba(22, 163, 74, 0.3) !important;
-			transform: translateZ(20px) scale(1.05);
+			box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.4), 0 18px 40px rgba(22, 163, 74, 0.35) !important;
+			transform: translateZ(24px) scale(1.04);
 			z-index: 25;
 		}
 
@@ -523,7 +550,7 @@
 			inset: 0;
 			width: 100%;
 			height: 100%;
-			border-radius: 18px;
+			border-radius: 0;
 			background-size: cover;
 			background-position: center;
 			background-repeat: no-repeat;
@@ -1384,6 +1411,28 @@
 			line-height: 1;
 		}
 
+		.modal-illustration {
+			width: 100%;
+			max-width: 320px;
+			height: 155px;
+			margin: 2px 0 12px;
+			border-radius: 18px;
+			overflow: hidden;
+			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+			border: 1.5px solid #e2e8f0;
+			background: #ffffff;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.modal-illustration img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			display: block;
+		}
+
 		.card-mini-center h3 {
 			margin: 0 0 8px;
 			font-family: 'Outfit', sans-serif;
@@ -1647,7 +1696,10 @@
 		}
 
 		.side-bal-metric .val.cash { color: #16a34a; }
-		.side-bal-metric .val.flow { color: #2563eb; }
+		.side-bal-metric .val.cash.red { color: #dc2626; }
+		.side-bal-metric .val.flow { color: #0f172a; }
+		.side-bal-metric .val.flow.green { color: #16a34a; }
+		.side-bal-metric .val.flow.zero { color: #0f172a; }
 		.side-bal-metric .val.flow.red { color: #dc2626; }
 
 		/* 4 Cuadrantes Cashflow Ampliados */
@@ -1689,7 +1741,7 @@
 		}
 
 		.k-q-total.green { color: #16a34a; }
-		.k-q-total.red { color: #dc2626; }
+		.k-q-total.red { color: #0f172a; }
 
 		.k-q-count {
 			font-size: 0.92rem;
@@ -1728,7 +1780,7 @@
 		}
 
 		.k-item .val.green { color: #16a34a; }
-		.k-item .val.red { color: #dc2626; }
+		.k-item .val.red { color: #0f172a; }
 
 		.k-scroll-list {
 			max-height: 105px;
@@ -1850,6 +1902,197 @@
 			border-radius: 8px;
 		}
 
+		@keyframes quadFlashGreen {
+			0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); border-color: #cbd5e1; }
+			35% { transform: scale(1.025); box-shadow: 0 0 24px 4px rgba(34, 197, 94, 0.38); border-color: #22c55e; background: #f0fdf4; }
+			100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); border-color: #cbd5e1; }
+		}
+
+		@keyframes quadFlashRed {
+			0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: #cbd5e1; }
+			35% { transform: scale(1.025); box-shadow: 0 0 24px 4px rgba(239, 68, 68, 0.38); border-color: #ef4444; background: #fef2f2; }
+			100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: #cbd5e1; }
+		}
+
+		.quadrant-updated-flash-green {
+			animation: quadFlashGreen 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+		}
+
+		.quadrant-updated-flash-red {
+			animation: quadFlashRed 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+		}
+
+		/* ==========================================
+		   DESGLOSE VISUAL Y ANIMACIÓN DÍA DE PAGO
+		   ========================================== */
+		.payday-flow-breakdown {
+			display: flex;
+			flex-direction: column;
+			gap: 9px;
+			width: 100%;
+			margin: 4px 0 6px;
+		}
+
+		.payday-step {
+			padding: 10px 14px;
+			border-radius: 14px;
+			background: #ffffff;
+			border: 1.5px solid #e2e8f0;
+			transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+			text-align: left;
+		}
+
+		.payday-step.payday-step-dimmed {
+			opacity: 0.28;
+			filter: grayscale(0.6);
+			transform: scale(0.98);
+		}
+
+		.payday-step.payday-step-active {
+			opacity: 1;
+			filter: none;
+			transform: scale(1);
+		}
+
+		.payday-step-in.payday-step-active {
+			border-color: #22c55e;
+			background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.03));
+			box-shadow: 0 4px 14px rgba(34, 197, 94, 0.18);
+		}
+
+		.payday-step-out.payday-step-active {
+			border-color: #f97316;
+			background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.03));
+			box-shadow: 0 4px 14px rgba(249, 115, 22, 0.15);
+		}
+
+		.payday-step-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			width: 100%;
+		}
+
+		.payday-step-badge {
+			font-family: 'Outfit', sans-serif;
+			font-size: 0.82rem;
+			font-weight: 900;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			padding: 3px 10px;
+			border-radius: 8px;
+		}
+
+		.payday-step-badge.in {
+			background: #dcfce7;
+			color: #15803d;
+		}
+
+		.payday-step-badge.out {
+			background: #ffedd5;
+			color: #c2410c;
+		}
+
+		.payday-step-amount {
+			font-family: 'Outfit', sans-serif;
+			font-size: 1.35rem;
+			font-weight: 950;
+		}
+
+		.payday-step-amount.green {
+			color: #16a34a;
+		}
+
+		.payday-step-amount.red {
+			color: #dc2626;
+		}
+
+		/* Paso 3: Destacado Máximo de Cuánto Quedó */
+		.payday-net-banner {
+			padding: 14px 16px;
+			border-radius: 14px;
+			background: linear-gradient(135deg, #15803d, #166534);
+			color: #ffffff;
+			text-align: center;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			box-shadow: 0 6px 20px rgba(22, 101, 52, 0.35);
+			border: 2px solid #86efac;
+			transition: all 0.4s ease;
+		}
+
+		.payday-step-net.payday-step-active .payday-net-banner {
+			animation: paydayNetPulse 1.8s infinite alternate;
+		}
+
+		@keyframes paydayNetPulse {
+			0% { transform: scale(1); box-shadow: 0 6px 20px rgba(22, 101, 52, 0.35); }
+			100% { transform: scale(1.02); box-shadow: 0 10px 28px rgba(34, 197, 94, 0.55); border-color: #fef08a; }
+		}
+
+		.payday-net-label {
+			font-family: 'Outfit', sans-serif;
+			font-size: 0.82rem;
+			font-weight: 900;
+			text-transform: uppercase;
+			letter-spacing: 0.6px;
+			color: #bbf7d0;
+			margin-bottom: 2px;
+		}
+
+		.payday-net-val {
+			font-family: 'Outfit', sans-serif;
+			font-size: 1.95rem;
+			font-weight: 950;
+			color: #ffffff;
+			text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+			line-height: 1.1;
+		}
+
+		/* Paso 3 Día de Pago: El botón de Flujo */
+		.payday-step-net.payday-step-btn {
+			transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+		}
+
+		.payday-step-net.payday-step-clickable {
+			cursor: pointer;
+			user-select: none;
+		}
+
+		.payday-step-net.payday-step-clickable:hover .payday-net-banner {
+			transform: scale(1.03) translateY(-2px);
+			box-shadow: 0 12px 32px rgba(22, 101, 52, 0.5);
+			border-color: #fef08a;
+		}
+
+		.payday-step-net.payday-step-clickable:active .payday-net-banner {
+			transform: scale(0.98);
+		}
+
+		.payday-net-hint {
+			font-family: 'Outfit', sans-serif;
+			font-size: 0.85rem;
+			font-weight: 800;
+			color: #fef08a;
+			margin-top: 6px;
+			letter-spacing: 0.4px;
+			text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+			animation: paydayCtaBounce 1.2s infinite alternate;
+		}
+
+		@keyframes paydayCtaBounce {
+			0% { transform: translateY(0); opacity: 0.85; }
+			100% { transform: translateY(-2px); opacity: 1; }
+		}
+
+		.payday-step-claimed .payday-net-banner {
+			filter: grayscale(0.2);
+			opacity: 0.85;
+			border-color: #86efac;
+		}
+
 		/* Botón de historial "Cómo era antes" */
 		.btn-side-bal-history {
 			background: #f1f5f9;
@@ -1893,6 +2136,18 @@
 		.past-val-highlight {
 			color: #d97706 !important;
 			transition: color 0.15s ease;
+		}
+
+		.side-bal-job.past-val-highlight,
+		#drawer-player-job.past-val-highlight {
+			color: #b45309 !important;
+			background: #fef3c7;
+			padding: 2px 8px;
+			border-radius: 6px;
+			display: inline-block;
+			font-weight: 800;
+			box-shadow: 0 0 0 1px #f59e0b;
+			transition: all 0.15s ease;
 		}
 
 		/* Indicador delta antes / ahora */
@@ -1941,6 +2196,32 @@
 		.side-bal-metric:hover {
 			background-color: rgba(0, 0, 0, 0.03);
 			transform: scale(1.02);
+		}
+
+		/* Animación de Flujo Estilo Tragamonedas (Slot Machine Rolling & Smooth Braking) */
+		.flow-slot-machine-spinning {
+			animation: slotSpinVibrate 0.08s infinite alternate !important;
+			letter-spacing: 0.6px;
+			filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.45));
+			display: inline-block;
+			font-variant-numeric: tabular-nums;
+			transition: color 0.15s ease;
+		}
+
+		@keyframes slotSpinVibrate {
+			0% { transform: translateY(-1.5px) scale(1.03); }
+			100% { transform: translateY(1.5px) scale(0.98); }
+		}
+
+		.flow-slot-machine-locked {
+			animation: slotLockSettle 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+			display: inline-block;
+		}
+
+		@keyframes slotLockSettle {
+			0% { transform: scale(1.26); filter: drop-shadow(0 0 12px rgba(34, 197, 94, 0.7)); }
+			60% { transform: scale(0.96); }
+			100% { transform: scale(1); filter: none; }
 		}
 
 		/* Desplegable comparativo antes vs ahora */
@@ -2028,8 +2309,10 @@
 		<span class="brand-sub">Sweet Lab</span>
 	</div>
 
-	<!-- HUD Flotante Minimalista de Jugadores (Arriba al Centro) -->
-	<div id="game-hud" class="floating-players-hud hidden"></div>
+	<!-- HUD Flotante Minimalista de Jugadores (A los lados de cada camino de recuadros) -->
+	<div id="game-hud" class="hidden" style="display:none;"></div>
+	<div id="game-hud-left" class="floating-players-hud hud-left hidden"></div>
+	<div id="game-hud-right" class="floating-players-hud hud-right hidden"></div>
 
 	<!-- Acciones Flotantes Minimalistas (Arriba a la Derecha) -->
 	<div class="floating-actions-dock">
@@ -2078,11 +2361,13 @@
 
 		<!-- 2. Pantalla Principal de Juego (Caminos en Paralelo con Perspectiva Frontal 3D Profunda) -->
 		<section id="game-screen" class="hidden">
-			<!-- Pista con Sensación de Avanzar hacia el Horizonte (Desplazable con Trackpad/Cursor) -->
+			<!-- Pista con Sensación de Planeta Esférico Rodante Visto desde un Avión -->
 			<div class="stage-perspective-viewport" id="viewport-touch-track">
+				<div class="planet-high-clouds"></div>
+				<div class="planet-atmosphere-halo"></div>
+				<div class="planet-globe-dome"></div>
 				<div class="landscape-meadow-bg"></div>
 				<div class="landscape-beach-bg"></div>
-				<div class="horizon-line"></div>
 				<div class="road-3d-scene" id="road-3d-scene-container"></div>
 			</div>
 
@@ -2209,8 +2494,8 @@
 
 				<!-- Botón para ver "Cómo era antes" al mantener presionado en el Drawer -->
 				<div class="hidden" style="margin-top: 10px;">
-					<button id="btn-drawer-history" class="btn-side-bal-history" style="width:100%; justify-content:center; margin-left:0; padding:10px 14px;" type="button" title="Mantén presionado para ver cómo era antes de esta jugada">
-						🕒 Mantén presionado: ¿Cómo era antes?
+					<button id="btn-drawer-history" class="btn-side-bal-history" style="width:100%; justify-content:center; margin-left:0; padding:10px 14px;" type="button" title="¿Cómo era antes?">
+						¿Cómo era antes?
 					</button>
 				</div>
 
@@ -2252,6 +2537,7 @@
 
 					<div class="card-mini-center">
 						<div id="modal-icon" class="mini-icon">🚀</div>
+						<div id="modal-image" class="modal-illustration hidden"></div>
 						<h3 id="modal-title">OPORTUNIDAD</h3>
 						<div id="modal-stats" class="card-mini-stats"></div>
 						<div id="modal-desc" class="card-mini-desc hidden"></div>
@@ -2268,25 +2554,23 @@
 			<div class="side-bal-header">
 				<div id="side-bal-avatar" class="side-bal-avatar">👤</div>
 				<div class="side-bal-titles">
-					<div id="side-bal-name" class="side-bal-name">Jugador (Turno)</div>
+					<div id="side-bal-name" class="side-bal-name">Jugador</div>
 					<div id="side-bal-job" class="side-bal-job">Profesión</div>
 				</div>
-				<button id="btn-side-bal-history" class="btn-side-bal-history hidden" type="button" title="Mantén presionado para ver cómo era antes de esta jugada">
-					🕒 Mantén presionado: ¿Cómo era antes?
+				<button id="btn-side-bal-history" class="btn-side-bal-history hidden" type="button" title="¿Cómo era antes?">
+					¿Cómo era antes?
 				</button>
 			</div>
 
-			<!-- Resumen Superior: Efectivo y Flujo Libre Mensual -->
+			<!-- Resumen Superior: Efectivo y Flujo Mensual -->
 			<div class="side-bal-summary-bar">
 				<div class="side-bal-metric" id="side-bal-metric-cash">
-					<span class="lbl">💵 En Mano</span>
-					<span id="side-bal-cash" class="val cash">$500.000 COP</span>
-					<span id="side-bal-cash-delta" class="bal-delta-pill hidden"></span>
+					<span class="lbl">Efectivo</span>
+					<span id="side-bal-cash" class="val cash">$500.000</span>
 				</div>
 				<div class="side-bal-metric" id="side-bal-metric-flow">
-					<span class="lbl">📈 Flujo Libre</span>
-					<span id="side-bal-flow" class="val flow">+$0 / mes</span>
-					<span id="side-bal-flow-delta" class="bal-delta-pill hidden"></span>
+					<span class="lbl">Flujo</span>
+					<span id="side-bal-flow" class="val flow zero">+$0 / mes</span>
 				</div>
 			</div>
 
@@ -2310,16 +2594,16 @@
 					</div>
 				</div>
 
-				<!-- 2. SALIDAS / GASTOS -->
-				<div class="k-quadrant k-expenses">
+				<!-- 2. GASTOS -->
+				<div class="k-quadrant k-expenses" id="k-quad-expenses">
 					<div class="k-q-head">
-						<span class="k-q-title">2. SALIDAS</span>
-						<span id="side-bal-total-exp" class="k-q-total red">-$1.500.000</span>
+						<span class="k-q-title">2. GASTOS</span>
+						<span id="side-bal-total-exp" class="k-q-total">-$1.500.000</span>
 					</div>
 					<div class="k-q-body k-scroll-list">
 						<div class="k-item">
 							<span class="lbl">Arriendo:</span>
-							<span id="side-bal-rent-exp" class="val red">-$500.000</span>
+							<span id="side-bal-rent-exp" class="val">-$500.000</span>
 						</div>
 						<div class="k-item">
 							<span class="lbl">Mercado:</span>
@@ -2347,13 +2631,13 @@
 						</div>
 						<div class="k-item">
 							<span class="lbl">Deudas:</span>
-							<span id="side-bal-debt-exp" class="val red">$0</span>
+							<span id="side-bal-debt-exp" class="val">$0</span>
 						</div>
 					</div>
 				</div>
 
 				<!-- 3. ACTIVOS -->
-				<div class="k-quadrant k-assets">
+				<div class="k-quadrant k-assets" id="k-quad-assets">
 					<div class="k-q-head">
 						<span class="k-q-title">3. ACTIVOS</span>
 						<span id="side-bal-assets-count" class="k-q-count">0 negocios</span>
@@ -2364,7 +2648,7 @@
 				</div>
 
 				<!-- 4. PASIVOS -->
-				<div class="k-quadrant k-liabilities">
+				<div class="k-quadrant k-liabilities" id="k-quad-liabilities">
 					<div class="k-q-head">
 						<span class="k-q-title">4. PASIVOS</span>
 						<span id="side-bal-total-debt" class="k-q-total">$0</span>
@@ -2376,7 +2660,7 @@
 						</div>
 						<div class="k-item">
 							<span class="lbl">Cuota mes:</span>
-							<span id="side-bal-debt-payment" class="val red">$0/m</span>
+							<span id="side-bal-debt-payment" class="val">$0/m</span>
 						</div>
 					</div>
 				</div>
@@ -2397,7 +2681,7 @@
 				¡Ganar independencia económica! Ganas cuando las ganancias de tus <strong>negocios e inversiones</strong> superen todos tus <strong>gastos mensuales</strong>.</p>
 
 				<p><strong>2. ¿Cómo empiezas?</strong><br>
-				• Empiezas con <strong>$100.000 COP</strong> en mano y un flujo mensual de <strong>$0 COP</strong> (tu sueldo cubre tus gastos básicos iniciales).</p>
+				• Empiezas con <strong>$500.000</strong> en mano y un flujo mensual que cubre tus gastos iniciales (tu sueldo cubre tus gastos básicos iniciales).</p>
 
 				<p><strong>3. Casillas de la Pista:</strong><br>
 				• 💰 <strong>Día de Pago:</strong> Cobras tu plata limpia del mes.<br>
@@ -2434,7 +2718,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-11-dice-hold-nobonus-v1"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-wheel-seamless-v10"></script>
 </body>
 
 </html>

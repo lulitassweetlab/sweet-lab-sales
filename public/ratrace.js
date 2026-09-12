@@ -1,6 +1,6 @@
 /**
  * RatRace - Carrera de la Rata (CashFlow)
- * Edición Sweet Lab Finanzas - Versión Colombia (Pesos Colombianos COP)
+ * Edición Sweet Lab Finanzas - Versión Colombia (Pesos Colombianos)
  * - 2 Dados Grandes 3D simultáneos
  * - Fichas con nombre en la mitad, bien visible, sin '#'
  * - Exploración hacia adelante/atrás sin mover la ficha (Botones ▲ / 🎯 / ▼)
@@ -28,20 +28,20 @@ const AVATARS = [
 	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#e11d48', bg: 'rgba(225, 29, 72, 0.12)' }
 ];
 
-// 12 Empleos básicos de inicio seleccionados por el usuario (Calibrados 2026: Salario mínimo base $1.750.000 COP)
+// 12 Empleos básicos de inicio seleccionados por el usuario (Calibrados 2026: Salario mínimo base $1.750.000)
 const STARTER_JOBS = [
-	{ id: 1, title: 'Cocinero 👨‍🍳', salary: 1850000, icon: '👨‍🍳', desc: 'Preparas platos deliciosos y coordinas la cocina con gran sazón.' },
-	{ id: 2, title: 'Tendero 🏪', salary: 1780000, icon: '🏪', desc: 'Atiendes a los clientes de tu barrio y mantienes la tienda surtida.' },
-	{ id: 3, title: 'Auxiliar Veterinario 🐾', salary: 1950000, icon: '🐾', desc: 'Cuidas y asistes en la atención médica de perritos y gatos.' },
-	{ id: 4, title: 'Domiciliario 🛵', salary: 1800000, icon: '🛵', desc: 'Entregas pedidos y paquetes de manera ágil por toda la zona.' },
-	{ id: 5, title: 'Recreacionista 🎈', salary: 1920000, icon: '🎈', desc: 'Organizas dinámicas, juegos y figuras con globos en fiestas.' },
-	{ id: 6, title: 'Jardinero 🌱', salary: 1760000, icon: '🌱', desc: 'Siembras flores, podas prados y cuidas zonas verdes hermosas.' },
-	{ id: 7, title: 'Constructor 🔨', salary: 1980000, icon: '🔨', desc: 'Ayudas en obras, mampostería y acabados de edificaciones.' },
-	{ id: 8, title: 'Vendedor 🏷️', salary: 1900000, icon: '🏷️', desc: 'Asesoras a clientes para elegir los mejores productos en el local.' },
-	{ id: 9, title: 'Fotógrafo 📸', salary: 2100000, icon: '📸', desc: 'Tomas fotografías en eventos sociales y sesiones de retratos.' },
-	{ id: 10, title: 'Lavacarros 🚗', salary: 1750000, icon: '🚗', desc: 'Dejas brillantes los automóviles con lavado y encerado profesional.' },
-	{ id: 11, title: 'Servicio al Cliente 🎧', salary: 1880000, icon: '🎧', desc: 'Resuelves dudas y ayudas a personas con amabilidad y paciencia.' },
-	{ id: 12, title: 'Traductor 🗣️', salary: 2250000, icon: '🗣️', desc: 'Traduces textos y conversaciones entre diferentes idiomas.' }
+	{ id: 1, title: 'Cocinero 👨‍🍳', salary: 1850000, icon: '👨‍🍳', image: '/images/jobs/cocinero.svg', desc: 'Preparas platos deliciosos y coordinas la cocina con gran sazón.' },
+	{ id: 2, title: 'Tendero 🏪', salary: 1780000, icon: '🏪', image: '/images/jobs/tendero.svg', desc: 'Atiendes a los clientes de tu barrio y mantienes la tienda surtida.' },
+	{ id: 3, title: 'Auxiliar Veterinario 🐾', salary: 1950000, icon: '🐾', image: '/images/jobs/veterinario.svg', desc: 'Cuidas y asistes en la atención médica de perritos y gatos.' },
+	{ id: 4, title: 'Domiciliario 🛵', salary: 1800000, icon: '🛵', image: '/images/jobs/domiciliario.svg', desc: 'Entregas pedidos y paquetes de manera ágil por toda la zona.' },
+	{ id: 5, title: 'Recreacionista 🎈', salary: 1920000, icon: '🎈', image: '/images/jobs/recreacionista.svg', desc: 'Organizas dinámicas, juegos y figuras con globos en fiestas.' },
+	{ id: 6, title: 'Jardinero 🌱', salary: 1760000, icon: '🌱', image: '/images/jobs/jardinero.svg', desc: 'Siembras flores, podas prados y cuidas zonas verdes hermosas.' },
+	{ id: 7, title: 'Constructor 🔨', salary: 1980000, icon: '🔨', image: '/images/jobs/constructor.svg', desc: 'Ayudas en obras, mampostería y acabados de edificaciones.' },
+	{ id: 8, title: 'Vendedor 🏷️', salary: 1900000, icon: '🏷️', image: '/images/jobs/vendedor.svg', desc: 'Asesoras a clientes para elegir los mejores productos en el local.' },
+	{ id: 9, title: 'Fotógrafo 📸', salary: 2100000, icon: '📸', image: '/images/jobs/fotografo.svg', desc: 'Tomas fotografías en eventos sociales y sesiones de retratos.' },
+	{ id: 10, title: 'Lavacarros 🚗', salary: 1750000, icon: '🚗', image: '/images/jobs/lavacarros.svg', desc: 'Dejas brillantes los automóviles con lavado y encerado profesional.' },
+	{ id: 11, title: 'Servicio al Cliente 🎧', salary: 1880000, icon: '🎧', image: '/images/jobs/servicio-cliente.svg', desc: 'Resuelves dudas y ayudas a personas con amabilidad y paciencia.' },
+	{ id: 12, title: 'Traductor 🗣️', salary: 2250000, icon: '🗣️', image: '/images/jobs/traductor.svg', desc: 'Traduces textos y conversaciones entre diferentes idiomas.' }
 ];
 
 // Escalafón completo de 20 títulos de ascenso para cada una de las 12 profesiones
@@ -324,16 +324,16 @@ function getPromotedTitle(currentTitle, tier = 1) {
 
 // Opciones de Nuevo Trabajo para cambiar de empleo con diferentes sueldos (Calibrados 2026)
 const NEW_JOBS = [
-	{ title: 'Barista en Cafetería ☕', salary: 1950000, desc: 'Preparando cafés especiales y malteadas deliciosas.' },
-	{ title: 'Pastelero en Sweet Lab 🍰', salary: 2100000, desc: 'Creando tortas decoradas y postres para eventos.' },
-	{ title: 'Entrenador Deportivo ⚽', salary: 2200000, desc: 'Guiando entrenamientos y partidos de fútbol juvenil.' },
-	{ title: 'Profesor de Música 🎸', salary: 2300000, desc: 'Enseñando guitarra, piano y canto a nuevos talentos.' },
-	{ title: 'Fotógrafo de Moda 📸', salary: 2400000, desc: 'Tomando fotos para marcas juveniles y redes sociales.' },
-	{ title: 'Técnico de Celulares 📱', salary: 2450000, desc: 'Arreglando pantallas y repuestos de teléfonos.' },
-	{ title: 'Administrador de Local 🏪', salary: 2550000, desc: 'Coordinando el equipo y las ventas de la tienda.' },
-	{ title: 'Diseñador Digital 🎨', salary: 2750000, desc: 'Diseñando marcas, logos y publicidad para internet.' },
-	{ title: 'Programador Junior 💻', salary: 3000000, desc: 'Creando aplicaciones móviles y páginas web modernas.' },
-	{ title: 'Piloto de Drones 🛸', salary: 3200000, desc: 'Grabando tomas aéreas para películas y comerciales.' }
+	{ title: 'Barista en Cafetería ☕', salary: 1950000, icon: '☕', image: '/images/jobs/cocinero.svg', desc: 'Preparando cafés especiales y malteadas deliciosas.' },
+	{ title: 'Pastelero en Sweet Lab 🍰', salary: 2100000, icon: '🍰', image: '/images/jobs/cocinero.svg', desc: 'Creando tortas decoradas y postres para eventos.' },
+	{ title: 'Entrenador Deportivo ⚽', salary: 2200000, icon: '⚽', image: '/images/jobs/recreacionista.svg', desc: 'Guiando entrenamientos y partidos de fútbol juvenil.' },
+	{ title: 'Profesor de Música 🎸', salary: 2300000, icon: '🎸', image: '/images/jobs/recreacionista.svg', desc: 'Enseñando guitarra, piano y canto a nuevos talentos.' },
+	{ title: 'Fotógrafo de Moda 📸', salary: 2400000, icon: '📸', image: '/images/jobs/fotografo.svg', desc: 'Tomando fotos para marcas juveniles y redes sociales.' },
+	{ title: 'Técnico de Celulares 📱', salary: 2450000, icon: '📱', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Arreglando pantallas y repuestos de teléfonos.' },
+	{ title: 'Administrador de Local 🏪', salary: 2550000, icon: '🏪', image: '/images/jobs/tendero.svg', desc: 'Coordinando el equipo y las ventas de la tienda.' },
+	{ title: 'Diseñador Digital 🎨', salary: 2750000, icon: '🎨', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Diseñando marcas, logos y publicidad para internet.' },
+	{ title: 'Programador Junior 💻', salary: 3000000, icon: '💻', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Creando aplicaciones móviles y páginas web modernas.' },
+	{ title: 'Piloto de Drones 🛸', salary: 3200000, icon: '🛸', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Grabando tomas aéreas para películas y comerciales.' }
 ];
 
 // Ascensos dentro del trabajo con mejor pago (Calibrados 2026, sin bonos sorpresa)
@@ -440,7 +440,7 @@ const HOUSING_LEVELS = [
 	{ level: 14, title: 'Casa Campestre Familiar', rent: 3200000, icon: '🌳', desc: 'Residencia campestre privada rodeada de naturaleza y amplios jardines.' }
 ];
 
-// Gastos fijos obligatorios de inicio calibrados a solicitud del usuario (Total: $1.500.000 COP)
+// Gastos fijos obligatorios de inicio calibrados a solicitud del usuario (Total: $1.500.000)
 const DEFAULT_FIXED_EXPENSES = {
 	rent: 500000,           // Arriendo (Habitación Básica inicial)
 	groceries: 450000,      // Mercado
@@ -451,7 +451,7 @@ const DEFAULT_FIXED_EXPENSES = {
 	other: 90000            // Otros
 };
 
-// Barajas de cartas adaptadas al capital inicial ($500.000 COP) y salarios 2026
+// Barajas de cartas adaptadas al capital inicial ($500.000) y salarios 2026
 // Utilidades mensuales calibradas a solicitud del usuario:
 // - Ocasiones regulares: 0.3%, 0.5%, 0.7%, 0.8%, 0.9%, 1%, 1.2%, 1.5%, 1.6%, 1.7%, 2%
 // - En extrañas ocasiones: 2.5%, 3%, 3.5%
@@ -1083,7 +1083,7 @@ const SMALL_DEALS = [
 // Gastos imprevistos y antojos calibrados a escala real 2026 (6x más variedad, 64 opciones):
 // "una salida con amigos debe salir en 120.000 más o menos, pero no siempre el mismo valor"
 const DOODADS = [
-	// --- 1. SALIDAS Y REUNIONES CON AMIGOS (~$120.000 COP con variación natural) ---
+	// --- 1. SALIDAS Y REUNIONES CON AMIGOS (~$120.000 con variación natural) ---
 	{
 		title: 'Salida a Cenar Pizzas con Amigos 🍕',
 		desc: 'Una pizza grande con gaseosas y buena charla de fin de semana con tus amigos.',
@@ -1587,8 +1587,17 @@ const gameState = {
 	isCardFlying: false,
 	pendingEndTurn: false,
 	generatedTiles: [],
-	cameraViewOffset: 0 // Para explorar casillas siguientes/anteriores sin mover el ficho
+	cameraViewOffset: 0, // Para explorar casillas siguientes/anteriores sin mover el ficho
+	lastPromotionTimestamp: Date.now() // Inicia el reloj de 9 min al arrancar la partida
 };
+
+// Cooldown para casillas de ascenso: solo cada 9 minutos (540.000 ms)
+const PROMOTION_COOLDOWN_MS = 9 * 60 * 1000;
+
+function isPromotionAvailable() {
+	if (!gameState.lastPromotionTimestamp) return false;
+	return (Date.now() - gameState.lastPromotionTimestamp) >= PROMOTION_COOLDOWN_MS;
+}
 
 // ==========================================
 // 4. EFECTOS DE SONIDO SINTETIZADOS
@@ -1713,31 +1722,59 @@ class SoundEffects {
 		this.diceRoll();
 	}
 
+	cardAppear() {
+		// Toque sutil, cálido y elegante al abrir la tarjeta (amable al oído, no cansa ni aturde)
+		this.playTone(392, 0.08, 'sine', 0.035);
+		setTimeout(() => this.playTone(523.25, 0.12, 'sine', 0.03), 40);
+	}
+
 	genieMagic() {
-		const magicPitches = [392, 523.25, 659.25, 783.99, 1046.5, 1318.5];
-		magicPitches.forEach((p, idx) => {
-			setTimeout(() => this.playTone(p, 0.25, 'sine', 0.12), idx * 90);
-		});
+		this.cardAppear();
 	}
 
 	cardLand() {
-		this.playTone(360, 0.07, 'triangle', 0.1);
-		setTimeout(() => this.playTone(460, 0.1, 'sine', 0.08), 35);
+		this.playTone(320, 0.05, 'sine', 0.025);
 	}
 
 	step() {
 		this.playTone(340, 0.05, 'sine', 0.08);
 	}
 
+	chipLaunch() {
+		// Sutil toque discreto al despegar un número hacia el balance
+		this.playTone(440, 0.04, 'sine', 0.015);
+	}
+
 	cash() {
-		this.playTone(523.25, 0.1, 'sine', 0.12);
-		setTimeout(() => this.playTone(659.25, 0.1, 'sine', 0.12), 100);
-		setTimeout(() => this.playTone(783.99, 0.25, 'sine', 0.15), 200);
+		// Toque sutil, cálido y aterciopelado al actualizar balance con números positivos (muy suave y agradable)
+		this.playTone(392, 0.08, 'sine', 0.035);
+		setTimeout(() => this.playTone(523.25, 0.12, 'sine', 0.03), 70);
 	}
 
 	loss() {
-		this.playTone(400, 0.15, 'sawtooth', 0.1);
-		setTimeout(() => this.playTone(280, 0.3, 'sawtooth', 0.12), 150);
+		// Toque sutil, acústico y cálido tipo marimba/madera suave (amable al oído, fácil de escuchar)
+		this.playTone(260, 0.08, 'sine', 0.025);
+		setTimeout(() => this.playTone(310, 0.07, 'sine', 0.02), 60);
+	}
+
+	whoosh() {
+		try {
+			this.init();
+			if (!this.ctx) return;
+			const osc = this.ctx.createOscillator();
+			const gain = this.ctx.createGain();
+			osc.type = 'sine';
+			osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+			osc.frequency.exponentialRampToValueAtTime(320, this.ctx.currentTime + 0.18);
+			osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.4);
+			gain.gain.setValueAtTime(0.015, this.ctx.currentTime);
+			gain.gain.linearRampToValueAtTime(0.035, this.ctx.currentTime + 0.18);
+			gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+			osc.connect(gain);
+			gain.connect(this.ctx.destination);
+			osc.start();
+			osc.stop(this.ctx.currentTime + 0.42);
+		} catch (e) {}
 	}
 
 	victory() {
@@ -1745,6 +1782,24 @@ class SoundEffects {
 		notes.forEach((n, idx) => {
 			setTimeout(() => this.playTone(n, 0.3, 'triangle', 0.2), idx * 180);
 		});
+	}
+
+	flowImproved() {
+		// Arpegio ascendente armónico, sutil y alegre (Do5 - Mi5 - Sol5)
+		this.playTone(523.25, 0.10, 'sine', 0.04);
+		setTimeout(() => this.playTone(659.25, 0.12, 'sine', 0.045), 90);
+		setTimeout(() => this.playTone(783.99, 0.18, 'sine', 0.05), 190);
+	}
+
+	flowWorsened() {
+		// Tono descendente cálido y sutil (Mi4 -> Do4)
+		this.playTone(329.63, 0.11, 'triangle', 0.035);
+		setTimeout(() => this.playTone(261.63, 0.16, 'sine', 0.03), 110);
+	}
+
+	playSlotTick() {
+		// Clic mecánico sutil, rápido y aterciopelado tipo rueda de números (muy suave)
+		this.playTone(550 + Math.random() * 120, 0.02, 'triangle', 0.014);
 	}
 }
 
@@ -1756,7 +1811,9 @@ const sounds = new SoundEffects();
 
 function extendPerspectiveRoad(countToAdd = 25) {
 	const startIdx = gameState.generatedTiles.length;
-	const isParallelTwo = gameState.players.length === 2;
+	const track0 = document.getElementById('road-lane-track-0');
+	const trackLeft = document.getElementById('scenery-lane-left');
+	const trackRight = document.getElementById('scenery-lane-right');
 
 	for (let i = 0; i < countToAdd; i++) {
 		const globalIndex = startIdx + i;
@@ -1764,17 +1821,34 @@ function extendPerspectiveRoad(countToAdd = 25) {
 		tileData.globalIndex = globalIndex;
 		gameState.generatedTiles.push(tileData);
 
-		if (isParallelTwo) {
-			// Añadir exactamente la misma casilla a ambos caminos paralelos
-			const track0 = document.getElementById('road-lane-track-0');
-			const track1 = document.getElementById('road-lane-track-1');
-			if (track0) track0.appendChild(createLaneTileDOM(tileData, 0));
-			if (track1) track1.appendChild(createLaneTileDOM(tileData, 1));
-		} else {
-			const singleTrack = document.getElementById('road-lane-track-0');
-			if (singleTrack) singleTrack.appendChild(createLaneTileDOM(tileData, 0));
+		if (track0) track0.appendChild(createLaneTileDOM(tileData, 0));
+
+		if (trackLeft) {
+			const prop = MEADOW_PROPS[globalIndex % MEADOW_PROPS.length];
+			const item = document.createElement('div');
+			item.className = 'scenery-item-3d';
+			item.id = `scenery-left-${globalIndex}`;
+			item.innerHTML = `
+				<div class="scenery-ground-patch meadow"></div>
+				<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
+			`;
+			trackLeft.appendChild(item);
+		}
+
+		if (trackRight) {
+			const prop = BEACH_PROPS[globalIndex % BEACH_PROPS.length];
+			const item = document.createElement('div');
+			item.className = 'scenery-item-3d';
+			item.id = `scenery-right-${globalIndex}`;
+			item.innerHTML = `
+				<div class="scenery-ground-patch sand"></div>
+				<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
+			`;
+			trackRight.appendChild(item);
 		}
 	}
+
+	applySphericalPerspective(null, false);
 }
 
 function pickTileForIndex(index) {
@@ -1795,9 +1869,10 @@ function pickTileForIndex(index) {
 		};
 	}
 
-	// Casillas 2 a 13: Los 12 empleos básicos de inicio visibles directamente en el tablero
+	// Casillas 2 a 13: Los empleos básicos de inicio visibles directamente en el tablero
 	if (index >= 2 && index <= 13) {
-		const job = STARTER_JOBS[index - 2];
+		const jobsList = (gameState.starterJobs && gameState.starterJobs.length === STARTER_JOBS.length) ? gameState.starterJobs : STARTER_JOBS;
+		const job = jobsList[(index - 2) % jobsList.length];
 		return {
 			type: 'job',
 			isStarterJob: true,
@@ -1827,28 +1902,31 @@ function pickTileForIndex(index) {
 	const cycle = index % 24;
 	let typeKey = 'opportunity';
 
+	// Las casillas de ascenso solo aparecen si han pasado al menos 9 minutos desde el último ascenso
+	const promoOrOpp = isPromotionAvailable() ? 'promotion' : 'opportunity';
+
 	switch (cycle) {
 		case 14: typeKey = 'market'; break;
-		case 15: typeKey = 'promotion'; break;
+		case 15: typeKey = promoOrOpp; break;
 		case 16: typeKey = 'opportunity'; break;
 		case 17: typeKey = 'doodad'; break;
 		case 18: typeKey = 'crisis'; break;
 		case 19: typeKey = 'opportunity'; break;
 		case 20: typeKey = 'job'; break;
-		case 21: typeKey = 'promotion'; break;
+		case 21: typeKey = promoOrOpp; break;
 		case 22: typeKey = 'market'; break;
 		case 23: typeKey = 'charity'; break;
 		// Para siguientes vueltas de la pista (después del Mes 1):
 		case 1: typeKey = 'opportunity'; break;
 		case 2: typeKey = 'job'; break;
 		case 3: typeKey = 'doodad'; break;
-		case 4: typeKey = 'promotion'; break;
+		case 4: typeKey = promoOrOpp; break;
 		case 5: typeKey = 'opportunity'; break;
 		case 6: typeKey = 'market'; break;
 		case 7: typeKey = 'job'; break;
 		case 8: typeKey = 'charity'; break;
 		case 9: typeKey = 'opportunity'; break;
-		case 10: typeKey = 'promotion'; break;
+		case 10: typeKey = promoOrOpp; break;
 		case 11: typeKey = 'doodad'; break;
 		case 12: typeKey = 'opportunity'; break;
 		case 13: typeKey = 'job'; break;
@@ -1943,7 +2021,9 @@ function wireEventListeners() {
 
 	document.getElementById('btn-new-game')?.addEventListener('click', () => {
 		if (confirm('¿Deseas reiniciar la partida y volver a la configuración?')) {
-			document.getElementById('game-hud').classList.add('hidden');
+			document.getElementById('game-hud')?.classList.add('hidden');
+			document.getElementById('game-hud-left')?.classList.add('hidden');
+			document.getElementById('game-hud-right')?.classList.add('hidden');
 			document.getElementById('game-screen').classList.add('hidden');
 			document.getElementById('floating-status-pill').classList.add('hidden');
 			document.getElementById('setup-screen').classList.remove('hidden');
@@ -2044,10 +2124,11 @@ function wireEventListeners() {
 	});
 }
 
-function openBalanceDrawer() {
-	gameState.selectedDrawerPlayerIndex = gameState.currentPlayerIndex;
-	renderDrawerPlayerTabs();
-	updateDrawerFinancials(gameState.selectedDrawerPlayerIndex);
+function openBalanceDrawer(playerIndex) {
+	const targetIndex = (typeof playerIndex === 'number') ? playerIndex : (gameState.selectedDrawerPlayerIndex ?? gameState.currentPlayerIndex);
+	gameState.selectedDrawerPlayerIndex = targetIndex;
+	renderDrawerPlayerHeader(targetIndex);
+	updateDrawerFinancials(targetIndex);
 	document.getElementById('balance-drawer-overlay')?.classList.add('open');
 }
 
@@ -2067,6 +2148,7 @@ function startGame() {
 		const nameInput = document.getElementById(`player-input-${i}`);
 		const name = (nameInput?.value || `Jugador ${i + 1}`).trim();
 		const avatar = AVATARS[i];
+		const initialExpensePct = Math.floor(Math.random() * 9) + 90; // 90% a 98% de su salario
 
 		players.push({
 			id: i,
@@ -2076,24 +2158,26 @@ function startGame() {
 			bg: avatar.bg,
 			profession: 'Sin empleo',
 			salary: 0,
+			initialExpensePct: initialExpensePct,
 			housingLevel: 0,
-			rentExpense: DEFAULT_FIXED_EXPENSES.rent,
-			groceriesExpense: DEFAULT_FIXED_EXPENSES.groceries,
-			utilitiesExpense: DEFAULT_FIXED_EXPENSES.utilities,
-			transportExpense: DEFAULT_FIXED_EXPENSES.transport,
-			internetExpense: DEFAULT_FIXED_EXPENSES.internet,
-			phoneExpense: DEFAULT_FIXED_EXPENSES.phone,
-			otherExpenses: DEFAULT_FIXED_EXPENSES.other,
-			fixedExpenses: DEFAULT_FIXED_EXPENSES.rent + DEFAULT_FIXED_EXPENSES.groceries + DEFAULT_FIXED_EXPENSES.utilities + DEFAULT_FIXED_EXPENSES.transport + DEFAULT_FIXED_EXPENSES.internet + DEFAULT_FIXED_EXPENSES.phone + DEFAULT_FIXED_EXPENSES.other,
+			rentExpense: 0,
+			groceriesExpense: 0,
+			utilitiesExpense: 0,
+			transportExpense: 0,
+			internetExpense: 0,
+			phoneExpense: 0,
+			otherExpenses: 0,
+			fixedExpenses: 0,
 			debtExpenses: 0,
 			totalDebt: 0,
-			cash: 500000, // Efectivo inicial calibrado a escala salario actual (500.000 COP)
+			cash: 500000, // Efectivo inicial calibrado a escala salario actual (500.000)
 			position: 0,
 			assets: [],
 			skipTurns: 0,
 			hasJob: false, // Inician sin empleo
 			salariesCollected: 0,
-			jobTier: 1
+			jobTier: 1,
+			lastKnownCashFlow: 0
 		});
 	}
 
@@ -2101,6 +2185,7 @@ function startGame() {
 	gameState.currentPlayerIndex = 0;
 	gameState.isRolling = false;
 	gameState.generatedTiles = [];
+	gameState.starterJobs = [...STARTER_JOBS].sort(() => Math.random() - 0.5);
 	gameState.cameraViewOffset = 0;
 
 	// Configurar contenedor de pistas 3D (1 columna o 2 paralelas lado a lado)
@@ -2110,7 +2195,9 @@ function startGame() {
 	extendPerspectiveRoad(40);
 
 	document.getElementById('setup-screen').classList.add('hidden');
-	document.getElementById('game-hud').classList.remove('hidden');
+	document.getElementById('game-hud')?.classList.remove('hidden');
+	document.getElementById('game-hud-left')?.classList.remove('hidden');
+	document.getElementById('game-hud-right')?.classList.remove('hidden');
 	document.getElementById('game-screen').classList.remove('hidden');
 	document.getElementById('floating-status-pill').classList.remove('hidden');
 
@@ -2164,6 +2251,7 @@ function setupRoad3DScene() {
 		const prop = MEADOW_PROPS[i % MEADOW_PROPS.length];
 		const item = document.createElement('div');
 		item.className = 'scenery-item-3d';
+		item.id = `scenery-left-${i}`;
 		item.innerHTML = `
 			<div class="scenery-ground-patch meadow"></div>
 			<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
@@ -2173,22 +2261,11 @@ function setupRoad3DScene() {
 	colMeadow.appendChild(trackMeadow);
 	scene.appendChild(colMeadow);
 
-	// 2. Caminos de los Jugadores
-	const isParallelTwo = gameState.players.length === 2;
-	if (isParallelTwo) {
-		const roadGroup = document.createElement('div');
-		roadGroup.className = 'road-lanes-group';
-		roadGroup.innerHTML = `
-			<div class="parallel-road-column"><div class="road-3d-track" id="road-lane-track-0"></div></div>
-			<div class="parallel-road-column"><div class="road-3d-track" id="road-lane-track-1"></div></div>
-		`;
-		scene.appendChild(roadGroup);
-	} else {
-		const col = document.createElement('div');
-		col.className = 'parallel-road-column';
-		col.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
-		scene.appendChild(col);
-	}
+	// 2. Camino Único de los Jugadores (Compartido para 1, 2, 3 o 4 participantes)
+	const col = document.createElement('div');
+	col.className = 'parallel-road-column unified-road-column';
+	col.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
+	scene.appendChild(col);
 
 	// 3. Escenografía Derecha: Playa Soleada, Palmeras, Sombrillas y Mar
 	const colBeach = document.createElement('div');
@@ -2200,6 +2277,7 @@ function setupRoad3DScene() {
 		const prop = BEACH_PROPS[i % BEACH_PROPS.length];
 		const item = document.createElement('div');
 		item.className = 'scenery-item-3d';
+		item.id = `scenery-right-${i}`;
 		item.innerHTML = `
 			<div class="scenery-ground-patch sand"></div>
 			<div class="scenery-emoji-prop" title="${prop.label}">${prop.icon}</div>
@@ -2211,30 +2289,20 @@ function setupRoad3DScene() {
 }
 
 function updatePawnsOnRoad(activeHoppingIndex = -1) {
-	const isParallelTwo = gameState.players.length === 2;
-
-	// Limpiar casillas
+	// Limpiar casillas en el camino compartido
 	gameState.generatedTiles.forEach(tile => {
-		if (isParallelTwo) {
-			const slot0 = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
-			const slot1 = document.getElementById(`lane-pawns-1-${tile.globalIndex}`);
-			if (slot0) slot0.innerHTML = '';
-			if (slot1) slot1.innerHTML = '';
-		} else {
-			const slot = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
-			if (slot) slot.innerHTML = '';
-		}
+		const slot = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
+		if (slot) slot.innerHTML = '';
 	});
 
-	// Colocar fichas
+	// Colocar fichas de todos los jugadores en su posición del camino compartido
 	gameState.players.forEach((p, idx) => {
-		const laneIndex = isParallelTwo ? idx : 0;
-		const slot = document.getElementById(`lane-pawns-${laneIndex}-${p.position}`);
+		const slot = document.getElementById(`lane-pawns-0-${p.position}`);
 		if (slot) {
 			const pawn = document.createElement('div');
-			pawn.className = `mini-pawn ${idx === activeHoppingIndex ? 'pawn-hopping' : ''}`;
+			pawn.className = `mini-pawn ${idx === activeHoppingIndex ? 'pawn-hopping pawn-hop-anim' : ''}`;
 			pawn.style.background = p.color;
-			pawn.title = p.name;
+			pawn.title = `${p.name} (Posición #${p.position})`;
 			pawn.innerHTML = p.avatar;
 			slot.appendChild(pawn);
 		}
@@ -2245,9 +2313,15 @@ function updatePawnsOnRoad(activeHoppingIndex = -1) {
  * Actualiza el HUD flotante minimalista de jugadores en la parte superior
  */
 function updateHUDAndHeaders() {
-	const container = document.getElementById('game-hud');
-	if (!container) return;
-	container.innerHTML = '';
+	const hudLeft = document.getElementById('game-hud-left');
+	const hudRight = document.getElementById('game-hud-right');
+	const legacyContainer = document.getElementById('game-hud');
+
+	if (hudLeft) hudLeft.innerHTML = '';
+	if (hudRight) hudRight.innerHTML = '';
+	if (legacyContainer) legacyContainer.innerHTML = '';
+
+	const isParallelTwo = gameState.players.length === 2;
 
 	gameState.players.forEach((p, idx) => {
 		const fin = getPlayerFinancials(p);
@@ -2267,17 +2341,32 @@ function updateHUDAndHeaders() {
 				<div class="player-hud-stats-row">
 					<span class="p-cash">${formatCOP(p.cash)}</span>
 					<span class="p-divider">•</span>
-					<span class="p-flow ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
+					<span class="p-flow ${fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : 'zero')}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
 				</div>
 			</div>
 		`;
 
 		pill.addEventListener('click', () => {
-			gameState.selectedDrawerPlayerIndex = idx;
-			openBalanceDrawer();
+			openBalanceDrawer(idx);
 		});
 
-		container.appendChild(pill);
+		// Si hay dos jugadores: jugador 1 a la izquierda de su camino, jugador 2 a la derecha de su camino
+		if (isParallelTwo) {
+			if (idx === 0) {
+				(hudLeft || legacyContainer)?.appendChild(pill);
+			} else {
+				(hudRight || legacyContainer)?.appendChild(pill);
+			}
+		} else if (gameState.players.length > 2) {
+			if (idx % 2 === 0) {
+				(hudLeft || legacyContainer)?.appendChild(pill);
+			} else {
+				(hudRight || legacyContainer)?.appendChild(pill);
+			}
+		} else {
+			// 1 solo jugador: a la izquierda de su camino
+			(hudLeft || legacyContainer)?.appendChild(pill);
+		}
 	});
 
 	// Actualizar pill flotante
@@ -2292,9 +2381,7 @@ function updateHUDAndHeaders() {
 
 	// Resaltar casilla activa
 	document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
-	const isParallelTwo = gameState.players.length === 2;
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
-	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
+	const activeTile = document.getElementById(`lane-tile-0-${current.position}`);
 	if (activeTile) activeTile.classList.add('active-step');
 
 	const btnRoll = document.getElementById('btn-roll-dice');
@@ -2316,33 +2403,130 @@ function updateHUDAndHeaders() {
 }
 
 /**
- * Centra la perspectiva hacia el horizonte.
- * Muestra el recuadro anterior (pos - 1), el actual (pos) y los siguientes 12 recuadros (pos + 1 a pos + 12).
- * Sincroniza tanto los caminos paralelos como la escenografía 3D lateral.
+ * Aplica la curvatura matemática tridimensional del planeta esférico visto desde un avión:
+ * Las casillas y la escenografía ruedan sobre el domo convexo del globo terrestre.
+ * - La casilla focal (posición actual) queda en la cúspide frontal, plana y 100% legible.
+ * - Hacia adelante, las casillas se curvan hacia abajo y hacia el fondo, hundiéndose suavemente en el horizonte.
+ * - Hacia atrás, las casillas ya recorridas se curvan descendiendo fuera de pantalla.
  */
-function centerPerspective(smooth = false) {
+function applySphericalPerspective(focalPosition = null, smooth = false, durationMs = 450) {
 	const current = gameState.players[gameState.currentPlayerIndex];
-	if (!current) return;
+	const pos = (typeof focalPosition === 'number') ? focalPosition : (current ? current.position : 0);
+	const effectivePos = pos + gameState.cameraViewOffset;
 
-	const effectivePos = current.position + gameState.cameraViewOffset;
-	// Posiciona la cámara en (pos - 0.95) para que la casilla anterior quede visible en la base de la pantalla
-	const cameraTileIndex = Math.max(0, effectivePos - 0.95);
-	const stepHeight = 129; // 115px altura de casilla + 14px de separación
-	const translateY = cameraTileIndex * stepHeight;
+	const transitionStyle = smooth ? `transform ${durationMs}ms cubic-bezier(0.25, 1, 0.5, 1), opacity ${durationMs}ms ease` : 'none';
 
-	const track0 = document.getElementById('road-lane-track-0');
-	const track1 = document.getElementById('road-lane-track-1');
-	const sceneryLeft = document.getElementById('scenery-lane-left');
-	const sceneryRight = document.getElementById('scenery-lane-right');
+	function getSphericalTransform(delta) {
+		// Visibilidad en el arco visible de la rueda planetaria: desde -2 (atrás) hasta +10 (horizonte frontal)
+		if (delta < -2.2 || delta > 10.2) {
+			return { visible: false };
+		}
 
-	const transitionStyle = smooth ? 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+		// Geometría cilíndrica pura continua (como una rueda de hámster vista desde arriba o el arco terrestre):
+		// Radio del cilindro rodante en px:
+		const R = 720;
+		// Longitud de arco de cada casilla = 130px.
+		// Ángulo por casilla: θ = arcLen / R (aprox. 0.1805 rad ≈ 10.34°)
+		const stepRad = 130 / R;
+		const theta = delta * stepRad; // ángulo con respecto a la cúspide (delta = 0)
 
-	[track0, track1, sceneryLeft, sceneryRight].forEach(el => {
-		if (el) {
-			el.style.transition = transitionStyle;
-			el.style.transform = `rotateX(44deg) translateY(${translateY}px)`;
+		// Coordenadas cilíndricas en el plano Y-Z:
+		// Cúspide (theta = 0): Y = 0, Z = 0, rotX = 0°.
+		// Hacia adelante (theta > 0):
+		//   Y va hacia el fondo/arriba: y = -R * sin(theta)
+		//   Z se hunde hacia la profundidad: z = -(R * (1 - cos(theta)))
+		//   rotX se inclina tangencialmente a la rueda: rotX = theta (en grados)
+		const sinT = Math.sin(theta);
+		const cosT = Math.cos(theta);
+
+		const y = -R * sinT;
+		const z = -R * (1 - cosT);
+		const rotXDeg = (theta * 180) / Math.PI;
+
+		// Suave desvanecimiento en el borde lejano del horizonte (más allá de 7 casillas)
+		let opacity = 1.0;
+		if (delta > 7) {
+			opacity = Math.max(0, 1.0 - (delta - 7) * 0.32);
+		} else if (delta < -1) {
+			opacity = Math.max(0, 1.0 - (-delta - 1) * 0.7);
+		}
+
+		// z-index: las casillas más cercanas a la cámara (menor delta positivo o 0) van arriba
+		const zIndex = 60 - Math.round(Math.abs(delta) * 3);
+
+		return {
+			visible: true,
+			transform: `translate3d(0, ${y.toFixed(2)}px, ${z.toFixed(2)}px) rotateX(${rotXDeg.toFixed(2)}deg)`,
+			opacity: opacity,
+			zIndex: zIndex
+		};
+	}
+
+	// 1. Aplicar a las casillas del camino central compartido
+	const totalTiles = gameState.generatedTiles.length;
+	const minIdx = Math.max(0, Math.floor(effectivePos - 3));
+	const maxIdx = Math.min(totalTiles - 1, Math.ceil(effectivePos + 13));
+
+	for (let i = 0; i < totalTiles; i++) {
+		const tileEl = document.getElementById(`lane-tile-0-${i}`);
+		if (!tileEl) continue;
+
+		if (i < minIdx || i > maxIdx) {
+			if (tileEl.style.display !== 'none') {
+				tileEl.style.display = 'none';
+			}
+			continue;
+		}
+
+		tileEl.style.display = '';
+		tileEl.style.transition = transitionStyle;
+		const geom = getSphericalTransform(i - effectivePos);
+		if (geom.visible) {
+			tileEl.style.transform = geom.transform;
+			tileEl.style.opacity = geom.opacity;
+			tileEl.style.zIndex = geom.zIndex;
+			tileEl.style.pointerEvents = (Math.abs(i - effectivePos) < 0.5) ? 'auto' : 'none';
+		} else {
+			tileEl.style.opacity = '0';
+			tileEl.style.pointerEvents = 'none';
+		}
+	}
+
+	// 2. Aplicar a la escenografía lateral (Praderas izquierda y Playa derecha)
+	['scenery-lane-left', 'scenery-lane-right'].forEach(laneId => {
+		const laneEl = document.getElementById(laneId);
+		if (!laneEl) return;
+		const items = laneEl.children;
+		const count = items.length;
+		for (let i = 0; i < count; i++) {
+			const item = items[i];
+			if (i < minIdx || i > maxIdx) {
+				if (item.style.display !== 'none') item.style.display = 'none';
+				continue;
+			}
+			item.style.display = '';
+			item.style.transition = transitionStyle;
+			const geom = getSphericalTransform(i - effectivePos);
+			if (geom.visible) {
+				item.style.transform = geom.transform;
+				item.style.opacity = geom.opacity;
+				item.style.zIndex = geom.zIndex;
+			} else {
+				item.style.opacity = '0';
+			}
 		}
 	});
+}
+
+/**
+ * Centra la perspectiva esférica del planeta rodante sobre la posición del jugador.
+ * La casilla actual queda en la cúspide focal frontal para máxima legibilidad.
+ */
+function centerPerspective(smooth = false, customDuration = null, targetPlayer = null) {
+	const current = targetPlayer || gameState.players[gameState.currentPlayerIndex];
+	if (!current) return;
+	const dur = customDuration || (smooth ? 440 : 0);
+	applySphericalPerspective(current.position, smooth, dur);
 }
 
 // ==========================================
@@ -2386,28 +2570,17 @@ function rollTwoDice() {
 			dice1?.classList.remove('aladdin-magic');
 			dice2?.classList.remove('aladdin-magic');
 
-			let d1, d2, totalSteps;
+			// Tiros estándar con 2 dados normales (cada dado estrictamente de 1 a 6)
+			const d1 = Math.floor(Math.random() * 6) + 1;
+			const d2 = Math.floor(Math.random() * 6) + 1;
+			const totalSteps = d1 + d2;
+
+			setDiceFace(1, d1);
+			setDiceFace(2, d2);
 
 			if (!player.hasJob) {
-				// Primer turno: conseguir empleo avanzando por el camino a las casillas 2 a 13 (posibilidad equitativa 1/12)
-				totalSteps = Math.floor(Math.random() * 12) + 2; // Rango exacto: 2 a 13
-				if (totalSteps <= 12) {
-					d1 = Math.min(6, Math.max(1, Math.floor(totalSteps / 2)));
-					d2 = totalSteps - d1;
-				} else {
-					d1 = 6;
-					d2 = 7;
-				}
-				setDiceFace(1, d1);
-				setDiceFace(2, d2);
 				pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Avanzando a la casilla #${totalSteps} para conseguir empleo...`;
 			} else {
-				// Tiros regulares con 2 dados estándar
-				d1 = Math.floor(Math.random() * 6) + 1;
-				d2 = Math.floor(Math.random() * 6) + 1;
-				totalSteps = d1 + d2;
-				setDiceFace(1, d1);
-				setDiceFace(2, d2);
 				pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Preparando avance...`;
 			}
 
@@ -2419,11 +2592,9 @@ function rollTwoDice() {
 	}, 75);
 }
 
-function stepForwardOnRoad(player, totalSteps) {
+function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 	let stepsRemaining = totalSteps;
 	const pill = document.getElementById('floating-status-pill');
-	const isParallelTwo = gameState.players.length === 2;
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 
 	const stepInterval = setInterval(() => {
 		player.position++;
@@ -2431,25 +2602,33 @@ function stepForwardOnRoad(player, totalSteps) {
 
 		sounds.step();
 
-		// Cargar más casillas si se acerca al final visible para mantener siempre 12+ hacia el horizonte
+		// El mundo rueda hacia adelante suavemente trayendo la casilla a primer plano
+		centerPerspective(true, 440);
+
+		// Cargar más casillas si se acerca al final visible
 		if (player.position >= gameState.generatedTiles.length - 18) {
 			extendPerspectiveRoad(25);
 		}
 
-		// La ficha salta hacia adelante sobre las casillas (las casillas permanecen quietas)
+		// La ficha salta sobre el camino compartido
 		updatePawnsOnRoad(gameState.currentPlayerIndex);
 
 		// Resaltar casilla activa
 		document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
-		const tileEl = document.getElementById(`lane-tile-${laneIndex}-${player.position}`);
+		const tileEl = document.getElementById(`lane-tile-0-${player.position}`);
 		if (tileEl) tileEl.classList.add('active-step');
 
 		const currentTileData = gameState.generatedTiles[player.position];
-		pill.textContent = `${player.name} avanzando hacia el frente... (${totalSteps - stepsRemaining}/${totalSteps})`;
+		pill.textContent = `${player.name} avanzando por el camino... (${originalTotal - stepsRemaining}/${originalTotal})`;
 
-		// Cobro al pasar por Día de Pago durante el camino
-		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0) {
-			collectPayday(player, false);
+		// Pausa y ceremonia al pasar por Día de Pago durante el camino
+		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0 && player.hasJob) {
+			clearInterval(stepInterval);
+			const remainingAfterPayday = stepsRemaining;
+			collectPayday(player, false, () => {
+				stepForwardOnRoad(player, remainingAfterPayday, originalTotal);
+			});
+			return;
 		}
 
 		if (stepsRemaining <= 0) {
@@ -2463,7 +2642,7 @@ function stepForwardOnRoad(player, totalSteps) {
 				handleLanding(player, currentTileData);
 			}, 1000);
 		}
-	}, 230);
+	}, 480);
 }
 
 // ==========================================
@@ -2475,23 +2654,25 @@ function savePlayerFinancialSnapshot(player, reason = 'Transacción') {
 	const fin = getPlayerFinancials(player);
 	player.previousSnapshot = {
 		reason,
+		hasJob: player.hasJob,
+		profession: player.profession,
 		time: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
 		cash: player.cash,
 		salary: player.salary,
 		passiveIncome: fin.passiveIncome,
 		fixedExpenses: player.fixedExpenses,
-		rentExpense: player.rentExpense || DEFAULT_FIXED_EXPENSES.rent,
-		groceriesExpense: player.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries,
-		utilitiesExpense: player.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities,
-		transportExpense: player.transportExpense || DEFAULT_FIXED_EXPENSES.transport,
-		internetExpense: player.internetExpense || DEFAULT_FIXED_EXPENSES.internet,
-		phoneExpense: player.phoneExpense || DEFAULT_FIXED_EXPENSES.phone,
-		otherExpenses: player.otherExpenses || DEFAULT_FIXED_EXPENSES.other,
+		rentExpense: player.hasJob ? (player.rentExpense || 0) : 0,
+		groceriesExpense: player.hasJob ? (player.groceriesExpense || 0) : 0,
+		utilitiesExpense: player.hasJob ? (player.utilitiesExpense || 0) : 0,
+		transportExpense: player.hasJob ? (player.transportExpense || 0) : 0,
+		internetExpense: player.hasJob ? (player.internetExpense || 0) : 0,
+		phoneExpense: player.hasJob ? (player.phoneExpense || 0) : 0,
+		otherExpenses: player.hasJob ? (player.otherExpenses || 0) : 0,
 		housingLevel: player.housingLevel || 0,
-		debtExpenses: player.debtExpenses,
+		debtExpenses: player.debtExpenses || 0,
 		totalExpenses: fin.totalExpenses,
 		monthlyCashFlow: fin.monthlyCashFlow,
-		totalDebt: player.totalDebt,
+		totalDebt: player.totalDebt || 0,
 		assetsCount: player.assets.length,
 		assets: player.assets.map(a => ({ title: a.title, cashFlow: a.cashFlow || 0 }))
 	};
@@ -2519,6 +2700,10 @@ function showModalContinueButton(onContinue) {
 	contBtn.style.boxShadow = '0 6px 20px rgba(22, 163, 74, 0.4)';
 	contBtn.innerHTML = '¡Balance Actualizado! Continuar Turno ➔';
 	contBtn.addEventListener('click', () => {
+		if (contBtn.disabled) return;
+		contBtn.disabled = true;
+		contBtn.style.pointerEvents = 'none';
+		contBtn.style.opacity = '0.75';
 		if (onContinue) onContinue();
 	});
 	footerEl.appendChild(contBtn);
@@ -2526,28 +2711,37 @@ function showModalContinueButton(onContinue) {
 
 function animateTransactionNumbersToBalance({
 	amount,
-	category = 'cash', // 'cash' | 'flow' | 'salary' | 'debt' | 'expense'
+	category = 'cash', // 'cash' | 'flow' | 'salary' | 'income' | 'debt' | 'expense' | 'asset'
 	sourceEl = null,
 	label = '',
+	customText = '',
 	onComplete = null
 }) {
-	if (amount === 0 || isNaN(amount)) {
+	if (amount === 0 && !customText) {
 		if (onComplete) onComplete();
 		return;
 	}
 
 	// Elemento destino en el widget de balance o en el HUD
 	let targetEl = null;
+	let targetQuadrant = null;
+
 	if (category === 'cash') {
 		targetEl = document.getElementById('side-bal-cash') || document.querySelector('.player-hud-pill.is-turn .p-cash');
 	} else if (category === 'flow') {
 		targetEl = document.getElementById('side-bal-flow') || document.querySelector('.player-hud-pill.is-turn .p-flow');
-	} else if (category === 'salary') {
-		targetEl = document.getElementById('side-bal-salary') || document.getElementById('side-bal-flow');
+	} else if (category === 'salary' || category === 'income') {
+		targetEl = document.getElementById('side-bal-salary') || document.getElementById('side-bal-total-income');
+		targetQuadrant = document.getElementById('k-quad-income');
 	} else if (category === 'debt') {
 		targetEl = document.getElementById('side-bal-total-debt') || document.getElementById('side-bal-cash');
+		targetQuadrant = document.getElementById('k-quad-liabilities');
 	} else if (category === 'expense') {
-		targetEl = document.getElementById('side-bal-rent-exp') || document.getElementById('side-bal-total-exp');
+		targetEl = document.getElementById('side-bal-total-exp') || document.getElementById('side-bal-rent-exp');
+		targetQuadrant = document.getElementById('k-quad-expenses');
+	} else if (category === 'asset') {
+		targetEl = document.getElementById('side-bal-assets-count') || document.getElementById('side-bal-assets-list');
+		targetQuadrant = document.getElementById('k-quad-assets');
 	}
 
 	// Posición de inicio (origen del número volador)
@@ -2579,6 +2773,12 @@ function animateTransactionNumbersToBalance({
 			endX = r.left + r.width / 2;
 			endY = r.top + r.height / 2;
 		}
+	} else if (targetQuadrant && targetQuadrant.getBoundingClientRect) {
+		const r = targetQuadrant.getBoundingClientRect();
+		if (r.width > 0 && r.height > 0) {
+			endX = r.left + r.width / 2;
+			endY = r.top + r.height / 2;
+		}
 	}
 
 	// Crear el chip con los números que volarán al balance
@@ -2589,18 +2789,24 @@ function animateTransactionNumbersToBalance({
 	const formattedVal = formatCOP(Math.abs(amount));
 	const sign = isPositive ? '+' : '-';
 
-	if (category === 'flow') {
+	if (customText) {
+		chip.classList.add(isPositive ? 'flying-chip-gain' : 'flying-chip-loss');
+		chip.innerHTML = customText;
+	} else if (category === 'flow') {
 		chip.classList.add(isPositive ? 'flying-chip-gain' : 'flying-chip-loss');
 		chip.innerHTML = `${sign}${formattedVal}/m 📈`;
-	} else if (category === 'salary') {
+	} else if (category === 'salary' || category === 'income') {
 		chip.classList.add('flying-chip-gain');
 		chip.innerHTML = `+${formattedVal}/m 💼`;
 	} else if (category === 'debt') {
 		chip.classList.add(isPositive ? 'flying-chip-loss' : 'flying-chip-gain');
 		chip.innerHTML = `${sign}${formattedVal} 💳`;
 	} else if (category === 'expense') {
-		chip.classList.add(isPositive ? 'flying-chip-loss' : 'flying-chip-gain');
-		chip.innerHTML = `${isPositive ? '+' : '-'}${formattedVal}/m 🏡`;
+		chip.classList.add('flying-chip-loss');
+		chip.innerHTML = `-${formattedVal}/m 💸`;
+	} else if (category === 'asset') {
+		chip.classList.add('flying-chip-gain');
+		chip.innerHTML = `+${label || 'Negocio'} 🏢`;
 	} else {
 		chip.classList.add(isPositive ? 'flying-chip-gain' : 'flying-chip-loss');
 		chip.innerHTML = `${sign}${formattedVal} ${isPositive ? '💵' : '💸'}`;
@@ -2610,47 +2816,60 @@ function animateTransactionNumbersToBalance({
 	chip.style.top = `${startY}px`;
 	chip.style.transform = 'translate(-50%, -50%) scale(0.65)';
 	chip.style.opacity = '0';
-	chip.style.transition = 'all 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+	chip.style.transition = 'all 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
 
 	document.body.appendChild(chip);
 
-	// Sonido inicial
-	if (isPositive) sounds.cash();
-	else sounds.loss();
+	// Sonido inicial suave al despegar
+	sounds.chipLaunch();
 
 	// Fase 1: Crecer y aparecer en la tarjeta de donde sale
 	requestAnimationFrame(() => {
 		chip.style.opacity = '1';
 		chip.style.transform = 'translate(-50%, -50%) scale(1.15)';
 
-		// Fase 2: Viajar pausadamente hacia el balance (1 segundo más de duración: 1550ms)
+		// Fase 2: Viajar pausadamente hacia el balance (1100ms)
 		setTimeout(() => {
-			const flyDuration = 1550;
+			const flyDuration = 1100;
 			chip.style.transition = `left ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), top ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${flyDuration}ms ease`;
 			chip.style.left = `${endX}px`;
 			chip.style.top = `${endY}px`;
-			chip.style.transform = 'translate(-50%, -50%) scale(0.85)';
-			chip.style.opacity = '0.95';
+			chip.style.transform = 'translate(-50%, -50%) scale(0.88)';
+			chip.style.opacity = '0.96';
 
 			// Fase 3: Impacto en el balance lateral
 			setTimeout(() => {
-				chip.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+				chip.style.transition = 'transform 0.16s ease, opacity 0.16s ease';
 				chip.style.transform = 'translate(-50%, -50%) scale(1.35)';
 				chip.style.opacity = '0';
 
-				// Destello y pulso en el elemento destino
-				if (targetEl) {
-					const flashClass = isPositive ? 'balance-updated-flash-green' : 'balance-updated-flash-red';
-					targetEl.classList.remove('balance-updated-flash-green', 'balance-updated-flash-red');
-					void targetEl.offsetWidth;
-					targetEl.classList.add(flashClass);
+				// Destello y pulso en el elemento destino y su cuadrante
+				const isGreenFlash = category === 'expense' ? false : (category === 'debt' ? !isPositive : isPositive);
+				const flashClass = isGreenFlash ? 'balance-updated-flash-green' : 'balance-updated-flash-red';
+				const quadFlashClass = isGreenFlash ? 'quadrant-updated-flash-green' : 'quadrant-updated-flash-red';
+
+				const elementsToFlash = targetEl ? [targetEl] : [];
+				if (category === 'salary') {
+					const jobEl = document.getElementById('side-bal-job');
+					if (jobEl) elementsToFlash.push(jobEl);
+				}
+				elementsToFlash.forEach(el => {
+					el.classList.remove('balance-updated-flash-green', 'balance-updated-flash-red');
+					void el.offsetWidth;
+					el.classList.add(flashClass);
+				});
+
+				if (targetQuadrant) {
+					targetQuadrant.classList.remove('quadrant-updated-flash-green', 'quadrant-updated-flash-red');
+					void targetQuadrant.offsetWidth;
+					targetQuadrant.classList.add(quadFlashClass);
 				}
 
 				// Sonido de confirmación al impactar
-				if (isPositive) sounds.cash();
+				if (isGreenFlash) sounds.cash();
 				else sounds.loss();
 
-				// Actualizar de inmediato las cifras del balance
+				// Actualizar cifras en balance y HUD
 				renderModalSideBalance();
 				updateHUDAndHeaders();
 
@@ -2659,8 +2878,197 @@ function animateTransactionNumbersToBalance({
 					if (onComplete) onComplete();
 				}, 150);
 			}, flyDuration);
-		}, 180);
+		}, 160);
 	});
+}
+
+// ==========================================
+// CONTROLADOR DE ANIMACIÓN DE FLUJO ESTILO TRAGAMONEDAS
+// ==========================================
+
+let slotMachineTimer = null;
+let isSlotMachineSpinning = false;
+
+/**
+ * Inicia el giro rápido de números estilo tragamonedas en el recuadro de Flujo del balance.
+ * Se ejecuta continuamente mientras ocurren las operaciones y actualizaciones financieras.
+ */
+function startCashflowSlotMachine() {
+	const flowEl = document.getElementById('side-bal-flow');
+	if (!flowEl) return;
+
+	if (isSlotMachineSpinning && slotMachineTimer) return;
+	isSlotMachineSpinning = true;
+
+	flowEl.classList.remove('flow-slot-machine-locked');
+	flowEl.classList.add('flow-slot-machine-spinning');
+
+	// Generar números aleatorios oscilantes con clic auditivo suave
+	let tickCounter = 0;
+	slotMachineTimer = setInterval(() => {
+		if (!isSlotMachineSpinning) return;
+		const randVal = Math.floor(Math.random() * 9500000) - 1000000;
+		const roundedVal = Math.round(randVal / 50000) * 50000;
+		flowEl.textContent = `${roundedVal >= 0 ? '+' : ''}${formatCOP(roundedVal)}/m`;
+
+		// Colores dinámicos mientras gira
+		if (roundedVal > 0) {
+			flowEl.className = 'val flow green flow-slot-machine-spinning';
+		} else if (roundedVal < 0) {
+			flowEl.className = 'val flow red flow-slot-machine-spinning';
+		} else {
+			flowEl.className = 'val flow zero flow-slot-machine-spinning';
+		}
+
+		tickCounter++;
+		if (tickCounter % 2 === 0) {
+			sounds.playSlotTick();
+		}
+	}, 70);
+}
+
+/**
+ * Detiene el tragamonedas frenando suavemente (desaceleración progresiva)
+ * hasta clavar con precisión el valor neto de flujo resultante final.
+ */
+function stopAndSettleCashflowSlotMachine(targetFlow, onSettled = null) {
+	const flowEl = document.getElementById('side-bal-flow');
+	if (!flowEl) {
+		if (onSettled) onSettled();
+		return;
+	}
+
+	if (!isSlotMachineSpinning) {
+		// Si no estaba girando, simplemente actualizar valor directamente
+		let flowClass = 'zero';
+		if (targetFlow > 0) flowClass = 'green';
+		else if (targetFlow < 0) flowClass = 'red';
+		flowEl.textContent = `${targetFlow >= 0 ? '+' : ''}${formatCOP(targetFlow)}/m`;
+		flowEl.className = `val flow ${flowClass}`;
+		if (onSettled) onSettled();
+		return;
+	}
+
+	isSlotMachineSpinning = false;
+	if (slotMachineTimer) {
+		clearInterval(slotMachineTimer);
+		slotMachineTimer = null;
+	}
+
+	// Secuencia de frenado suave progresivo (3 pasos de desaceleración gradual y cierre)
+	const brakeSteps = [
+		{ delay: 110, offset: targetFlow + 450000 },
+		{ delay: 240, offset: targetFlow - 150000 },
+		{ delay: 420, offset: targetFlow + 50000 },
+		{ delay: 650, offset: targetFlow }
+	];
+
+	brakeSteps.forEach((step, idx) => {
+		setTimeout(() => {
+			sounds.playSlotTick();
+			const val = step.offset;
+			let stepClass = 'zero';
+			if (val > 0) stepClass = 'green';
+			else if (val < 0) stepClass = 'red';
+
+			flowEl.textContent = `${val >= 0 ? '+' : ''}${formatCOP(val)}/m`;
+			flowEl.className = `val flow ${stepClass} flow-slot-machine-spinning`;
+
+			// En el último paso (frenado final):
+			if (idx === brakeSteps.length - 1) {
+				flowEl.classList.remove('flow-slot-machine-spinning');
+				flowEl.classList.add('flow-slot-machine-locked');
+
+				let finalClass = 'zero';
+				if (targetFlow > 0) finalClass = 'green';
+				else if (targetFlow < 0) finalClass = 'red';
+				flowEl.className = `val flow ${finalClass} flow-slot-machine-locked`;
+				flowEl.textContent = `${targetFlow >= 0 ? '+' : ''}${formatCOP(targetFlow)}/m`;
+
+				// Sonido dulce de confirmación al asentarse el flujo
+				if (targetFlow > 0) sounds.cash();
+				else sounds.tap();
+
+				setTimeout(() => {
+					flowEl.classList.remove('flow-slot-machine-locked');
+					if (onSettled) onSettled();
+				}, 550);
+			}
+		}, step.delay);
+	});
+}
+
+/**
+ * Ejecuta una cadena secuencial de animaciones de números voladores hacia el balance
+ * para los cuadrantes modificados (Ingresos, Gastos, Activos, Deuda, Efectivo).
+ * Mientras ocurren las actualizaciones, el flujo gira en tragamonedas continuo y frena suave al final.
+ */
+function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
+	if (!steps || steps.length === 0) {
+		if (onAllComplete) onAllComplete();
+		return;
+	}
+
+	// El flujo mensual ya se actualiza automáticamente en el balance, no es necesario arrastrarlo
+	const validSteps = steps.filter(s => s && s.category !== 'flow');
+	if (validSteps.length === 0) {
+		renderModalSideBalance();
+		updateHUDAndHeaders();
+		if (onAllComplete) onAllComplete();
+		return;
+	}
+
+	// Iniciar giro del flujo estilo tragamonedas
+	startCashflowSlotMachine();
+
+	let currentIndex = 0;
+
+	function runNextStep() {
+		if (currentIndex >= validSteps.length) {
+			// Todas las operaciones terminaron: frenar suave en el flujo final
+			const player = gameState.players[gameState.currentPlayerIndex];
+			const finalFin = player ? getPlayerFinancials(player) : { monthlyCashFlow: 0 };
+			
+			renderModalSideBalance();
+			updateHUDAndHeaders();
+
+			stopAndSettleCashflowSlotMachine(finalFin.monthlyCashFlow, () => {
+				renderModalSideBalance();
+				updateHUDAndHeaders();
+				if (onAllComplete) onAllComplete();
+			});
+			return;
+		}
+
+		const step = validSteps[currentIndex];
+		currentIndex++;
+
+		// Si el paso incluye una acción de mutación previa en el jugador antes de animar:
+		if (step.actionBefore) {
+			step.actionBefore();
+			renderModalSideBalance();
+			updateHUDAndHeaders();
+		}
+
+		animateTransactionNumbersToBalance({
+			amount: step.amount,
+			category: step.category,
+			sourceEl: step.sourceEl,
+			label: step.label,
+			customText: step.customText,
+			onComplete: () => {
+				if (step.actionAfter) {
+					step.actionAfter();
+				}
+				renderModalSideBalance();
+				updateHUDAndHeaders();
+				// Pausa didáctica de 400ms antes del siguiente paso
+				setTimeout(runNextStep, 400);
+			}
+		});
+	}
+
+	runNextStep();
 }
 
 /**
@@ -2668,8 +3076,10 @@ function animateTransactionNumbersToBalance({
  * mientras el usuario mantiene presionado el botón.
  */
 function showPreviousBalanceState(player) {
+	if (!player) player = gameState.players[gameState.currentPlayerIndex];
 	if (!player || !player.previousSnapshot) return;
 	const prev = player.previousSnapshot;
+	const fin = getPlayerFinancials(player);
 
 	const sideBalanceEl = document.getElementById('modal-side-balance');
 	if (sideBalanceEl) sideBalanceEl.classList.add('viewing-past-state');
@@ -2677,36 +3087,54 @@ function showPreviousBalanceState(player) {
 	const historyBtn = document.getElementById('btn-side-bal-history');
 	if (historyBtn) {
 		historyBtn.classList.add('active');
-		historyBtn.innerHTML = '⏪ Viendo ANTES (suelta para volver)';
+		// El nombre del botón se mantiene intacto sin cambiar
+	}
+
+	// Profesión / Cargo en el encabezado
+	const jobEl = document.getElementById('side-bal-job');
+	if (jobEl) {
+		const prevJob = prev.hasJob ? (prev.profession || 'Profesión') : 'Buscando empleo 🔍';
+		jobEl.textContent = prevJob;
+		const jobChanged = player.profession !== prev.profession || player.hasJob !== prev.hasJob;
+		jobEl.classList.toggle('past-val-highlight', jobChanged);
 	}
 
 	// Efectivo y Flujo
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
 	if (cashEl) {
-		cashEl.textContent = `${formatCOP(prev.cash)} COP`;
-		cashEl.className = `val cash ${prev.cash < 0 ? 'red' : ''} past-val-highlight`;
+		cashEl.textContent = `${formatCOP(prev.cash)}`;
+		const cashChanged = player.cash !== prev.cash;
+		cashEl.className = `val cash ${prev.cash < 0 ? 'red' : ''} ${cashChanged ? 'past-val-highlight' : ''}`;
 	}
 	if (flowEl) {
 		flowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}/m`;
-		flowEl.className = `val flow ${prev.monthlyCashFlow < 0 ? 'red' : ''} past-val-highlight`;
+		const flowChanged = fin.monthlyCashFlow !== prev.monthlyCashFlow;
+		let prevFlowClass = 'zero';
+		if (prev.monthlyCashFlow > 0) prevFlowClass = 'green';
+		else if (prev.monthlyCashFlow < 0) prevFlowClass = 'red';
+		flowEl.className = `val flow ${prevFlowClass} ${flowChanged ? 'past-val-highlight' : ''}`;
 	}
 
 	// 1. Ingresos
 	const salaryEl = document.getElementById('side-bal-salary');
 	const passiveEl = document.getElementById('side-bal-passive');
 	const totalIncomeEl = document.getElementById('side-bal-total-income');
+	const prevSalary = prev.salary || 0;
+	const prevPassive = prev.passiveIncome || 0;
+	const prevTotalIncome = prevSalary + prevPassive;
+
 	if (salaryEl) {
-		salaryEl.textContent = formatCOP(prev.salary);
-		salaryEl.classList.add('past-val-highlight');
+		salaryEl.textContent = formatCOP(prevSalary);
+		salaryEl.classList.toggle('past-val-highlight', player.salary !== prevSalary);
 	}
 	if (passiveEl) {
-		passiveEl.textContent = `+${formatCOP(prev.passiveIncome)}`;
-		passiveEl.classList.add('past-val-highlight');
+		passiveEl.textContent = `+${formatCOP(prevPassive)}`;
+		passiveEl.classList.toggle('past-val-highlight', fin.passiveIncome !== prevPassive);
 	}
 	if (totalIncomeEl) {
-		totalIncomeEl.textContent = formatCOP((prev.salary || 0) + (prev.passiveIncome || 0));
-		totalIncomeEl.classList.add('past-val-highlight');
+		totalIncomeEl.textContent = formatCOP(prevTotalIncome);
+		totalIncomeEl.classList.toggle('past-val-highlight', fin.totalIncome !== prevTotalIncome);
 	}
 
 	// 2. Salidas / Gastos
@@ -2720,67 +3148,82 @@ function showPreviousBalanceState(player) {
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
 
-	const prevRent = prev.rentExpense || DEFAULT_FIXED_EXPENSES.rent;
-	const prevGroceries = prev.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries;
-	const prevUtilities = prev.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities;
-	const prevTransport = prev.transportExpense || DEFAULT_FIXED_EXPENSES.transport;
-	const prevInternet = prev.internetExpense || DEFAULT_FIXED_EXPENSES.internet;
-	const prevPhone = prev.phoneExpense || DEFAULT_FIXED_EXPENSES.phone;
-	const prevOther = prev.otherExpenses || DEFAULT_FIXED_EXPENSES.other;
+	const currRent = player.hasJob ? (player.rentExpense || 0) : 0;
+	const currGroceries = player.hasJob ? (player.groceriesExpense || 0) : 0;
+	const currUtilities = player.hasJob ? (player.utilitiesExpense || 0) : 0;
+	const currTransport = player.hasJob ? (player.transportExpense || 0) : 0;
+	const currInternet = player.hasJob ? (player.internetExpense || 0) : 0;
+	const currPhone = player.hasJob ? (player.phoneExpense || 0) : 0;
+	const currOther = player.hasJob ? (player.otherExpenses || 0) : 0;
+	const currDebt = player.debtExpenses || 0;
+	const currTotalExp = fin.totalExpenses;
+
+	const prevRent = prev.rentExpense || 0;
+	const prevGroceries = prev.groceriesExpense || 0;
+	const prevUtilities = prev.utilitiesExpense || 0;
+	const prevTransport = prev.transportExpense || 0;
+	const prevInternet = prev.internetExpense || 0;
+	const prevPhone = prev.phoneExpense || 0;
+	const prevOther = prev.otherExpenses || 0;
 	const prevDebt = prev.debtExpenses || 0;
-	const prevTotalExp = prev.totalExpenses || (prevRent + prevGroceries + prevUtilities + prevTransport + prevInternet + prevPhone + prevOther + prevDebt);
+	const prevTotalExp = prev.totalExpenses !== undefined ? prev.totalExpenses : (prevRent + prevGroceries + prevUtilities + prevTransport + prevInternet + prevPhone + prevOther + prevDebt);
 
 	if (rentExpEl) {
-		rentExpEl.textContent = `-${formatCOP(prevRent)}`;
-		rentExpEl.classList.add('past-val-highlight');
+		rentExpEl.textContent = prevRent > 0 ? `-${formatCOP(prevRent)}` : '$0';
+		rentExpEl.classList.toggle('past-val-highlight', currRent !== prevRent);
 	}
 	if (groceriesExpEl) {
-		groceriesExpEl.textContent = `-${formatCOP(prevGroceries)}`;
-		groceriesExpEl.classList.add('past-val-highlight');
+		groceriesExpEl.textContent = prevGroceries > 0 ? `-${formatCOP(prevGroceries)}` : '$0';
+		groceriesExpEl.classList.toggle('past-val-highlight', currGroceries !== prevGroceries);
 	}
 	if (utilitiesExpEl) {
-		utilitiesExpEl.textContent = `-${formatCOP(prevUtilities)}`;
-		utilitiesExpEl.classList.add('past-val-highlight');
+		utilitiesExpEl.textContent = prevUtilities > 0 ? `-${formatCOP(prevUtilities)}` : '$0';
+		utilitiesExpEl.classList.toggle('past-val-highlight', currUtilities !== prevUtilities);
 	}
 	if (transportExpEl) {
-		transportExpEl.textContent = `-${formatCOP(prevTransport)}`;
-		transportExpEl.classList.add('past-val-highlight');
+		transportExpEl.textContent = prevTransport > 0 ? `-${formatCOP(prevTransport)}` : '$0';
+		transportExpEl.classList.toggle('past-val-highlight', currTransport !== prevTransport);
 	}
 	if (internetExpEl) {
-		internetExpEl.textContent = `-${formatCOP(prevInternet)}`;
-		internetExpEl.classList.add('past-val-highlight');
+		internetExpEl.textContent = prevInternet > 0 ? `-${formatCOP(prevInternet)}` : '$0';
+		internetExpEl.classList.toggle('past-val-highlight', currInternet !== prevInternet);
 	}
 	if (phoneExpEl) {
-		phoneExpEl.textContent = `-${formatCOP(prevPhone)}`;
-		phoneExpEl.classList.add('past-val-highlight');
+		phoneExpEl.textContent = prevPhone > 0 ? `-${formatCOP(prevPhone)}` : '$0';
+		phoneExpEl.classList.toggle('past-val-highlight', currPhone !== prevPhone);
 	}
 	if (otherExpEl) {
-		otherExpEl.textContent = `-${formatCOP(prevOther)}`;
-		otherExpEl.classList.add('past-val-highlight');
+		otherExpEl.textContent = prevOther > 0 ? `-${formatCOP(prevOther)}` : '$0';
+		otherExpEl.classList.toggle('past-val-highlight', currOther !== prevOther);
 	}
 	if (debtExpEl) {
 		debtExpEl.textContent = prevDebt > 0 ? `-${formatCOP(prevDebt)}` : '$0';
-		debtExpEl.classList.add('past-val-highlight');
+		debtExpEl.classList.toggle('past-val-highlight', currDebt !== prevDebt);
 	}
 	if (totalExpEl) {
-		totalExpEl.textContent = `-${formatCOP(prevTotalExp)}`;
-		totalExpEl.classList.add('past-val-highlight');
+		totalExpEl.textContent = prevTotalExp > 0 ? `-${formatCOP(prevTotalExp)}` : '$0';
+		totalExpEl.classList.toggle('past-val-highlight', currTotalExp !== prevTotalExp);
 	}
 
 	// 3. Activos
 	const assetsCountEl = document.getElementById('side-bal-assets-count');
 	const assetsListEl = document.getElementById('side-bal-assets-list');
-	if (assetsCountEl) assetsCountEl.textContent = `${prev.assetsCount || 0} negocios (Antes)`;
+	const prevCount = prev.assetsCount !== undefined ? prev.assetsCount : (prev.assets ? prev.assets.length : 0);
+	const currCount = player.assets.length;
+	if (assetsCountEl) {
+		assetsCountEl.textContent = prevCount === 1 ? '1 negocio' : `${prevCount} negocios`;
+		assetsCountEl.classList.toggle('past-val-highlight', currCount !== prevCount);
+	}
 	if (assetsListEl && prev.assets) {
 		if (prev.assets.length > 0) {
 			assetsListEl.innerHTML = prev.assets.map(a => `
-				<div class="k-item past-val-highlight">
+				<div class="k-item">
 					<span class="lbl" title="${a.title}">${a.title}</span>
 					<span class="val green">+${formatCOP(a.cashFlow || 0)}/m</span>
 				</div>
 			`).join('');
 		} else {
-			assetsListEl.innerHTML = `<span class="k-empty">Sin negocios antes</span>`;
+			assetsListEl.innerHTML = `<span class="k-empty">Sin negocios aún</span>`;
 		}
 	}
 
@@ -2788,9 +3231,20 @@ function showPreviousBalanceState(player) {
 	const totalDebtEl = document.getElementById('side-bal-total-debt');
 	const debtValEl = document.getElementById('side-bal-debt-val');
 	const debtPayEl = document.getElementById('side-bal-debt-payment');
-	if (totalDebtEl) totalDebtEl.textContent = prev.totalDebt > 0 ? `${formatCOP(prev.totalDebt)}` : '$0';
-	if (debtValEl) debtValEl.textContent = prev.totalDebt > 0 ? `${formatCOP(prev.totalDebt)}` : '$0';
-	if (debtPayEl) debtPayEl.textContent = prev.debtExpenses > 0 ? `-${formatCOP(prev.debtExpenses)}/m` : '$0/m';
+	const currTotalDebt = player.totalDebt || 0;
+	const prevTotalDebt = prev.totalDebt || 0;
+	if (totalDebtEl) {
+		totalDebtEl.textContent = prevTotalDebt > 0 ? `${formatCOP(prevTotalDebt)}` : '$0';
+		totalDebtEl.classList.toggle('past-val-highlight', currTotalDebt !== prevTotalDebt);
+	}
+	if (debtValEl) {
+		debtValEl.textContent = prevTotalDebt > 0 ? `${formatCOP(prevTotalDebt)}` : '$0';
+		debtValEl.classList.toggle('past-val-highlight', currTotalDebt !== prevTotalDebt);
+	}
+	if (debtPayEl) {
+		debtPayEl.textContent = prevDebt > 0 ? `-${formatCOP(prevDebt)}/m` : '$0/m';
+		debtPayEl.classList.toggle('past-val-highlight', currDebt !== prevDebt);
+	}
 }
 
 /**
@@ -2803,7 +3257,7 @@ function restoreCurrentBalanceState() {
 	const historyBtn = document.getElementById('btn-side-bal-history');
 	if (historyBtn) {
 		historyBtn.classList.remove('active');
-		historyBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+		historyBtn.textContent = '¿Cómo era antes?';
 	}
 
 	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
@@ -2812,66 +3266,74 @@ function restoreCurrentBalanceState() {
 }
 
 /**
- * Conecta los eventos de "mantener presionado" y "soltar" de forma robusta
+ * Conecta los eventos de "mantener presionado" y "toque/click" de forma robusta
  * para dispositivos móviles (touch) y desktop (mouse / pointer).
+ * Permite tanto mantener presionado para comparar como dar click/tap para alternar la vista.
  */
 function attachHoldToPeekEvents(buttonEl, onHold, onRelease) {
 	if (!buttonEl) return;
 
-	let isHolding = false;
+	buttonEl.style.userSelect = 'none';
+	buttonEl.style.webkitUserSelect = 'none';
+	buttonEl.style.webkitTouchCallout = 'none';
+	buttonEl.style.touchAction = 'none';
+	buttonEl.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
 
-	const startHold = (e) => {
-		if (e && e.button !== undefined && e.button !== 0) return; // solo click principal izquierdo
-		if (!isHolding) {
-			isHolding = true;
+	let pressStartTime = 0;
+	let isCurrentlyPeeking = false;
+	let wasToggledByClick = false;
+
+	const doShow = () => {
+		if (!isCurrentlyPeeking) {
+			isCurrentlyPeeking = true;
 			onHold();
 		}
 	};
 
-	const endHold = () => {
-		if (isHolding) {
-			isHolding = false;
+	const doHide = () => {
+		if (isCurrentlyPeeking) {
+			isCurrentlyPeeking = false;
+			wasToggledByClick = false;
 			onRelease();
 		}
 	};
 
-	// Evitar menú contextual, selección y llamadas en móviles
-	buttonEl.style.userSelect = 'none';
-	buttonEl.style.webkitUserSelect = 'none';
-	buttonEl.style.webkitTouchCallout = 'none';
-	buttonEl.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
-
-	// Pointer Events modernos con captura de puntero
 	buttonEl.onpointerdown = (e) => {
 		if (e && e.button !== undefined && e.button !== 0) return;
 		try { buttonEl.setPointerCapture(e.pointerId); } catch (_) {}
-		startHold(e);
+		pressStartTime = Date.now();
+
+		if (wasToggledByClick) {
+			// Si ya estaba activo por un click previo, este nuevo toque lo apaga
+			doHide();
+			return;
+		}
+
+		doShow();
 	};
+
 	buttonEl.onpointerup = (e) => {
 		try { buttonEl.releasePointerCapture(e.pointerId); } catch (_) {}
-		endHold();
+		const duration = Date.now() - pressStartTime;
+
+		if (duration < 250) {
+			// Fue un tap/click rápido: mantenerlo activo para inspeccionar con calma
+			wasToggledByClick = true;
+		} else {
+			// Fue mantener presionado prolongado: al soltar, restaurar de inmediato
+			doHide();
+		}
 	};
-	buttonEl.onpointercancel = endHold;
+
+	buttonEl.onpointercancel = () => {
+		if (!wasToggledByClick) doHide();
+	};
+
 	buttonEl.onpointerleave = (e) => {
-		if (e.pointerType === 'mouse') endHold();
+		if (e.pointerType === 'mouse' && !wasToggledByClick) {
+			doHide();
+		}
 	};
-
-	// Touch Events de respaldo
-	buttonEl.ontouchstart = (e) => {
-		startHold(e);
-	};
-	buttonEl.ontouchend = endHold;
-	buttonEl.ontouchcancel = endHold;
-
-	// Mouse Events de respaldo
-	buttonEl.onmousedown = startHold;
-	buttonEl.onmouseup = endHold;
-	buttonEl.onmouseleave = endHold;
-
-	// Respaldo global por si se suelta fuera del botón
-	window.addEventListener('mouseup', () => {
-		if (isHolding) endHold();
-	}, { passive: true });
 }
 
 // ==========================================
@@ -2887,55 +3349,83 @@ function handleLanding(player, tile) {
 		const job = tile.starterJob || STARTER_JOBS[tile.globalIndex - 2];
 
 		if (!player.hasJob) {
-			player.hasJob = true;
-			player.profession = job.title;
-			player.salary = job.salary;
-			player.housingLevel = player.housingLevel || 0;
-			player.rentExpense = HOUSING_LEVELS[player.housingLevel]?.rent || DEFAULT_FIXED_EXPENSES.rent;
-			player.groceriesExpense = DEFAULT_FIXED_EXPENSES.groceries;
-			player.utilitiesExpense = DEFAULT_FIXED_EXPENSES.utilities;
-			player.transportExpense = DEFAULT_FIXED_EXPENSES.transport;
-			player.internetExpense = DEFAULT_FIXED_EXPENSES.internet;
-			player.phoneExpense = DEFAULT_FIXED_EXPENSES.phone;
-			player.otherExpenses = DEFAULT_FIXED_EXPENSES.other;
-			player.fixedExpenses = player.rentExpense + player.groceriesExpense + player.utilitiesExpense + player.transportExpense + player.internetExpense + player.phoneExpense + player.otherExpenses;
-			player.salariesCollected = 0;
-			player.jobTier = 1;
+			// Gastos iniciales calibrados aleatoriamente entre el 90% y el 98% del salario
+			const expensePct = player.initialExpensePct || (Math.floor(Math.random() * 9) + 90);
+			const targetTotalExpenses = Math.round((job.salary * (expensePct / 100)) / 1000) * 1000;
+			const scale = targetTotalExpenses / 1500000;
+
+			const rentExpense = Math.round((DEFAULT_FIXED_EXPENSES.rent * scale) / 1000) * 1000;
+			const groceriesExpense = Math.round((DEFAULT_FIXED_EXPENSES.groceries * scale) / 1000) * 1000;
+			const utilitiesExpense = Math.round((DEFAULT_FIXED_EXPENSES.utilities * scale) / 1000) * 1000;
+			const transportExpense = Math.round((DEFAULT_FIXED_EXPENSES.transport * scale) / 1000) * 1000;
+			const internetExpense = Math.round((DEFAULT_FIXED_EXPENSES.internet * scale) / 1000) * 1000;
+			const phoneExpense = Math.round((DEFAULT_FIXED_EXPENSES.phone * scale) / 1000) * 1000;
+			const otherExpenses = targetTotalExpenses - (rentExpense + groceriesExpense + utilitiesExpense + transportExpense + internetExpense + phoneExpense);
 
 			sounds.genieMagic();
-			updateHUDAndHeaders();
 
-			const netFlow = player.salary - player.fixedExpenses;
+			const netFlow = job.salary - targetTotalExpenses;
 			showModal({
 				typeName: '🎉 ¡CONTRATADO EN TU PRIMER EMPLEO!',
 				headerClass: 'job',
 				icon: job.icon,
+				image: job.image,
 				title: `¡Eres ${job.title}!`,
-				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te llevaron a la casilla <strong>#${tile.globalIndex}</strong> y has conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)} COP</strong>. Recuerda que no se cobra de inmediato: se cobrará periódicamente cada 3 minutos cuando cruces o caigas en las casillas de Día de Pago.</em>`,
+				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te han conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)}</strong>. Recuerda que no se cobra de inmediato: se cobrará en cada Día de Pago.</em>`,
 				stats: [
-					{ label: 'Empleo obtenido:', value: job.title },
-					{ label: 'Casilla alcanzada:', value: `#${tile.globalIndex}` },
-					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' },
-					{ label: 'Gastos fijos base:', value: `-${formatCOP(player.fixedExpenses)} COP / mes`, color: 'red' },
-					{ label: 'Plata libre al mes:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} COP / mes`, color: netFlow >= 0 ? 'green' : 'red' }
+					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} / mes`, color: 'green' },
+					{ label: 'Gastos mensuales:', value: `-${formatCOP(targetTotalExpenses)} / mes`, color: 'red' },
+					{ label: 'Flujo de efectivo:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} / mes`, color: netFlow >= 0 ? 'green' : 'red' }
 				],
 				buttons: [
 					{
 						text: '¡Comenzar mi Carrera! 🚀',
 						class: 'primary',
 						action: () => {
+							// Guardar estado previo (sin empleo) antes de aplicar
 							savePlayerFinancialSnapshot(player, `Primer Empleo: ${job.title}`);
+
 							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: job.salary,
-								category: 'salary',
-								sourceEl: btnEl,
-								label: job.title,
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal(() => endTurn());
-									});
+							// Animación didáctica secuencial cuadrante por cuadrante:
+							// 1. Ingresos (Sueldo) ➔ 2. Gastos Mensuales ➔ 3. Flujo de Efectivo
+							animateSequentialFinancialUpdate([
+								{
+									amount: job.salary,
+									category: 'salary',
+									sourceEl: btnEl,
+									label: job.title,
+									actionBefore: () => {
+										// Aplicar empleo y salario
+										player.hasJob = true;
+										player.profession = job.title;
+										player.salary = job.salary;
+										player.housingLevel = player.housingLevel || 0;
+										player.initialExpensePct = expensePct;
+										player.salariesCollected = 0;
+										player.jobTier = 1;
+									}
+								},
+								{
+									amount: -targetTotalExpenses,
+									category: 'expense',
+									sourceEl: btnEl,
+									label: 'Gastos Mensuales',
+									actionBefore: () => {
+										// Aplicar gastos detallados
+										player.rentExpense = rentExpense;
+										player.groceriesExpense = groceriesExpense;
+										player.utilitiesExpense = utilitiesExpense;
+										player.transportExpense = transportExpense;
+										player.internetExpense = internetExpense;
+										player.phoneExpense = phoneExpense;
+										player.otherExpenses = otherExpenses;
+										player.fixedExpenses = targetTotalExpenses;
+									}
 								}
+							], () => {
+								showModalContinueButton(() => {
+									closeModal(() => endTurn());
+								});
 							});
 						}
 					}
@@ -2969,7 +3459,9 @@ function handleLanding(player, tile) {
 
 	switch (tile.type) {
 		case 'payday':
-			collectPayday(player, true);
+			collectPayday(player, true, () => {
+				endTurn();
+			});
 			break;
 		case 'opportunity':
 			showOpportunityModal(player);
@@ -2978,7 +3470,13 @@ function handleLanding(player, tile) {
 			showJobModal(player);
 			break;
 		case 'promotion':
-			showPromotionModal(player);
+			if (isPromotionAvailable()) {
+				// Al caer en una, se activa el ascenso y se reinicia el reloj de 9 minutos
+				gameState.lastPromotionTimestamp = Date.now();
+				showPromotionModal(player);
+			} else {
+				showOpportunityModal(player);
+			}
 			break;
 		case 'doodad':
 			showDoodadModal(player);
@@ -3015,10 +3513,10 @@ function showHousingModal(player) {
 			headerClass: 'housing',
 			icon: currentHousing.icon,
 			title: currentHousing.title,
-			detailedInfo: `¡Increíble, <strong>${player.name}</strong>! Ya vives en el nivel máximo de vivienda: <strong>${currentHousing.title}</strong>.<br><em>${currentHousing.desc}</em><br><br>Disfrutas del mayor confort pagando tu alquiler de <strong>${formatCOP(currentHousing.rent)} COP/mes</strong> sin necesidad de mudarte más.`,
+			detailedInfo: `¡Increíble, <strong>${player.name}</strong>! Ya vives en el nivel máximo de vivienda: <strong>${currentHousing.title}</strong>.<br><em>${currentHousing.desc}</em><br><br>Disfrutas del mayor confort pagando tu alquiler de <strong>${formatCOP(currentHousing.rent)}/mes</strong> sin necesidad de mudarte más.`,
 			stats: [
 				{ label: 'Vivienda actual:', value: currentHousing.title },
-				{ label: 'Alquiler actual:', value: `${formatCOP(currentHousing.rent)} COP/mes`, color: 'red' }
+				{ label: 'Alquiler actual:', value: `${formatCOP(currentHousing.rent)}/mes`, color: 'red' }
 			],
 			buttons: [
 				{
@@ -3046,8 +3544,8 @@ function showHousingModal(player) {
 		stats: [
 			{ label: 'Vivienda anterior:', value: `${currentHousing.title} (${formatCOP(currentHousing.rent)}/mes)` },
 			{ label: 'Nueva vivienda:', value: nextHousing.title },
-			{ label: 'Nuevo alquiler mensual:', value: `${formatCOP(nextHousing.rent)} COP / mes`, color: 'red' },
-			{ label: 'Aumento en alquiler:', value: `+${formatCOP(rentDiff)} COP / mes`, color: 'red' }
+			{ label: 'Nuevo alquiler mensual:', value: `${formatCOP(nextHousing.rent)} / mes`, color: 'red' },
+			{ label: 'Aumento en alquiler:', value: `+${formatCOP(rentDiff)} / mes`, color: 'red' }
 		],
 		buttons: [
 			{
@@ -3090,12 +3588,12 @@ function showFloatingPaydayBubble(tileIndex, laneIndex, amount) {
 	bubble.className = 'floating-payday-bubble';
 
 	if (amount > 0) {
-		bubble.innerHTML = `+${formatCOP(amount)} COP 💵`;
+		bubble.innerHTML = `+${formatCOP(amount)} 💵`;
 	} else if (amount < 0) {
-		bubble.innerHTML = `-${formatCOP(Math.abs(amount))} COP 💸`;
+		bubble.innerHTML = `-${formatCOP(Math.abs(amount))} 💸`;
 		bubble.classList.add('negative');
 	} else {
-		bubble.innerHTML = `+$0 COP ⚖️`;
+		bubble.innerHTML = `+$0 ⚖️`;
 		bubble.classList.add('neutral');
 	}
 
@@ -3107,171 +3605,253 @@ function showFloatingPaydayBubble(tileIndex, laneIndex, amount) {
 	}, 1050);
 }
 
-// 1. Día de Pago
-function collectPayday(player, isLanding) {
+// 1. Día de Pago con Animación Visual y Pocas Palabras
+function collectPayday(player, isLanding, onComplete = null) {
 	if (!player.hasJob || player.salary === 0) {
+		if (onComplete) onComplete();
 		return;
 	}
 
 	player.salariesCollected = (player.salariesCollected || 0) + 1;
 	const count = player.salariesCollected;
-
 	const fin = getPlayerFinancials(player);
+
+	// Guardar snapshot previo para comparativa
 	savePlayerFinancialSnapshot(player, `Día de Pago (Cobro #${count})`);
-	player.cash += fin.monthlyCashFlow;
+
+	// Sonido festivo de apertura
+	sounds.cardAppear();
+
+	// Efecto flotante sobre la casilla física en el tablero
+	showFloatingPaydayBubble(player.position, 0, fin.monthlyCashFlow);
+
+	// HTML visual minimalista con pocas palabras (Ingresos, Gastos, Flujo)
+	const paydayCustomHtml = `
+		<div class="payday-flow-breakdown" id="payday-breakdown-box">
+			<!-- ETAPA 1: INGRESOS -->
+			<div class="payday-step payday-step-in payday-step-active" id="payday-step-1">
+				<div class="payday-step-header">
+					<span class="payday-step-badge in">Ingresos</span>
+					<span class="payday-step-amount green">+${formatCOP(fin.totalIncome)}</span>
+				</div>
+			</div>
+
+			<!-- ETAPA 2: GASTOS MENSUALES -->
+			<div class="payday-step payday-step-out payday-step-dimmed" id="payday-step-2">
+				<div class="payday-step-header">
+					<span class="payday-step-badge out">Gastos Mensuales</span>
+					<span class="payday-step-amount red">-${formatCOP(fin.totalExpenses)}</span>
+				</div>
+			</div>
+
+			<!-- ETAPA 3: FLUJO (BOTÓN INTERACTIVO) -->
+			<div class="payday-step payday-step-net payday-step-dimmed payday-step-btn" id="payday-step-3" role="button" tabindex="0" title="Toca para recibir tu flujo">
+				<div class="payday-net-banner">
+					<span class="payday-net-label">Flujo</span>
+					<span class="payday-net-val">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
+					<span class="payday-net-hint" id="payday-step-hint">👉 Toca para recibir</span>
+				</div>
+			</div>
+		</div>
+	`;
+
+	showModal({
+		typeName: 'DÍA DE PAGO 💰',
+		headerClass: 'payday',
+		icon: '💰',
+		image: '/images/cards/dia_de_pago.svg',
+		title: '¡Día de Pago! 💰',
+		detailedInfo: '',
+		customHtml: paydayCustomHtml,
+		buttons: [] // Sin botón debajo: el recuadro de Flujo es el botón
+	});
+
+	// Conectar el botón interactivo de Flujo con protección estricta contra múltiples clics
+	let paydayClaimed = false;
+	const step3 = document.getElementById('payday-step-3');
+
+	const handleClaimPayday = () => {
+		if (paydayClaimed) return;
+		if (!step3 || !step3.classList.contains('payday-step-active')) return;
+
+		paydayClaimed = true;
+		step3.style.pointerEvents = 'none';
+		step3.classList.remove('payday-step-clickable');
+		step3.classList.add('payday-step-claimed');
+
+		const hintEl = document.getElementById('payday-step-hint');
+		if (hintEl) hintEl.textContent = '¡Flujo Recibido! 💸';
+
+		// 1. Acreditar dinero al jugador
+		player.cash += fin.monthlyCashFlow;
+		sounds.cash();
+		updateHUDAndHeaders();
+
+		// 2. Destello en HUD del jugador
+		const playerPills = document.querySelectorAll('.player-hud-pill');
+		if (playerPills[gameState.currentPlayerIndex]) {
+			const targetPill = playerPills[gameState.currentPlayerIndex];
+			targetPill.classList.remove('pill-payday-flash');
+			void targetPill.offsetWidth;
+			targetPill.classList.add('pill-payday-flash');
+		}
+
+		// 3. Volar el dinero al balance y continuar fluidamente
+		if (fin.monthlyCashFlow !== 0) {
+			animateTransactionNumbersToBalance({
+				amount: fin.monthlyCashFlow,
+				category: 'cash',
+				sourceEl: step3,
+				label: 'Flujo del Mes',
+				onComplete: () => {
+					closeModal(() => {
+						handlePaydayMilestones(player, count, onComplete);
+					});
+				}
+			});
+		} else {
+			closeModal(() => {
+				handlePaydayMilestones(player, count, onComplete);
+			});
+		}
+	};
+
+	if (step3) {
+		step3.addEventListener('click', handleClaimPayday);
+		step3.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				handleClaimPayday();
+			}
+		});
+	}
+
+	// Animación secuencial en 3 tiempos con pausas agradables
 	sounds.cash();
-	updateHUDAndHeaders();
 
-	// Destello visual al actualizar el saldo en la casilla del jugador
-	const playerPills = document.querySelectorAll('.player-hud-pill');
-	if (playerPills[gameState.currentPlayerIndex]) {
-		const targetPill = playerPills[gameState.currentPlayerIndex];
-		targetPill.classList.remove('pill-payday-flash');
-		void targetPill.offsetWidth;
-		targetPill.classList.add('pill-payday-flash');
-	}
+	// Tiempo 1 (650ms): Se activa la Etapa 2 de Gastos Cubiertos
+	setTimeout(() => {
+		const step2 = document.getElementById('payday-step-2');
+		if (step2) {
+			step2.classList.remove('payday-step-dimmed');
+			step2.classList.add('payday-step-active');
+			sounds.loss();
+		}
+	}, 650);
 
-	// Si el balance lateral o modal están visibles, actualizarlos en tiempo real con destello
-	renderModalSideBalance();
-	const sideCash = document.getElementById('side-bal-cash');
-	if (sideCash) {
-		sideCash.classList.remove('value-payday-flash');
-		void sideCash.offsetWidth;
-		sideCash.classList.add('value-payday-flash');
-	}
+	// Tiempo 2 (1350ms): Se activa la Etapa 3 con gran protagonismo y se habilita el clic
+	setTimeout(() => {
+		if (step3) {
+			step3.classList.remove('payday-step-dimmed');
+			step3.classList.add('payday-step-active');
+			step3.classList.add('payday-step-clickable');
+			sounds.cash();
+		}
+	}, 1350);
+}
 
-	// Efecto visual flotante del valor del pago sobre la casilla física
-	const isParallelTwo = gameState.players.length === 2;
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
-	showFloatingPaydayBubble(player.position, laneIndex, fin.monthlyCashFlow);
-
-	// 1. Cada 25 salarios cobrados: Aumento por antigüedad del 5% sin cambio de puesto
+/**
+ * Revisa hitos de ascenso o aumento tras completar el cobro de nómina
+ */
+function handlePaydayMilestones(player, count, onComplete) {
+	// 1. Cada 25 salarios cobrados: Aumento por antigüedad del 5%
 	if (count > 0 && count % 25 === 0) {
 		const raise5 = Math.round((player.salary * 0.05) / 1000) * 1000;
-		savePlayerFinancialSnapshot(player, 'Aumento 5% Antigüedad');
-		player.salary += raise5;
-		updateHUDAndHeaders();
 		setTimeout(() => {
 			showModal({
 				typeName: '¡AUMENTO POR ANTIGÜEDAD! 📈',
 				headerClass: 'promotion',
 				icon: '🎖️',
+				image: '/images/cards/aumento_sueldo.svg',
 				title: '¡Aumento del 5% por Constancia!',
-				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Has cobrado <strong>${count} salarios</strong> en tu trayectoria laboral.<br><br>Por tu antigüedad, recibes un aumento automático del <strong>5%</strong> (+${formatCOP(raise5)} COP/mes) sin cambio de puesto.`,
+				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Has cobrado <strong>${count} salarios</strong> en tu trayectoria laboral.<br><br>Por tu antigüedad, recibes un aumento automático del <strong>5%</strong> (+${formatCOP(raise5)}/mes) sin cambio de puesto.`,
 				stats: [
 					{ label: 'Salarios cobrados:', value: `${count} salarios` },
-					{ label: 'Aumento otorgado:', value: `+${formatCOP(raise5)} COP / mes (5%)`, color: 'green' },
-					{ label: 'Nuevo sueldo:', value: `${formatCOP(player.salary)} COP / mes`, color: 'green' }
+					{ label: 'Aumento otorgado:', value: `+${formatCOP(raise5)} / mes (5%)`, color: 'green' },
+					{ label: 'Nuevo sueldo:', value: `${formatCOP(player.salary + raise5)} / mes`, color: 'green' }
 				],
 				buttons: [
 					{
 						text: '¡Excelente! Continuar ➔',
 						class: 'primary',
 						action: () => {
+							savePlayerFinancialSnapshot(player, 'Aumento 5% Antigüedad');
 							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: raise5,
-								category: 'salary',
-								sourceEl: btnEl,
-								label: 'Aumento 5%',
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal();
-									});
+							animateSequentialFinancialUpdate([
+								{
+									amount: raise5,
+									category: 'salary',
+									sourceEl: btnEl,
+									label: 'Aumento 5%',
+									actionBefore: () => {
+										player.salary += raise5;
+									}
 								}
+							], () => {
+								showModalContinueButton(() => {
+									closeModal(() => {
+										if (onComplete) onComplete();
+									});
+								});
 							});
 						}
 					}
 				]
 			});
-		}, 1200);
+		}, 400);
 	}
-	// 2. Cada 10 salarios cobrados (que no sea 25): Ascenso laboral con 10% redondeado
+	// 2. Cada 10 salarios cobrados (que no sea 25): Ascenso laboral con 10%
 	else if (count > 0 && count % 10 === 0) {
 		const raise10 = Math.round((player.salary * 0.10) / 1000) * 1000;
-		player.jobTier = (player.jobTier || 1) + 1;
-		const newTitle = getPromotedTitle(player.profession, player.jobTier);
-		savePlayerFinancialSnapshot(player, `Ascenso: ${newTitle}`);
-		player.salary += raise10;
-		player.profession = newTitle;
-		updateHUDAndHeaders();
+		const nextTier = (player.jobTier || 1) + 1;
+		const newTitle = getPromotedTitle(player.profession, nextTier);
 
 		setTimeout(() => {
 			showModal({
 				typeName: '¡ASCENSO LABORAL! ⭐',
 				headerClass: 'promotion',
 				icon: '⭐',
+				image: '/images/cards/ascenso.svg',
 				title: '¡Has sido Ascendido!',
-				detailedInfo: `¡Bravo, <strong>${player.name}</strong>! Has acumulado <strong>${count} salarios</strong> cobrados en tu trabajo.<br><br>Tu esfuerzo ha sido premiado: ¡recibes un <strong>Ascenso de Cargo</strong> con un <strong>10% de aumento</strong> redondeado!`,
+				detailedInfo: `¡Bravo, <strong>${player.name}</strong>! Has acumulado <strong>${count} salarios</strong> cobrados en tu trabajo.<br><br>Tu esfuerzo ha sido premiado: ¡recibes un <strong>Ascenso de Cargo</strong> con un <strong>10% de aumento</strong>!`,
 				stats: [
 					{ label: 'Nuevo cargo:', value: newTitle },
-					{ label: 'Aumento por ascenso:', value: `+${formatCOP(raise10)} COP / mes (10%)`, color: 'green' },
-					{ label: 'Sueldo actualizado:', value: `${formatCOP(player.salary)} COP / mes`, color: 'green' }
+					{ label: 'Aumento por ascenso:', value: `+${formatCOP(raise10)} / mes (10%)`, color: 'green' },
+					{ label: 'Sueldo actualizado:', value: `${formatCOP(player.salary + raise10)} / mes`, color: 'green' }
 				],
 				buttons: [
 					{
 						text: '¡Celebrar mi Ascenso! 🚀',
 						class: 'primary',
 						action: () => {
+							savePlayerFinancialSnapshot(player, `Ascenso: ${newTitle}`);
 							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: raise10,
-								category: 'salary',
-								sourceEl: btnEl,
-								label: 'Ascenso 10%',
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal();
-									});
+							animateSequentialFinancialUpdate([
+								{
+									amount: raise10,
+									category: 'salary',
+									sourceEl: btnEl,
+									label: 'Ascenso 10%',
+									actionBefore: () => {
+										player.jobTier = nextTier;
+										player.salary += raise10;
+										player.profession = newTitle;
+									}
 								}
+							], () => {
+								showModalContinueButton(() => {
+									closeModal(() => {
+										if (onComplete) onComplete();
+									});
+								});
 							});
 						}
 					}
 				]
 			});
-		}, 1200);
-	}
-
-	if (isLanding) {
-		const isZeroFlow = fin.monthlyCashFlow === 0;
-		showModal({
-			typeName: 'DÍA DE PAGO 💰',
-			headerClass: 'payday',
-			icon: '💰',
-			title: '¡Día de Pago!',
-			detailedInfo: isZeroFlow
-				? `Tus ingresos cubrieron tus gastos del mes (Cobro #${count}).<br><br>💡 <em>¡Llega a 10 cobros para conseguir un ascenso, cambia a un trabajo mejor o compra una oportunidad para aumentar tu plata libre!</em>`
-				: `¡Llegó tu plata del mes (Cobro #${count})! Cobraste tu sueldo y las ganancias de tus negocios.`,
-			stats: [
-				{ label: 'Cobros acumulados:', value: `${count} salarios cobrados` },
-				{ label: 'Plata limpia que cobras:', value: `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)} COP`, color: fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : '') },
-				{ label: 'Total en tu bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
-			],
-			buttons: [
-				{
-					text: '¡Guardar Plata y Seguir! ➔',
-					class: 'primary',
-					action: () => {
-						if (fin.monthlyCashFlow !== 0) {
-							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: fin.monthlyCashFlow,
-								category: 'cash',
-								sourceEl: btnEl,
-								label: 'Cobro de Mes',
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal(() => endTurn());
-									});
-								}
-							});
-						} else {
-							closeModal(() => endTurn());
-						}
-					}
-				}
-			]
-		});
+		}, 400);
+	} else {
+		if (onComplete) onComplete();
 	}
 }
 
@@ -3297,9 +3877,10 @@ function showJobModal(player) {
 	showModal({
 		typeName: 'NUEVO EMPLEO 💼',
 		headerClass: 'job',
-		icon: '💼',
+		icon: newJob.icon || '💼',
+		image: newJob.image || '/images/cards/primer_empleo.svg',
 		title: newJob.title,
-		detailedInfo: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)} COP/mes</strong>.`,
+		detailedInfo: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)}/mes</strong>.`,
 		stats: stats,
 		buttons: [
 			{
@@ -3308,31 +3889,26 @@ function showJobModal(player) {
 				action: () => {
 					savePlayerFinancialSnapshot(player, `Nuevo Empleo: ${newJob.title}`);
 					const oldSalary = player.salary;
-					player.profession = newJob.title;
-					player.salary = newJob.salary;
 					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: newJob.salary - oldSalary,
-						category: 'salary',
-						sourceEl: btnEl,
-						label: 'Nuevo Sueldo'
-					});
+					const steps = [
+						{
+							amount: newJob.salary,
+							category: 'salary',
+							sourceEl: btnEl,
+							label: newJob.title,
+							customText: `${newJob.salary >= oldSalary ? '+' : ''}${formatCOP(newJob.salary - oldSalary)}/m 💼`,
+							actionBefore: () => {
+								player.profession = newJob.title;
+								player.salary = newJob.salary;
+							}
+						}
+					];
 
-					showModal({
-						typeName: '¡ESTRENAS TRABAJO! 🎉',
-						headerClass: 'job',
-						icon: '🎉',
-						title: newJob.title,
-						detailedInfo: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)} COP</strong> al mes.`,
-						stats: [
-							{ label: 'Nuevo sueldo:', value: `${formatCOP(newJob.salary)} COP/mes`, color: 'green' }
-						],
-						buttons: [
-							{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
-						]
+					animateSequentialFinancialUpdate(steps, () => {
+						showModalContinueButton(() => {
+							closeModal(() => endTurn());
+						});
 					});
 				}
 			},
@@ -3371,25 +3947,25 @@ function showPromotionModal(player) {
 				class: 'primary',
 				action: () => {
 					savePlayerFinancialSnapshot(player, `Ascenso: ${promo.title}`);
-					player.salary += promo.raise;
-					if (nextTitle !== player.profession) {
-						player.jobTier = nextTier;
-						player.profession = nextTitle;
-					}
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: promo.raise,
-						category: 'salary',
-						sourceEl: btnEl,
-						label: 'Aumento Sueldo',
-						onComplete: () => {
-							showModalContinueButton(() => {
-								closeModal(() => endTurn());
-							});
+					animateSequentialFinancialUpdate([
+						{
+							amount: promo.raise,
+							category: 'salary',
+							sourceEl: btnEl,
+							label: 'Aumento Sueldo',
+							actionBefore: () => {
+								player.salary += promo.raise;
+								if (nextTitle !== player.profession) {
+									player.jobTier = nextTier;
+									player.profession = nextTitle;
+								}
+							}
 						}
+					], () => {
+						showModalContinueButton(() => {
+							closeModal(() => endTurn());
+						});
 					});
 				}
 			}
@@ -3438,10 +4014,10 @@ function presentDeal(player, deal) {
 	}
 
 	const stats = [
-		{ label: 'Inversión inicial:', value: `${formatCOP(deal.downPayment)} COP` },
+		{ label: 'Inversión inicial:', value: `${formatCOP(deal.downPayment)}` },
 		{
 			label: 'Ganancia al mes:',
-			value: `+${formatCOP(deal.cashFlow)} COP (${deal.roiPercent}% ganancia)`,
+			value: `+${formatCOP(deal.cashFlow)} (${deal.roiPercent}% ganancia)`,
 			color: 'green'
 		}
 	];
@@ -3452,49 +4028,34 @@ function presentDeal(player, deal) {
 			text: `¡Aprovechar Oportunidad! 🚀 (${formatCOP(deal.downPayment)})`,
 			class: 'primary',
 			action: () => {
-				savePlayerFinancialSnapshot(player, `Compra: ${deal.title}`);
-				player.cash -= deal.downPayment;
-				player.assets.push({ ...deal });
-				sounds.cash();
-				updateHUDAndHeaders();
-
 				const btnEl = document.querySelector('#modal-footer button');
-				animateTransactionNumbersToBalance({
-					amount: -deal.downPayment,
-					category: 'cash',
-					sourceEl: btnEl,
-					label: deal.title
-				});
-
-				if (deal.cashFlow > 0) {
-					setTimeout(() => {
-						animateTransactionNumbersToBalance({
-							amount: deal.cashFlow,
-							category: 'flow',
-							sourceEl: document.getElementById('modal-stats') || btnEl,
-							label: `+${deal.roiPercent}% Flujo`
-						});
-					}, 220);
-				}
-
-				const successDesc = `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} COP extra (${deal.roiPercent}% de ganancia mensual)</strong> todos los meses en tu Día de Pago.`;
-
-				showModal({
-					typeName: deal.rarity === 'very_rare' ? '¡OCASIÓN EXTRAORDINARIA! 🔥💎' : (deal.rarity === 'rare' ? '¡OCASIÓN EXTRAÑA APROVECHADA! ⭐' : '¡ÉXITO! 🎉'),
-					headerClass: 'opportunity',
-					icon: deal.icon || '🎉',
-					title: deal.title,
-					detailedInfo: successDesc,
-					stats: [
-						{
-							label: 'Ganancia agregada:',
-							value: `+${formatCOP(deal.cashFlow)} COP/mes (${deal.roiPercent}%)`,
-							color: 'green'
+				savePlayerFinancialSnapshot(player, `Compra: ${deal.title}`);
+				const steps = [
+					{
+						amount: -deal.downPayment,
+						category: 'cash',
+						sourceEl: btnEl,
+						label: deal.title,
+						actionBefore: () => {
+							player.cash -= deal.downPayment;
 						}
-					],
-					buttons: [
-						{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
-					]
+					},
+					{
+						amount: 1,
+						category: 'asset',
+						sourceEl: btnEl,
+						label: deal.title,
+						customText: `+${deal.title.slice(0, 14)} 🏢`,
+						actionBefore: () => {
+							player.assets.push({ ...deal });
+						}
+					}
+				];
+
+				animateSequentialFinancialUpdate(steps, () => {
+					showModalContinueButton(() => {
+						closeModal(() => endTurn());
+					});
 				});
 			}
 		});
@@ -3521,7 +4082,7 @@ function presentDeal(player, deal) {
 		headerClass: 'opportunity',
 		icon: deal.icon || '💼',
 		title: deal.title,
-		detailedInfo: `${rarityBadgeHtml}${deal.desc}<br><br><small style="color:#64748b;">💡 Inviertes <strong>${formatCOP(deal.downPayment)} COP</strong> y genera <strong>+${formatCOP(deal.cashFlow)} COP cada mes (${deal.roiPercent}% de ganancia mensual)</strong> en tus Días de Pago.</small>`,
+		detailedInfo: `${rarityBadgeHtml}${deal.desc}<br><br><small style="color:#64748b;">💡 Inviertes <strong>${formatCOP(deal.downPayment)}</strong> y genera <strong>+${formatCOP(deal.cashFlow)} cada mes (${deal.roiPercent}% de ganancia mensual)</strong> en tus Días de Pago.</small>`,
 		stats,
 		buttons
 	});
@@ -3543,8 +4104,7 @@ function showDoodadModal(player) {
 		title: doodad.title,
 		detailedInfo: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para imprevistos te protege sin frenar tus inversiones en negocios.</small>`,
 		stats: [
-			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)} COP`, color: 'red' },
-			{ label: 'Te quedará en bolsillo:', value: `${formatCOP(remaining)} COP`, color: remaining >= 0 ? 'green' : 'red' }
+			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)}` }
 		],
 		buttons: [
 			{
@@ -3639,37 +4199,49 @@ function showMarketModal(player) {
 		title: event.title,
 		detailedInfo: `Hay un comprador interesado en adquirir tu negocio <strong>${asset.title}</strong> hoy mismo. ¿Deseas venderlo y recibir el pago en efectivo?`,
 		stats: [
-			{ label: 'Pago en efectivo:', value: `${formatCOP(event.salePrice)} COP`, color: 'green' }
+			{ label: 'Pago en efectivo:', value: `${formatCOP(event.salePrice)}`, color: 'green' }
 		],
 		buttons: [
 			{
-				text: `¡Vender por ${formatCOP(event.salePrice)} COP! 💰`,
+				text: `¡Vender por ${formatCOP(event.salePrice)}! 💰`,
 				class: 'primary',
 				action: () => {
-					savePlayerFinancialSnapshot(player, `Venta: ${asset.title}`);
-					player.assets.splice(eligibleIndex, 1);
-					player.cash += event.salePrice;
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: event.salePrice,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: `Venta: ${asset.title}`
-					});
+					const saleFlow = asset.cashFlow || 0;
+					const steps = [
+						{
+							amount: event.salePrice,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: `Venta: ${asset.title}`,
+							actionBefore: () => {
+								savePlayerFinancialSnapshot(player, `Venta: ${asset.title}`);
+								player.assets.splice(eligibleIndex, 1);
+								player.cash += event.salePrice;
+							}
+						},
+						{
+							amount: -1,
+							category: 'asset',
+							sourceEl: btnEl,
+							label: asset.title,
+							customText: `-${asset.title.slice(0, 14)} 🏢`
+						}
+					];
 
-					showModal({
-						typeName: '¡VENTA EXITOSA! 🎉',
-						headerClass: 'market',
-						icon: '🎉',
-						title: asset.title,
-						detailedInfo: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)} COP</strong> en efectivo para comprar nuevas oportunidades.`,
-						stats: [
-							{ label: 'Cobraste:', value: `+${formatCOP(event.salePrice)} COP`, color: 'green' }
-						],
-						buttons: [{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }]
+					animateSequentialFinancialUpdate(steps, () => {
+						showModal({
+							typeName: '¡VENTA EXITOSA! 🎉',
+							headerClass: 'market',
+							icon: '🎉',
+							image: '/images/cards/mercado.svg',
+							title: asset.title,
+							detailedInfo: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)}</strong> en efectivo para comprar nuevas oportunidades.`,
+							stats: [
+								{ label: 'Cobraste:', value: `+${formatCOP(event.salePrice)}`, color: 'green' }
+							],
+							buttons: [{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }]
+						});
 					});
 				}
 			},
@@ -3692,13 +4264,13 @@ function showCharityModal(player) {
 		headerClass: 'charity',
 		icon: '💛',
 		title: 'Apoyo a la Comunidad',
-		detailedInfo: `Puedes aportar <strong>${formatCOP(donation)} COP</strong> para apoyar a una fundación o causa social del barrio.`,
+		detailedInfo: `Puedes aportar <strong>${formatCOP(donation)}</strong> para apoyar a una fundación o causa social del barrio.`,
 		stats: [
-			{ label: 'Aporte solidario:', value: `-${formatCOP(donation)} COP`, color: 'red' }
+			{ label: 'Aporte solidario:', value: `-${formatCOP(donation)}`, color: 'red' }
 		],
 		buttons: [
 			...(canAfford ? [{
-				text: `Donar ${formatCOP(donation)} COP 💛`,
+				text: `Donar ${formatCOP(donation)} 💛`,
 				class: 'primary',
 				action: () => {
 					savePlayerFinancialSnapshot(player, 'Donación Solidaria');
@@ -3743,7 +4315,7 @@ function showCrisisModal(player) {
 		detailedInfo: `Te tomas unos días de vacaciones para recargar pilas, compartir con amigos y pensar nuevas metas financieras.`,
 		stats: [
 			{ label: 'Descanso:', value: 'Pausas 1 turno' },
-			{ label: 'Tu plata en bolsillo:', value: `${formatCOP(player.cash)} COP`, color: 'green' }
+			{ label: 'Tu plata en bolsillo:', value: `${formatCOP(player.cash)}`, color: 'green' }
 		],
 		buttons: [
 			{ text: '¡Descansar y Continuar! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
@@ -3752,72 +4324,133 @@ function showCrisisModal(player) {
 }
 
 // ==========================================
-// 10. PRÉSTAMOS Y DEUDAS BANCARIAS (Calibrado 2026: Bloques de $500.000 COP)
+// 10. PRÉSTAMOS Y DEUDAS BANCARIAS (Calibrado 2026: Bloques de $500.000 con Tasa Mensual Aleatoria)
 // ==========================================
+
+/**
+ * Determina aleatoriamente la tasa de interés mensual que exige el banco:
+ * 5% -> 0.5%
+ * 5% -> 1.0%
+ * 10% -> 1.5%
+ * 10% -> 2.0%
+ * 20% -> 3.0%
+ * 30% -> 5.0%
+ * 20% restante repartido en 7%, 8%, 9% y 10% (5% c/u)
+ */
+function rollLoanMonthlyInterestRate() {
+	const rand = Math.random() * 100;
+	if (rand < 5) return 0.5;
+	if (rand < 10) return 1.0;
+	if (rand < 20) return 1.5;
+	if (rand < 30) return 2.0;
+	if (rand < 50) return 3.0;
+	if (rand < 80) return 5.0;
+	if (rand < 85) return 7.0;
+	if (rand < 90) return 8.0;
+	if (rand < 95) return 9.0;
+	return 10.0;
+}
 
 function showLoanModal(callbackAfterLoan) {
 	const player = gameState.players[gameState.currentPlayerIndex];
 	const loanBlock = 500000;
-	const interest = 25000; // 5% mensual
+	const ratePct = rollLoanMonthlyInterestRate();
+	const interest = Math.round(loanBlock * (ratePct / 100)); // Cuota por bloque
+
+	// Mensaje según la tasa obtenida
+	let rateQuality = 'Tasa estándar';
+	if (ratePct <= 1.0) rateQuality = '¡Tasa preferencial súper baja!';
+	else if (ratePct <= 2.0) rateQuality = '¡Excelente tasa competitiva!';
+	else if (ratePct >= 7.0) rateQuality = 'Tasa de alto riesgo bancario';
 
 	showModal({
 		typeName: 'BANCO SWEET LAB 🏦',
 		headerClass: 'opportunity',
 		icon: '🏦',
 		title: 'Préstamo Bancario',
-		detailedInfo: `Pides dinero prestado para comprar una oportunidad que te dé ganancias mensuales. Por cada ${formatCOP(loanBlock)} COP prestados, sumas una cuota mensual de ${formatCOP(interest)} COP.`,
+		detailedInfo: `El banco evaluó tu perfil y te ofrece una tasa mensual del <strong>${ratePct}%</strong> (${rateQuality}). Por cada ${formatCOP(loanBlock)} que pidas prestados, pagarás <strong>${formatCOP(interest)} al mes</strong> de intereses.`,
 		stats: [
-			{ label: 'Dinero prestado:', value: `+${formatCOP(loanBlock)} COP`, color: 'green' },
-			{ label: 'Cuota mensual:', value: `${formatCOP(interest)} COP / mes`, color: 'red' },
-			{ label: 'Tu deuda acumulada:', value: `${formatCOP(player.totalDebt)} COP` }
+			{ label: 'Tasa asignada:', value: `${ratePct}% mensual`, color: ratePct <= 2 ? 'green' : (ratePct >= 7 ? 'red' : 'dark') },
+			{ label: 'Dinero prestado:', value: `+${formatCOP(loanBlock)}`, color: 'green' },
+			{ label: 'Cuota mensual:', value: `${formatCOP(interest)} / mes`, color: 'red' },
+			{ label: 'Tu deuda acumulada:', value: `${formatCOP(player.totalDebt)}` }
 		],
 		buttons: [
 			{
-				text: `Pedir ${formatCOP(loanBlock)} COP al Banco 🏦`,
+				text: `Pedir ${formatCOP(loanBlock)} (${ratePct}%) 🏦`,
 				class: 'primary',
 				action: () => {
-					savePlayerFinancialSnapshot(player, 'Préstamo Bancario');
-					player.cash += loanBlock;
-					player.totalDebt += loanBlock;
-					player.debtExpenses += interest;
-					sounds.cash();
-					updateHUDAndHeaders();
-
+					savePlayerFinancialSnapshot(player, `Préstamo Bancario (${ratePct}%)`);
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: loanBlock,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: 'Préstamo',
-						onComplete: () => {
-							if (callbackAfterLoan) callbackAfterLoan();
-							else showModalContinueButton(() => closeModal(() => endTurn()));
+					animateSequentialFinancialUpdate([
+						{
+							amount: loanBlock,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: 'Préstamo',
+							actionBefore: () => {
+								player.cash += loanBlock;
+							}
+						},
+						{
+							amount: loanBlock,
+							category: 'debt',
+							sourceEl: btnEl,
+							label: 'Nueva Deuda',
+							actionBefore: () => {
+								player.totalDebt += loanBlock;
+								player.debtExpenses += interest;
+							}
+						},
+						{
+							amount: -interest,
+							category: 'expense',
+							sourceEl: btnEl,
+							label: 'Cuota Interés'
 						}
+					], () => {
+						if (callbackAfterLoan) callbackAfterLoan();
+						else showModalContinueButton(() => closeModal(() => endTurn()));
 					});
 				}
 			},
 			{
-				text: `Pedir ${formatCOP(loanBlock * 2)} COP al Banco 🏦`,
+				text: `Pedir ${formatCOP(loanBlock * 2)} (${ratePct}%) 🏦`,
 				class: 'primary',
 				action: () => {
 					const block2 = loanBlock * 2;
-					savePlayerFinancialSnapshot(player, 'Préstamo Bancario 2x');
-					player.cash += block2;
-					player.totalDebt += block2;
-					player.debtExpenses += (interest * 2);
-					sounds.cash();
-					updateHUDAndHeaders();
-
+					const interest2 = interest * 2;
+					savePlayerFinancialSnapshot(player, `Préstamo Bancario 2x (${ratePct}%)`);
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: block2,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: 'Préstamo',
-						onComplete: () => {
-							if (callbackAfterLoan) callbackAfterLoan();
-							else showModalContinueButton(() => closeModal(() => endTurn()));
+					animateSequentialFinancialUpdate([
+						{
+							amount: block2,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: 'Préstamo 2x',
+							actionBefore: () => {
+								player.cash += block2;
+							}
+						},
+						{
+							amount: block2,
+							category: 'debt',
+							sourceEl: btnEl,
+							label: 'Nueva Deuda',
+							actionBefore: () => {
+								player.totalDebt += block2;
+								player.debtExpenses += interest2;
+							}
+						},
+						{
+							amount: -interest2,
+							category: 'expense',
+							sourceEl: btnEl,
+							label: 'Cuota Interés'
 						}
+					], () => {
+						if (callbackAfterLoan) callbackAfterLoan();
+						else showModalContinueButton(() => closeModal(() => endTurn()));
 					});
 				}
 			},
@@ -3842,20 +4475,25 @@ function showPayDebtModal() {
 
 	const payAmount = Math.min(player.totalDebt, 500000);
 	const canAfford = player.cash >= payAmount;
+	// Proporción de intereses que se reducen dinámicamente según la deuda total
+	const interestReduction = player.totalDebt > 0 
+		? Math.round((player.debtExpenses / player.totalDebt) * payAmount)
+		: 0;
 
 	showModal({
 		typeName: 'PAGAR DEUDA 💳',
 		headerClass: 'opportunity',
 		icon: '💳',
 		title: 'Abonar a tu Deuda',
-		detailedInfo: `Pagar <strong>${formatCOP(payAmount)} COP</strong> de tu deuda bancaria reduce tus gastos en $25.000 COP al mes, aumentando tu plata libre.`,
+		detailedInfo: `Pagar <strong>${formatCOP(payAmount)}</strong> de tu deuda bancaria reduce tus gastos en <strong>${formatCOP(interestReduction)} al mes</strong>, aumentando directamente tu plata libre mensual.`,
 		stats: [
-			{ label: 'Deuda que debes:', value: `${formatCOP(player.totalDebt)} COP` },
-			{ label: 'Tu Plata en Mano:', value: `${formatCOP(player.cash)} COP`, color: canAfford ? 'green' : 'red' }
+			{ label: 'Deuda que debes:', value: `${formatCOP(player.totalDebt)}` },
+			{ label: 'Ahorro mensual de cuota:', value: `+${formatCOP(interestReduction)} / mes`, color: 'green' },
+			{ label: 'Tu Plata en Mano:', value: `${formatCOP(player.cash)}`, color: canAfford ? 'green' : 'red' }
 		],
 		buttons: [
 			{
-				text: `Pagar cuota de ${formatCOP(payAmount)} COP`,
+				text: `Pagar cuota de ${formatCOP(payAmount)}`,
 				class: 'primary',
 				action: () => {
 					if (!canAfford) {
@@ -3863,23 +4501,31 @@ function showPayDebtModal() {
 						return;
 					}
 					savePlayerFinancialSnapshot(player, 'Abono a Deuda');
-					player.cash -= payAmount;
-					player.totalDebt -= payAmount;
-					player.debtExpenses = Math.max(0, player.debtExpenses - 25000);
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: -payAmount,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: 'Pago Deuda',
-						onComplete: () => {
-							showModalContinueButton(() => {
-								closeModal();
-							});
+					animateSequentialFinancialUpdate([
+						{
+							amount: -payAmount,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: 'Pago Deuda',
+							actionBefore: () => {
+								player.cash -= payAmount;
+							}
+						},
+						{
+							amount: -payAmount,
+							category: 'debt',
+							sourceEl: btnEl,
+							label: 'Deuda Reducida',
+							actionBefore: () => {
+								player.totalDebt = Math.max(0, player.totalDebt - payAmount);
+								player.debtExpenses = Math.max(0, player.debtExpenses - interestReduction);
+							}
 						}
+					], () => {
+						showModalContinueButton(() => {
+							closeModal();
+						});
 					});
 				}
 			},
@@ -3899,9 +4545,9 @@ function showPayDebtModal() {
 function getPlayerFinancials(player) {
 	const passiveIncome = player.assets.reduce((sum, a) => sum + (a.cashFlow || 0), 0);
 	const totalIncome = player.salary + passiveIncome;
-	const totalExpenses = player.fixedExpenses + player.debtExpenses;
-	const monthlyCashFlow = totalIncome - totalExpenses;
-	const freedomProgress = Math.min(100, Math.round((passiveIncome / (totalExpenses || 1)) * 100));
+	const totalExpenses = player.hasJob ? (player.fixedExpenses + player.debtExpenses) : 0;
+	const monthlyCashFlow = player.hasJob ? (totalIncome - totalExpenses) : 0;
+	const freedomProgress = totalExpenses > 0 ? Math.min(100, Math.round((passiveIncome / totalExpenses) * 100)) : 0;
 
 	return {
 		passiveIncome,
@@ -3913,23 +4559,31 @@ function getPlayerFinancials(player) {
 	};
 }
 
-function renderDrawerPlayerTabs() {
+function renderDrawerPlayerHeader(playerIndex = gameState.selectedDrawerPlayerIndex) {
 	const container = document.getElementById('drawer-players-tabs');
 	if (!container) return;
-	container.innerHTML = '';
+	const p = gameState.players[playerIndex];
+	if (!p) return;
 
-	gameState.players.forEach((p, idx) => {
-		const btn = document.createElement('button');
-		btn.className = `drawer-tab ${idx === gameState.selectedDrawerPlayerIndex ? 'active' : ''}`;
-		btn.innerHTML = `${p.avatar} ${p.name.split(' ')[0]}`;
-		btn.addEventListener('click', () => {
-			gameState.selectedDrawerPlayerIndex = idx;
-			renderDrawerPlayerTabs();
-			updateDrawerFinancials(idx);
-		});
-		container.appendChild(btn);
-	});
+	container.innerHTML = `
+		<div class="drawer-player-single-card" style="display:flex; align-items:center; gap:12px; width:100%; padding:10px 14px; border-radius:16px; background:${p.bg || 'rgba(37,99,235,0.08)'}; border:1.5px solid ${p.color || '#3b82f6'};">
+			<div style="width:44px; height:44px; border-radius:50%; background:${p.color || '#3b82f6'}; display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:white; flex-shrink:0;">
+				${p.avatar}
+			</div>
+			<div style="display:flex; flex-direction:column; line-height:1.25;">
+				<div style="display:flex; align-items:center; gap:8px;">
+					<span style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.15rem; color:var(--text-main);">${p.name}</span>
+				</div>
+				<small id="drawer-player-job" style="color:var(--text-muted); font-size:0.82rem; font-weight:700;">${p.hasJob ? p.profession : 'Buscando empleo'}</small>
+			</div>
+		</div>
+	`;
+
+	const titleEl = document.querySelector('.drawer-header h2');
+	if (titleEl) titleEl.textContent = `📋 Balance de ${p.name}`;
 }
+
+const renderDrawerPlayerTabs = renderDrawerPlayerHeader;
 
 function updateDrawerFinancials(playerIndex) {
 	const p = gameState.players[playerIndex];
@@ -3939,10 +4593,16 @@ function updateDrawerFinancials(playerIndex) {
 	document.getElementById('drawer-freedom-pct').textContent = `${fin.freedomProgress}%`;
 	document.getElementById('drawer-freedom-fill').style.width = `${fin.freedomProgress}%`;
 
-	document.getElementById('drawer-cash-val').textContent = `${formatCOP(p.cash)} COP`;
+	const drawerCashEl = document.getElementById('drawer-cash-val');
+	if (drawerCashEl) {
+		drawerCashEl.textContent = `${formatCOP(p.cash)}`;
+		drawerCashEl.style.color = p.cash < 0 ? '#dc2626' : '#16a34a';
+	}
 	const cashflowEl = document.getElementById('drawer-cashflow-val');
-	cashflowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`;
-	cashflowEl.style.color = fin.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
+	if (cashflowEl) {
+		cashflowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`;
+		cashflowEl.style.color = fin.monthlyCashFlow > 0 ? '#16a34a' : (fin.monthlyCashFlow < 0 ? '#dc2626' : '#0f172a');
+	}
 
 	document.getElementById('drawer-salary').textContent = formatCOP(p.salary);
 	document.getElementById('drawer-passive').textContent = formatCOP(fin.passiveIncome);
@@ -3956,14 +4616,14 @@ function updateDrawerFinancials(playerIndex) {
 	const drawerFixedEl = document.getElementById('drawer-fixed-exp');
 	const drawerDebtEl = document.getElementById('drawer-debt-exp');
 
-	if (drawerRentEl) drawerRentEl.textContent = formatCOP(p.rentExpense || DEFAULT_FIXED_EXPENSES.rent);
-	if (drawerGroceriesEl) drawerGroceriesEl.textContent = formatCOP(p.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries);
-	if (drawerUtilitiesEl) drawerUtilitiesEl.textContent = formatCOP(p.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities);
-	if (drawerTransportEl) drawerTransportEl.textContent = formatCOP(p.transportExpense || DEFAULT_FIXED_EXPENSES.transport);
-	if (drawerInternetEl) drawerInternetEl.textContent = formatCOP(p.internetExpense || DEFAULT_FIXED_EXPENSES.internet);
-	if (drawerPhoneEl) drawerPhoneEl.textContent = formatCOP(p.phoneExpense || DEFAULT_FIXED_EXPENSES.phone);
-	if (drawerOtherEl) drawerOtherEl.textContent = formatCOP(p.otherExpenses || DEFAULT_FIXED_EXPENSES.other);
-	if (drawerFixedEl) drawerFixedEl.textContent = formatCOP(p.fixedExpenses || 1500000);
+	if (drawerRentEl) drawerRentEl.textContent = formatCOP(p.hasJob ? (p.rentExpense || 0) : 0);
+	if (drawerGroceriesEl) drawerGroceriesEl.textContent = formatCOP(p.hasJob ? (p.groceriesExpense || 0) : 0);
+	if (drawerUtilitiesEl) drawerUtilitiesEl.textContent = formatCOP(p.hasJob ? (p.utilitiesExpense || 0) : 0);
+	if (drawerTransportEl) drawerTransportEl.textContent = formatCOP(p.hasJob ? (p.transportExpense || 0) : 0);
+	if (drawerInternetEl) drawerInternetEl.textContent = formatCOP(p.hasJob ? (p.internetExpense || 0) : 0);
+	if (drawerPhoneEl) drawerPhoneEl.textContent = formatCOP(p.hasJob ? (p.phoneExpense || 0) : 0);
+	if (drawerOtherEl) drawerOtherEl.textContent = formatCOP(p.hasJob ? (p.otherExpenses || 0) : 0);
+	if (drawerFixedEl) drawerFixedEl.textContent = formatCOP(p.hasJob ? (p.fixedExpenses || 0) : 0);
 	if (drawerDebtEl) drawerDebtEl.textContent = formatCOP(p.debtExpenses || 0);
 
 	const assetsList = document.getElementById('drawer-assets-list');
@@ -3990,7 +4650,7 @@ function updateDrawerFinancials(playerIndex) {
 	if (drawerHistBtn) {
 		if (p.previousSnapshot) {
 			drawerHistBtn.parentElement?.classList.remove('hidden');
-			drawerHistBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+			drawerHistBtn.textContent = '¿Cómo era antes?';
 			attachHoldToPeekEvents(
 				drawerHistBtn,
 				() => showPreviousDrawerState(p),
@@ -4008,11 +4668,12 @@ function updateDrawerFinancials(playerIndex) {
 function showPreviousDrawerState(player) {
 	if (!player || !player.previousSnapshot) return;
 	const prev = player.previousSnapshot;
+	const fin = getPlayerFinancials(player);
 
 	const drawerHistBtn = document.getElementById('btn-drawer-history');
 	if (drawerHistBtn) {
 		drawerHistBtn.classList.add('active');
-		drawerHistBtn.innerHTML = '⏪ Mostrando ANTES (suelta para volver)';
+		// El nombre del botón se mantiene intacto sin cambiar
 	}
 
 	const cashValEl = document.getElementById('drawer-cash-val');
@@ -4029,58 +4690,95 @@ function showPreviousDrawerState(player) {
 	const fixedEl = document.getElementById('drawer-fixed-exp');
 	const debtEl = document.getElementById('drawer-debt-exp');
 
+	const drawerJobEl = document.getElementById('drawer-player-job');
+	if (drawerJobEl) {
+		const prevJob = prev.hasJob ? (prev.profession || 'Profesión') : 'Buscando empleo';
+		drawerJobEl.textContent = prevJob;
+		drawerJobEl.classList.toggle('past-val-highlight', player.profession !== prev.profession || player.hasJob !== prev.hasJob);
+	}
+
 	if (cashValEl) {
-		cashValEl.textContent = `${formatCOP(prev.cash)} COP`;
-		cashValEl.classList.add('past-val-highlight');
+		cashValEl.textContent = `${formatCOP(prev.cash)}`;
+		cashValEl.style.color = prev.cash < 0 ? '#dc2626' : '#16a34a';
+		cashValEl.classList.toggle('past-val-highlight', player.cash !== prev.cash);
 	}
 	if (cashflowEl) {
 		cashflowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}`;
-		cashflowEl.style.color = prev.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
-		cashflowEl.classList.add('past-val-highlight');
+		cashflowEl.style.color = prev.monthlyCashFlow > 0 ? '#16a34a' : (prev.monthlyCashFlow < 0 ? '#dc2626' : '#0f172a');
+		cashflowEl.classList.toggle('past-val-highlight', fin.monthlyCashFlow !== prev.monthlyCashFlow);
 	}
+	const prevSalary = prev.salary || 0;
 	if (salaryEl) {
-		salaryEl.textContent = formatCOP(prev.salary);
-		salaryEl.classList.add('past-val-highlight');
+		salaryEl.textContent = formatCOP(prevSalary);
+		salaryEl.classList.toggle('past-val-highlight', player.salary !== prevSalary);
 	}
+	const prevPassive = prev.passiveIncome || 0;
 	if (passiveEl) {
-		passiveEl.textContent = formatCOP(prev.passiveIncome);
-		passiveEl.classList.add('past-val-highlight');
+		passiveEl.textContent = formatCOP(prevPassive);
+		passiveEl.classList.toggle('past-val-highlight', fin.passiveIncome !== prevPassive);
 	}
+
+	const currRent = player.hasJob ? (player.rentExpense || 0) : 0;
+	const prevRent = prev.rentExpense || 0;
 	if (rentEl) {
-		rentEl.textContent = formatCOP(prev.rentExpense || DEFAULT_FIXED_EXPENSES.rent);
-		rentEl.classList.add('past-val-highlight');
+		rentEl.textContent = prevRent > 0 ? formatCOP(prevRent) : '$0';
+		rentEl.classList.toggle('past-val-highlight', currRent !== prevRent);
 	}
+
+	const currGroceries = player.hasJob ? (player.groceriesExpense || 0) : 0;
+	const prevGroceries = prev.groceriesExpense || 0;
 	if (groceriesEl) {
-		groceriesEl.textContent = formatCOP(prev.groceriesExpense || DEFAULT_FIXED_EXPENSES.groceries);
-		groceriesEl.classList.add('past-val-highlight');
+		groceriesEl.textContent = prevGroceries > 0 ? formatCOP(prevGroceries) : '$0';
+		groceriesEl.classList.toggle('past-val-highlight', currGroceries !== prevGroceries);
 	}
+
+	const currUtilities = player.hasJob ? (player.utilitiesExpense || 0) : 0;
+	const prevUtilities = prev.utilitiesExpense || 0;
 	if (utilitiesEl) {
-		utilitiesEl.textContent = formatCOP(prev.utilitiesExpense || DEFAULT_FIXED_EXPENSES.utilities);
-		utilitiesEl.classList.add('past-val-highlight');
+		utilitiesEl.textContent = prevUtilities > 0 ? formatCOP(prevUtilities) : '$0';
+		utilitiesEl.classList.toggle('past-val-highlight', currUtilities !== prevUtilities);
 	}
+
+	const currTransport = player.hasJob ? (player.transportExpense || 0) : 0;
+	const prevTransport = prev.transportExpense || 0;
 	if (transportEl) {
-		transportEl.textContent = formatCOP(prev.transportExpense || DEFAULT_FIXED_EXPENSES.transport);
-		transportEl.classList.add('past-val-highlight');
+		transportEl.textContent = prevTransport > 0 ? formatCOP(prevTransport) : '$0';
+		transportEl.classList.toggle('past-val-highlight', currTransport !== prevTransport);
 	}
+
+	const currInternet = player.hasJob ? (player.internetExpense || 0) : 0;
+	const prevInternet = prev.internetExpense || 0;
 	if (internetEl) {
-		internetEl.textContent = formatCOP(prev.internetExpense || DEFAULT_FIXED_EXPENSES.internet);
-		internetEl.classList.add('past-val-highlight');
+		internetEl.textContent = prevInternet > 0 ? formatCOP(prevInternet) : '$0';
+		internetEl.classList.toggle('past-val-highlight', currInternet !== prevInternet);
 	}
+
+	const currPhone = player.hasJob ? (player.phoneExpense || 0) : 0;
+	const prevPhone = prev.phoneExpense || 0;
 	if (phoneEl) {
-		phoneEl.textContent = formatCOP(prev.phoneExpense || DEFAULT_FIXED_EXPENSES.phone);
-		phoneEl.classList.add('past-val-highlight');
+		phoneEl.textContent = prevPhone > 0 ? formatCOP(prevPhone) : '$0';
+		phoneEl.classList.toggle('past-val-highlight', currPhone !== prevPhone);
 	}
+
+	const currOther = player.hasJob ? (player.otherExpenses || 0) : 0;
+	const prevOther = prev.otherExpenses || 0;
 	if (otherEl) {
-		otherEl.textContent = formatCOP(prev.otherExpenses || DEFAULT_FIXED_EXPENSES.other);
-		otherEl.classList.add('past-val-highlight');
+		otherEl.textContent = prevOther > 0 ? formatCOP(prevOther) : '$0';
+		otherEl.classList.toggle('past-val-highlight', currOther !== prevOther);
 	}
+
+	const currFixed = player.hasJob ? (player.fixedExpenses || 0) : 0;
+	const prevFixed = prev.fixedExpenses || 0;
 	if (fixedEl) {
-		fixedEl.textContent = formatCOP(prev.fixedExpenses || 1500000);
-		fixedEl.classList.add('past-val-highlight');
+		fixedEl.textContent = prevFixed > 0 ? formatCOP(prevFixed) : '$0';
+		fixedEl.classList.toggle('past-val-highlight', currFixed !== prevFixed);
 	}
+
+	const currDebt = player.debtExpenses || 0;
+	const prevDebt = prev.debtExpenses || 0;
 	if (debtEl) {
-		debtEl.textContent = formatCOP(prev.debtExpenses || 0);
-		debtEl.classList.add('past-val-highlight');
+		debtEl.textContent = prevDebt > 0 ? formatCOP(prevDebt) : '$0';
+		debtEl.classList.toggle('past-val-highlight', currDebt !== prevDebt);
 	}
 }
 
@@ -4091,9 +4789,15 @@ function restoreCurrentDrawerState(playerIndex) {
 	const drawerHistBtn = document.getElementById('btn-drawer-history');
 	if (drawerHistBtn) {
 		drawerHistBtn.classList.remove('active');
-		drawerHistBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+		drawerHistBtn.textContent = '¿Cómo era antes?';
 	}
 	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
+	const p = gameState.players[playerIndex];
+	const drawerJobEl = document.getElementById('drawer-player-job');
+	if (drawerJobEl && p) {
+		drawerJobEl.textContent = p.hasJob ? p.profession : 'Buscando empleo';
+		drawerJobEl.classList.remove('past-val-highlight');
+	}
 	updateDrawerFinancials(playerIndex);
 }
 
@@ -4120,7 +4824,7 @@ function triggerVictory(player) {
 	if (msg) {
 		msg.innerHTML = `
 			¡Enhorabuena, <strong>${player.name}</strong>! 🎉<br><br>
-			Tus <strong>Ingresos Pasivos (${formatCOP(fin.passiveIncome)} COP/mes)</strong> han superado por completo tus <strong>Gastos Totales (${formatCOP(fin.totalExpenses)} COP/mes)</strong>.<br><br>
+			Tus <strong>Ingresos Pasivos (${formatCOP(fin.passiveIncome)}/mes)</strong> han superado por completo tus <strong>Gastos Totales (${formatCOP(fin.totalExpenses)}/mes)</strong>.<br><br>
 			¡Ya no dependes de un salario! Has alcanzado la <strong>Libertad Financiera</strong> y escapaste de la Carrera de la Rata.
 		`;
 	}
@@ -4129,11 +4833,11 @@ function triggerVictory(player) {
 		summary.innerHTML = `
 			<div class="card-stat-line">
 				<span class="lbl">Ingresos Pasivos Mensuales</span>
-				<span class="val green">+${formatCOP(fin.passiveIncome)} COP/mes</span>
+				<span class="val green">+${formatCOP(fin.passiveIncome)}/mes</span>
 			</div>
 			<div class="card-stat-line">
 				<span class="lbl">Gastos Totales Mensuales</span>
-				<span class="val red">-${formatCOP(fin.totalExpenses)} COP/mes</span>
+				<span class="val red">-${formatCOP(fin.totalExpenses)}/mes</span>
 			</div>
 			<div class="card-stat-line">
 				<span class="lbl">Activos Construidos</span>
@@ -4141,7 +4845,7 @@ function triggerVictory(player) {
 			</div>
 			<div class="card-stat-line">
 				<span class="lbl">Efectivo en Mano</span>
-				<span class="val green">${formatCOP(player.cash)} COP</span>
+				<span class="val green">${formatCOP(player.cash)}</span>
 			</div>
 		`;
 	}
@@ -4150,6 +4854,48 @@ function triggerVictory(player) {
 }
 
 let currentFlyingTileEl = null;
+
+/**
+ * Transición cinematográfica de cámara entre turnos (efecto avión / elevación de vuelo).
+ * Al cambiar al siguiente jugador:
+ * 1. Zoom out (subir altitud) + sonido suave de brisa / vuelo (whoosh).
+ * 2. Desplazamiento esférico rotatorio hacia la casilla del nuevo jugador.
+ * 3. Zoom in (descenso suave a la altura normal de juego).
+ */
+function transitionCameraToPlayer(nextPlayer, onComplete = null) {
+	const scene = document.getElementById('road-3d-scene-container');
+	const btnRoll = document.getElementById('btn-roll-dice');
+
+	if (!scene || gameState.players.length <= 1) {
+		centerPerspective(true, 700, nextPlayer);
+		if (onComplete) onComplete();
+		return;
+	}
+
+	// Inhabilitar tiro de dados mientras se realiza la maniobra de vuelo
+	if (btnRoll) btnRoll.disabled = true;
+
+	// Fase 1: Ascenso suave y pausado (zoom out aéreo de avión)
+	sounds.whoosh();
+	scene.classList.add('camera-pull-back');
+
+	setTimeout(() => {
+		// Fase 2: Vuelo orbital suave hacia la posición del siguiente jugador
+		centerPerspective(true, 1100, nextPlayer);
+
+		setTimeout(() => {
+			// Fase 3: Descenso suave a la altitud de crucero / zoom normal
+			scene.classList.remove('camera-pull-back');
+			setTimeout(() => {
+				if (btnRoll && nextPlayer.skipTurns <= 0) {
+					btnRoll.disabled = false;
+				}
+				updateRollButtonTooltip();
+				if (onComplete) onComplete();
+			}, 700);
+		}, 1100);
+	}, 650);
+}
 
 function endTurn() {
 	if (gameState.isCardFlying) {
@@ -4164,8 +4910,12 @@ function endTurn() {
 	gameState.isRolling = false;
 	gameState.cameraViewOffset = 0;
 	updateHUDAndHeaders();
-	centerPerspective(true); // Al terminar el turno, deslizar suavemente las casillas para centrar al siguiente jugador
+
+	const nextPlayer = gameState.players[gameState.currentPlayerIndex];
+	transitionCameraToPlayer(nextPlayer);
 }
+
+
 
 /**
  * Renderiza el widget de balance a mano derecha mientras se muestra la tarjeta central
@@ -4188,26 +4938,38 @@ function renderModalSideBalance() {
 		avatarEl.textContent = player.avatar;
 		avatarEl.style.background = player.bg;
 	}
-	if (nameEl) nameEl.textContent = `${player.name} (Turno)`;
+	if (nameEl) nameEl.textContent = player.name;
 	if (jobEl) {
-		const count = player.salariesCollected || 0;
+		jobEl.classList.remove('past-val-highlight');
 		if (player.hasJob) {
-			jobEl.textContent = `${player.profession} • ${count} salarios cobrados`;
+			jobEl.textContent = player.profession;
 		} else {
 			jobEl.textContent = 'Buscando empleo 🔍';
 		}
 	}
 
-	// Resumen Superior: Efectivo y Flujo Libre
+	// Resumen Superior: Efectivo y Flujo
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
+	const isViewingPast = sideBalanceEl && sideBalanceEl.classList.contains('viewing-past-state');
+
 	if (cashEl) {
-		cashEl.textContent = `${formatCOP(player.cash)} COP`;
+		cashEl.textContent = `${formatCOP(player.cash)}`;
 		cashEl.className = `val cash ${player.cash < 0 ? 'red' : ''}`;
 	}
 	if (flowEl) {
-		flowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m`;
-		flowEl.className = `val flow ${fin.monthlyCashFlow < 0 ? 'red' : ''}`;
+		const displayFlow = fin.monthlyCashFlow;
+		// Si el tragamonedas está girando activamente en plena animación, no sobreescribir con valor estático
+		if (!isSlotMachineSpinning) {
+			flowEl.textContent = `${displayFlow >= 0 ? '+' : ''}${formatCOP(displayFlow)}/m`;
+			let flowClass = 'zero';
+			if (displayFlow > 0) flowClass = 'green';
+			else if (displayFlow < 0) flowClass = 'red';
+			flowEl.className = `val flow ${flowClass}`;
+		}
+		if (!isViewingPast) {
+			player.lastKnownCashFlow = displayFlow;
+		}
 	}
 
 	// 1. INGRESOS
@@ -4228,15 +4990,15 @@ function renderModalSideBalance() {
 	const otherExpEl = document.getElementById('side-bal-other-exp');
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
-	if (rentExpEl) rentExpEl.textContent = `-${formatCOP(player.rentExpense ?? DEFAULT_FIXED_EXPENSES.rent)}`;
-	if (groceriesExpEl) groceriesExpEl.textContent = `-${formatCOP(player.groceriesExpense ?? DEFAULT_FIXED_EXPENSES.groceries)}`;
-	if (utilitiesExpEl) utilitiesExpEl.textContent = `-${formatCOP(player.utilitiesExpense ?? DEFAULT_FIXED_EXPENSES.utilities)}`;
-	if (transportExpEl) transportExpEl.textContent = `-${formatCOP(player.transportExpense ?? DEFAULT_FIXED_EXPENSES.transport)}`;
-	if (internetExpEl) internetExpEl.textContent = `-${formatCOP(player.internetExpense ?? DEFAULT_FIXED_EXPENSES.internet)}`;
-	if (phoneExpEl) phoneExpEl.textContent = `-${formatCOP(player.phoneExpense ?? DEFAULT_FIXED_EXPENSES.phone)}`;
-	if (otherExpEl) otherExpEl.textContent = `-${formatCOP(player.otherExpenses ?? DEFAULT_FIXED_EXPENSES.other)}`;
-	if (debtExpEl) debtExpEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
-	if (totalExpEl) totalExpEl.textContent = `-${formatCOP(fin.totalExpenses)}`;
+	if (rentExpEl) rentExpEl.textContent = (player.hasJob && player.rentExpense) ? `-${formatCOP(player.rentExpense)}` : '$0';
+	if (groceriesExpEl) groceriesExpEl.textContent = (player.hasJob && player.groceriesExpense) ? `-${formatCOP(player.groceriesExpense)}` : '$0';
+	if (utilitiesExpEl) utilitiesExpEl.textContent = (player.hasJob && player.utilitiesExpense) ? `-${formatCOP(player.utilitiesExpense)}` : '$0';
+	if (transportExpEl) transportExpEl.textContent = (player.hasJob && player.transportExpense) ? `-${formatCOP(player.transportExpense)}` : '$0';
+	if (internetExpEl) internetExpEl.textContent = (player.hasJob && player.internetExpense) ? `-${formatCOP(player.internetExpense)}` : '$0';
+	if (phoneExpEl) phoneExpEl.textContent = (player.hasJob && player.phoneExpense) ? `-${formatCOP(player.phoneExpense)}` : '$0';
+	if (otherExpEl) otherExpEl.textContent = (player.hasJob && player.otherExpenses) ? `-${formatCOP(player.otherExpenses)}` : '$0';
+	if (debtExpEl) debtExpEl.textContent = (player.debtExpenses || 0) > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
+	if (totalExpEl) totalExpEl.textContent = fin.totalExpenses > 0 ? `-${formatCOP(fin.totalExpenses)}` : '$0';
 
 	// 3. ACTIVOS
 	const assetsCountEl = document.getElementById('side-bal-assets-count');
@@ -4266,50 +5028,21 @@ function renderModalSideBalance() {
 	if (debtValEl) debtValEl.textContent = player.totalDebt > 0 ? `${formatCOP(player.totalDebt)}` : '$0';
 	if (debtPayEl) debtPayEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}/m` : '$0/m';
 
-	// 5. Indicadores delta y botón de historial "Cómo era antes"
+	// 5. Botón de historial "Cómo era antes"
 	const prev = player.previousSnapshot;
 	const historyBtn = document.getElementById('btn-side-bal-history');
-	const cashDeltaEl = document.getElementById('side-bal-cash-delta');
-	const flowDeltaEl = document.getElementById('side-bal-flow-delta');
 	const cashMetricBox = document.getElementById('side-bal-metric-cash');
 	const flowMetricBox = document.getElementById('side-bal-metric-flow');
-	const incomeQuad = document.getElementById('k-quad-income');
 
 	if (prev) {
 		if (historyBtn) {
 			historyBtn.classList.remove('hidden');
-			historyBtn.innerHTML = '🕒 Mantén presionado: ¿Cómo era antes?';
+			historyBtn.textContent = '¿Cómo era antes?';
 			attachHoldToPeekEvents(
 				historyBtn,
 				() => showPreviousBalanceState(player),
 				() => restoreCurrentBalanceState()
 			);
-		}
-
-		// Delta en Efectivo
-		const cashDiff = player.cash - prev.cash;
-		if (cashDeltaEl) {
-			if (cashDiff !== 0) {
-				const sign = cashDiff > 0 ? '+' : '-';
-				cashDeltaEl.textContent = `${sign}${formatCOP(Math.abs(cashDiff))} (Antes: ${formatCOP(prev.cash)})`;
-				cashDeltaEl.className = `bal-delta-pill ${cashDiff > 0 ? 'gain' : 'loss'}`;
-				cashDeltaEl.classList.remove('hidden');
-			} else {
-				cashDeltaEl.classList.add('hidden');
-			}
-		}
-
-		// Delta en Flujo Libre
-		const flowDiff = fin.monthlyCashFlow - prev.monthlyCashFlow;
-		if (flowDeltaEl) {
-			if (flowDiff !== 0) {
-				const sign = flowDiff > 0 ? '+' : '-';
-				flowDeltaEl.textContent = `${sign}${formatCOP(Math.abs(flowDiff))}/m (Antes: ${formatCOP(prev.monthlyCashFlow)}/m)`;
-				flowDeltaEl.className = `bal-delta-pill ${flowDiff > 0 ? 'gain' : 'loss'}`;
-				flowDeltaEl.classList.remove('hidden');
-			} else {
-				flowDeltaEl.classList.add('hidden');
-			}
 		}
 
 		// Si el usuario también mantiene presionadas las métricas de efectivo o flujo, muestra cómo era antes
@@ -4329,8 +5062,6 @@ function renderModalSideBalance() {
 		}
 	} else {
 		if (historyBtn) historyBtn.classList.add('hidden');
-		if (cashDeltaEl) cashDeltaEl.classList.add('hidden');
-		if (flowDeltaEl) flowDeltaEl.classList.add('hidden');
 	}
 
 	sideBalanceEl.classList.add('active');
@@ -4340,7 +5071,124 @@ function renderModalSideBalance() {
 // 13. MODALES DE TARJETAS (Efecto 3D Levantar, Voltear y Regresar)
 // ==========================================
 
-function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '' }) {
+function getCardIllustrationPath({ image, headerClass, typeName, title, desc, detailedInfo }) {
+	if (image) return image;
+
+	const lowerTitle = (title || '').toLowerCase();
+	const lowerType = (typeName || '').toLowerCase();
+	const lowerHeader = (headerClass || '').toLowerCase();
+	const fullText = (lowerTitle + ' ' + lowerType + ' ' + (desc || '') + ' ' + (detailedInfo || '')).toLowerCase();
+
+	// 1. Elección de Oportunidad (Small vs Big)
+	if (lowerTitle.includes('oportunidad de inversión') || lowerTitle.includes('elige tu negocio') || lowerTitle.includes('explorar negocios') || (lowerHeader === 'opportunity' && !lowerTitle.includes('comprar') && !lowerTitle.includes('cuenta') && !lowerTitle.includes('bono') && !lowerTitle.includes('propiedad') && !lowerTitle.includes('negocio') && !lowerTitle.includes('máquina') && !lowerTitle.includes('cdt'))) {
+		return '/images/cards/oportunidad_choice.svg';
+	}
+
+	// 2. Renta Fija / CDT / Bonos / Ahorro / Fondos
+	if (fullText.includes('renta fija') || fullText.includes('fondo') || fullText.includes('cdt') || fullText.includes('bono') || fullText.includes('ahorro') || fullText.includes('fiduciari') || fullText.includes('remunerad') || fullText.includes('deuda pública')) {
+		return '/images/cards/renta_fija.svg';
+	}
+
+	// 3. Bienes Raíces / Propiedades / Viviendas
+	if (fullText.includes('bienes raíces') || fullText.includes('apartamento') || fullText.includes('casa') || fullText.includes('bodega') || fullText.includes('edificio') || fullText.includes('inmueble') || fullText.includes('penthouse') || fullText.includes('hogar') || lowerHeader === 'housing') {
+		if (lowerHeader === 'housing' || fullText.includes('mudanza') || fullText.includes('vivienda')) {
+			return '/images/cards/vivienda.svg';
+		}
+		return '/images/cards/bienes_raices.svg';
+	}
+
+	// 4. Máquinas, Vending y Tecnología
+	if (fullText.includes('máquina') || fullText.includes('tecnología') || fullText.includes('vending') || fullText.includes('lavandería') || fullText.includes('kiosco') || fullText.includes('impresión')) {
+		return '/images/cards/tecnologia_maquinas.svg';
+	}
+
+	// 5. Transporte, Vehículos y Flota
+	if (fullText.includes('transporte') || fullText.includes('auto') || fullText.includes('camión') || fullText.includes('reparto') || fullText.includes('vehículo') || fullText.includes('flete')) {
+		return '/images/cards/transporte.svg';
+	}
+
+	// 6. Negocios, Comercios, Franquicias
+	if (fullText.includes('franquicia') || fullText.includes('comercio') || fullText.includes('empresa') || fullText.includes('tienda') || fullText.includes('cafetería') || fullText.includes('panadería') || fullText.includes('restaurante') || fullText.includes('negocio') || fullText.includes('local')) {
+		return '/images/cards/negocio_empresa.svg';
+	}
+
+	// 7. Día de Pago y Salarios
+	if (lowerHeader === 'payday' || lowerType.includes('día de pago') || fullText.includes('salario') || fullText.includes('día de pago')) {
+		if (fullText.includes('aumento') || fullText.includes('antigüedad')) {
+			return '/images/cards/aumento_sueldo.svg';
+		}
+		return '/images/cards/dia_de_pago.svg';
+	}
+
+	// 8. Ascensos y Promociones
+	if (lowerHeader === 'promotion' || fullText.includes('ascenso') || fullText.includes('promoción') || fullText.includes('escalafón')) {
+		return '/images/cards/ascenso.svg';
+	}
+
+	// 9. Caprichos y Gastos
+	if (lowerHeader === 'doodad' || fullText.includes('capricho') || fullText.includes('salida') || fullText.includes('gasto') || fullText.includes('cena') || fullText.includes('pizza') || fullText.includes('compras')) {
+		return '/images/cards/caprichos.svg';
+	}
+
+	// 10. Mercado de activos
+	if (lowerHeader === 'market' || fullText.includes('mercado') || fullText.includes('comprador') || fullText.includes('liquidar') || fullText.includes('venta')) {
+		return '/images/cards/mercado.svg';
+	}
+
+	// 11. Caridad
+	if (lowerHeader === 'charity' || fullText.includes('caridad') || fullText.includes('donación') || fullText.includes('solidari')) {
+		return '/images/cards/caridad.svg';
+	}
+
+	// 12. Crisis y Emergencias
+	if (lowerHeader === 'crisis' || fullText.includes('crisis') || fullText.includes('emergencia') || fullText.includes('despido') || fullText.includes('sin fondos')) {
+		return '/images/cards/crisis.svg';
+	}
+
+	// 13. Préstamos y Deudas
+	if (lowerHeader === 'loan' || fullText.includes('préstamo') || fullText.includes('banco') || fullText.includes('deuda')) {
+		return '/images/cards/prestamo.svg';
+	}
+
+	// 14. Casilla vacía / Paso Libre
+	if (lowerHeader === 'neutral' || fullText.includes('paso libre') || fullText.includes('vacía') || fullText.includes('descanso')) {
+		return '/images/cards/paso_libre.svg';
+	}
+
+	// 15. Empleos y Profesiones
+	if (lowerHeader === 'job' || lowerType.includes('empleo') || lowerType.includes('trabajo')) {
+		if (fullText.includes('cocin') || fullText.includes('barista') || fullText.includes('pastel')) return '/images/jobs/cocinero.svg';
+		if (fullText.includes('tendero') || fullText.includes('local') || fullText.includes('tienda') || fullText.includes('admin')) return '/images/jobs/tendero.svg';
+		if (fullText.includes('veterinari') || fullText.includes('mascota')) return '/images/jobs/veterinario.svg';
+		if (fullText.includes('domiciliari') || fullText.includes('repart')) return '/images/jobs/domiciliario.svg';
+		if (fullText.includes('recreacion') || fullText.includes('deport') || fullText.includes('música')) return '/images/jobs/recreacionista.svg';
+		if (fullText.includes('jardin')) return '/images/jobs/jardinero.svg';
+		if (fullText.includes('construct') || fullText.includes('obra')) return '/images/jobs/constructor.svg';
+		if (fullText.includes('vendedor') || fullText.includes('venta')) return '/images/jobs/vendedor.svg';
+		if (fullText.includes('fotó')) return '/images/jobs/fotografo.svg';
+		if (fullText.includes('lava')) return '/images/jobs/lavacarros.svg';
+		if (fullText.includes('cliente') || fullText.includes('servicio')) return '/images/jobs/servicio-cliente.svg';
+		if (fullText.includes('traduc')) return '/images/jobs/traductor.svg';
+		if (fullText.includes('program') || fullText.includes('diseñ') || fullText.includes('dron') || fullText.includes('celular')) return '/images/cards/tecnologia_maquinas.svg';
+		return '/images/cards/primer_empleo.svg';
+	}
+
+	// Fallback por categoría/header
+	switch (lowerHeader) {
+		case 'job': return '/images/cards/primer_empleo.svg';
+		case 'opportunity': return '/images/cards/oportunidad_choice.svg';
+		case 'payday': return '/images/cards/dia_de_pago.svg';
+		case 'doodad': return '/images/cards/caprichos.svg';
+		case 'market': return '/images/cards/mercado.svg';
+		case 'promotion': return '/images/cards/ascenso.svg';
+		case 'housing': return '/images/cards/vivienda.svg';
+		case 'charity': return '/images/cards/caridad.svg';
+		case 'crisis': return '/images/cards/crisis.svg';
+		default: return '/images/cards/oportunidad_choice.svg';
+	}
+}
+
+function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, stats = [], buttons = [], detailedInfo = '', customHtml = '' }) {
 	const overlay = document.getElementById('flying-card-overlay');
 	const wrapper = document.getElementById('flying-card-wrapper');
 	const flipper = document.getElementById('flying-card-flipper');
@@ -4349,6 +5197,7 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	const badgeEl = document.getElementById('modal-badge');
 	const infoToggleEl = document.getElementById('modal-info-toggle');
 	const iconEl = document.getElementById('modal-icon');
+	const imageEl = document.getElementById('modal-image');
 	const titleEl = document.getElementById('modal-title');
 	const descEl = document.getElementById('modal-desc');
 	const statsEl = document.getElementById('modal-stats');
@@ -4362,7 +5211,27 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	// Configurar contenido de la tarjeta minimalista (blanco y gris 1%)
 	const defaultType = typeName || (headerClass ? headerClass.toUpperCase() : 'OPORTUNIDAD');
 	if (badgeEl) badgeEl.textContent = defaultType;
-	if (iconEl) iconEl.textContent = icon || '🚀';
+
+	// Resolver imagen temática para la tarjeta (garantiza ilustraciones en todas las tarjetas)
+	const resolvedImage = image || getCardIllustrationPath({ image, headerClass, typeName, title, desc, detailedInfo });
+
+	if (resolvedImage) {
+		if (iconEl) iconEl.classList.add('hidden');
+		if (imageEl) {
+			imageEl.innerHTML = `<img src="${resolvedImage}" alt="${title || 'Tarjeta'}" />`;
+			imageEl.classList.remove('hidden');
+		}
+	} else {
+		if (imageEl) {
+			imageEl.innerHTML = '';
+			imageEl.classList.add('hidden');
+		}
+		if (iconEl) {
+			iconEl.classList.remove('hidden');
+			iconEl.textContent = icon || '🚀';
+		}
+	}
+
 	if (titleEl) titleEl.textContent = title || '';
 
 	// Botón de información alejado (Top-Right) y descripción oculta por defecto
@@ -4386,9 +5255,12 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 		}
 	}
 
-	// Estadísticas minimalistas
+	// Estadísticas minimalistas o HTML personalizado
 	if (statsEl) {
-		if (stats && stats.length > 0) {
+		if (customHtml) {
+			statsEl.innerHTML = customHtml;
+			statsEl.style.display = 'flex';
+		} else if (stats && stats.length > 0) {
 			statsEl.innerHTML = stats.map(s => `
 				<div class="mini-stat-line">
 					<span class="lbl">${s.label}</span>
@@ -4408,12 +5280,21 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	// Botones predominantes
 	if (footerEl) {
 		footerEl.innerHTML = '';
+		let isActionExecuting = false;
 		buttons.forEach(b => {
 			const btn = document.createElement('button');
 			btn.className = `cf-dialog-btn ${b.class || 'primary'}`;
 			btn.textContent = b.text;
-			btn.addEventListener('click', () => {
-				if (b.action) b.action();
+			btn.addEventListener('click', (e) => {
+				if (isActionExecuting) return;
+				isActionExecuting = true;
+				// Inhabilitar inmediatamente todos los botones del footer para evitar dobles clics o cobros/gastos duplicados
+				footerEl.querySelectorAll('button').forEach(bEl => {
+					bEl.disabled = true;
+					bEl.style.pointerEvents = 'none';
+					bEl.style.opacity = '0.65';
+				});
+				if (b.action) b.action(e);
 			});
 			footerEl.appendChild(btn);
 		});
@@ -4429,9 +5310,7 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 	}
 
 	// 1. Obtener la casilla activa del camino donde cayó el jugador
-	const isParallelTwo = gameState.players.length === 2;
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
-	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
+	const activeTile = document.getElementById(`lane-tile-0-${current.position}`);
 
 	gameState.isCardFlying = true;
 	currentFlyingTileEl = activeTile;
@@ -4445,7 +5324,7 @@ function showModal({ typeName, headerClass, icon, title, subtitle, desc, stats =
 
 		// Medir posición y dimensiones exactas en la pantalla de la casilla en el camino
 		const rect = activeTile.getBoundingClientRect();
-		const startW = activeTile.offsetWidth || 236;
+		const startW = activeTile.offsetWidth || 320;
 		const startH = activeTile.offsetHeight || 115;
 		const startX = rect.left + rect.width / 2 - startW / 2;
 		const startY = rect.top + rect.height / 2 - startH / 2;
