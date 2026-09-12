@@ -1587,8 +1587,17 @@ const gameState = {
 	isCardFlying: false,
 	pendingEndTurn: false,
 	generatedTiles: [],
-	cameraViewOffset: 0 // Para explorar casillas siguientes/anteriores sin mover el ficho
+	cameraViewOffset: 0, // Para explorar casillas siguientes/anteriores sin mover el ficho
+	lastPromotionTimestamp: Date.now() // Inicia el reloj de 9 min al arrancar la partida
 };
+
+// Cooldown para casillas de ascenso: solo cada 9 minutos (540.000 ms)
+const PROMOTION_COOLDOWN_MS = 9 * 60 * 1000;
+
+function isPromotionAvailable() {
+	if (!gameState.lastPromotionTimestamp) return false;
+	return (Date.now() - gameState.lastPromotionTimestamp) >= PROMOTION_COOLDOWN_MS;
+}
 
 // ==========================================
 // 4. EFECTOS DE SONIDO SINTETIZADOS
@@ -1748,6 +1757,26 @@ class SoundEffects {
 		setTimeout(() => this.playTone(310, 0.07, 'sine', 0.02), 60);
 	}
 
+	whoosh() {
+		try {
+			this.init();
+			if (!this.ctx) return;
+			const osc = this.ctx.createOscillator();
+			const gain = this.ctx.createGain();
+			osc.type = 'sine';
+			osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+			osc.frequency.exponentialRampToValueAtTime(320, this.ctx.currentTime + 0.18);
+			osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.4);
+			gain.gain.setValueAtTime(0.015, this.ctx.currentTime);
+			gain.gain.linearRampToValueAtTime(0.035, this.ctx.currentTime + 0.18);
+			gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+			osc.connect(gain);
+			gain.connect(this.ctx.destination);
+			osc.start();
+			osc.stop(this.ctx.currentTime + 0.42);
+		} catch (e) {}
+	}
+
 	victory() {
 		const notes = [523.25, 659.25, 783.99, 1046.50];
 		notes.forEach((n, idx) => {
@@ -1764,7 +1793,7 @@ const sounds = new SoundEffects();
 
 function extendPerspectiveRoad(countToAdd = 25) {
 	const startIdx = gameState.generatedTiles.length;
-	const isParallelTwo = gameState.players.length === 2;
+	const track0 = document.getElementById('road-lane-track-0');
 
 	for (let i = 0; i < countToAdd; i++) {
 		const globalIndex = startIdx + i;
@@ -1772,16 +1801,7 @@ function extendPerspectiveRoad(countToAdd = 25) {
 		tileData.globalIndex = globalIndex;
 		gameState.generatedTiles.push(tileData);
 
-		if (isParallelTwo) {
-			// Añadir exactamente la misma casilla a ambos caminos paralelos
-			const track0 = document.getElementById('road-lane-track-0');
-			const track1 = document.getElementById('road-lane-track-1');
-			if (track0) track0.appendChild(createLaneTileDOM(tileData, 0));
-			if (track1) track1.appendChild(createLaneTileDOM(tileData, 1));
-		} else {
-			const singleTrack = document.getElementById('road-lane-track-0');
-			if (singleTrack) singleTrack.appendChild(createLaneTileDOM(tileData, 0));
-		}
+		if (track0) track0.appendChild(createLaneTileDOM(tileData, 0));
 	}
 }
 
@@ -1836,28 +1856,31 @@ function pickTileForIndex(index) {
 	const cycle = index % 24;
 	let typeKey = 'opportunity';
 
+	// Las casillas de ascenso solo aparecen si han pasado al menos 9 minutos desde el último ascenso
+	const promoOrOpp = isPromotionAvailable() ? 'promotion' : 'opportunity';
+
 	switch (cycle) {
 		case 14: typeKey = 'market'; break;
-		case 15: typeKey = 'promotion'; break;
+		case 15: typeKey = promoOrOpp; break;
 		case 16: typeKey = 'opportunity'; break;
 		case 17: typeKey = 'doodad'; break;
 		case 18: typeKey = 'crisis'; break;
 		case 19: typeKey = 'opportunity'; break;
 		case 20: typeKey = 'job'; break;
-		case 21: typeKey = 'promotion'; break;
+		case 21: typeKey = promoOrOpp; break;
 		case 22: typeKey = 'market'; break;
 		case 23: typeKey = 'charity'; break;
 		// Para siguientes vueltas de la pista (después del Mes 1):
 		case 1: typeKey = 'opportunity'; break;
 		case 2: typeKey = 'job'; break;
 		case 3: typeKey = 'doodad'; break;
-		case 4: typeKey = 'promotion'; break;
+		case 4: typeKey = promoOrOpp; break;
 		case 5: typeKey = 'opportunity'; break;
 		case 6: typeKey = 'market'; break;
 		case 7: typeKey = 'job'; break;
 		case 8: typeKey = 'charity'; break;
 		case 9: typeKey = 'opportunity'; break;
-		case 10: typeKey = 'promotion'; break;
+		case 10: typeKey = promoOrOpp; break;
 		case 11: typeKey = 'doodad'; break;
 		case 12: typeKey = 'opportunity'; break;
 		case 13: typeKey = 'job'; break;
@@ -2190,22 +2213,11 @@ function setupRoad3DScene() {
 	colMeadow.appendChild(trackMeadow);
 	scene.appendChild(colMeadow);
 
-	// 2. Caminos de los Jugadores
-	const isParallelTwo = gameState.players.length === 2;
-	if (isParallelTwo) {
-		const roadGroup = document.createElement('div');
-		roadGroup.className = 'road-lanes-group';
-		roadGroup.innerHTML = `
-			<div class="parallel-road-column"><div class="road-3d-track" id="road-lane-track-0"></div></div>
-			<div class="parallel-road-column"><div class="road-3d-track" id="road-lane-track-1"></div></div>
-		`;
-		scene.appendChild(roadGroup);
-	} else {
-		const col = document.createElement('div');
-		col.className = 'parallel-road-column';
-		col.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
-		scene.appendChild(col);
-	}
+	// 2. Camino Único de los Jugadores (Compartido para 1, 2, 3 o 4 participantes)
+	const col = document.createElement('div');
+	col.className = 'parallel-road-column unified-road-column';
+	col.innerHTML = `<div class="road-3d-track" id="road-lane-track-0"></div>`;
+	scene.appendChild(col);
 
 	// 3. Escenografía Derecha: Playa Soleada, Palmeras, Sombrillas y Mar
 	const colBeach = document.createElement('div');
@@ -2228,30 +2240,20 @@ function setupRoad3DScene() {
 }
 
 function updatePawnsOnRoad(activeHoppingIndex = -1) {
-	const isParallelTwo = gameState.players.length === 2;
-
-	// Limpiar casillas
+	// Limpiar casillas en el camino compartido
 	gameState.generatedTiles.forEach(tile => {
-		if (isParallelTwo) {
-			const slot0 = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
-			const slot1 = document.getElementById(`lane-pawns-1-${tile.globalIndex}`);
-			if (slot0) slot0.innerHTML = '';
-			if (slot1) slot1.innerHTML = '';
-		} else {
-			const slot = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
-			if (slot) slot.innerHTML = '';
-		}
+		const slot = document.getElementById(`lane-pawns-0-${tile.globalIndex}`);
+		if (slot) slot.innerHTML = '';
 	});
 
-	// Colocar fichas
+	// Colocar fichas de todos los jugadores en su posición del camino compartido
 	gameState.players.forEach((p, idx) => {
-		const laneIndex = isParallelTwo ? idx : 0;
-		const slot = document.getElementById(`lane-pawns-${laneIndex}-${p.position}`);
+		const slot = document.getElementById(`lane-pawns-0-${p.position}`);
 		if (slot) {
 			const pawn = document.createElement('div');
 			pawn.className = `mini-pawn ${idx === activeHoppingIndex ? 'pawn-hopping' : ''}`;
 			pawn.style.background = p.color;
-			pawn.title = p.name;
+			pawn.title = `${p.name} (Posición #${p.position})`;
 			pawn.innerHTML = p.avatar;
 			slot.appendChild(pawn);
 		}
@@ -2330,8 +2332,7 @@ function updateHUDAndHeaders() {
 
 	// Resaltar casilla activa
 	document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
-	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
+	const activeTile = document.getElementById(`lane-tile-0-${current.position}`);
 	if (activeTile) activeTile.classList.add('active-step');
 
 	const btnRoll = document.getElementById('btn-roll-dice');
@@ -2353,31 +2354,34 @@ function updateHUDAndHeaders() {
 }
 
 /**
- * Centra la perspectiva hacia el horizonte.
- * Muestra el recuadro anterior (pos - 1), el actual (pos) y los siguientes 12 recuadros (pos + 1 a pos + 12).
- * Sincroniza tanto los caminos paralelos como la escenografía 3D lateral.
+ * Centra la perspectiva esférica del planeta rodante sobre la posición del jugador.
+ * La casilla actual queda en la cúspide focal frontal para máxima legibilidad.
+ * Sincroniza tanto la pista central como la escenografía esférica lateral.
  */
-function centerPerspective(smooth = false) {
-	const current = gameState.players[gameState.currentPlayerIndex];
+function centerPerspective(smooth = false, customDuration = null, targetPlayer = null) {
+	const current = targetPlayer || gameState.players[gameState.currentPlayerIndex];
 	if (!current) return;
 
 	const effectivePos = current.position + gameState.cameraViewOffset;
-	// Posiciona la cámara en (pos - 0.95) para que la casilla anterior quede visible en la base de la pantalla
-	const cameraTileIndex = Math.max(0, effectivePos - 0.95);
-	const stepHeight = 129; // 115px altura de casilla + 14px de separación
+	// Posiciona la cámara para que la casilla actual del jugador quede en la cúspide focal frontal
+	const cameraTileIndex = Math.max(0, effectivePos);
+	const stepHeight = 136; // 122px altura de casilla + 14px de separación
 	const translateY = cameraTileIndex * stepHeight;
 
 	const track0 = document.getElementById('road-lane-track-0');
-	const track1 = document.getElementById('road-lane-track-1');
 	const sceneryLeft = document.getElementById('scenery-lane-left');
 	const sceneryRight = document.getElementById('scenery-lane-right');
 
-	const transitionStyle = smooth ? 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+	let transitionStyle = 'none';
+	if (smooth) {
+		const dur = customDuration ? `${customDuration}ms` : '0.4s';
+		transitionStyle = `transform ${dur} cubic-bezier(0.22, 1, 0.36, 1)`;
+	}
 
-	[track0, track1, sceneryLeft, sceneryRight].forEach(el => {
+	[track0, sceneryLeft, sceneryRight].forEach(el => {
 		if (el) {
 			el.style.transition = transitionStyle;
-			el.style.transform = `rotateX(44deg) translateY(${translateY}px)`;
+			el.style.transform = `rotateX(40deg) translateY(${translateY}px)`;
 		}
 	});
 }
@@ -2448,8 +2452,6 @@ function rollTwoDice() {
 function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 	let stepsRemaining = totalSteps;
 	const pill = document.getElementById('floating-status-pill');
-	const isParallelTwo = gameState.players.length === 2;
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 
 	const stepInterval = setInterval(() => {
 		player.position++;
@@ -2457,21 +2459,24 @@ function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 
 		sounds.step();
 
-		// Cargar más casillas si se acerca al final visible para mantener siempre 12+ hacia el horizonte
+		// El mundo rueda hacia adelante suavemente trayendo la casilla a primer plano
+		centerPerspective(true, 240);
+
+		// Cargar más casillas si se acerca al final visible
 		if (player.position >= gameState.generatedTiles.length - 18) {
 			extendPerspectiveRoad(25);
 		}
 
-		// La ficha salta hacia adelante sobre las casillas (las casillas permanecen quietas)
+		// La ficha salta sobre el camino compartido
 		updatePawnsOnRoad(gameState.currentPlayerIndex);
 
 		// Resaltar casilla activa
 		document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
-		const tileEl = document.getElementById(`lane-tile-${laneIndex}-${player.position}`);
+		const tileEl = document.getElementById(`lane-tile-0-${player.position}`);
 		if (tileEl) tileEl.classList.add('active-step');
 
 		const currentTileData = gameState.generatedTiles[player.position];
-		pill.textContent = `${player.name} avanzando hacia el frente... (${originalTotal - stepsRemaining}/${originalTotal})`;
+		pill.textContent = `${player.name} avanzando por el camino... (${originalTotal - stepsRemaining}/${originalTotal})`;
 
 		// Pausa y ceremonia al pasar por Día de Pago durante el camino
 		if (currentTileData && currentTileData.type === 'payday' && stepsRemaining > 0 && player.hasJob) {
@@ -3193,7 +3198,13 @@ function handleLanding(player, tile) {
 			showJobModal(player);
 			break;
 		case 'promotion':
-			showPromotionModal(player);
+			if (isPromotionAvailable()) {
+				// Al caer en una, se activa el ascenso y se reinicia el reloj de 9 minutos
+				gameState.lastPromotionTimestamp = Date.now();
+				showPromotionModal(player);
+			} else {
+				showOpportunityModal(player);
+			}
 			break;
 		case 'doodad':
 			showDoodadModal(player);
@@ -3340,9 +3351,7 @@ function collectPayday(player, isLanding, onComplete = null) {
 	sounds.cardAppear();
 
 	// Efecto flotante sobre la casilla física en el tablero
-	const isParallelTwo = gameState.players.length === 2;
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
-	showFloatingPaydayBubble(player.position, laneIndex, fin.monthlyCashFlow);
+	showFloatingPaydayBubble(player.position, 0, fin.monthlyCashFlow);
 
 	// HTML visual minimalista con pocas palabras (Ingresos, Gastos, Flujo)
 	const paydayCustomHtml = `
@@ -4523,6 +4532,46 @@ function triggerVictory(player) {
 
 let currentFlyingTileEl = null;
 
+/**
+ * Transición cinematográfica de cámara entre turnos (efecto avión / elevación de vuelo).
+ * Al cambiar al siguiente jugador:
+ * 1. Zoom out (subir altitud) + sonido suave de brisa / vuelo (whoosh).
+ * 2. Desplazamiento esférico rotatorio hacia la casilla del nuevo jugador.
+ * 3. Zoom in (descenso suave a la altura normal de juego).
+ */
+function transitionCameraToPlayer(nextPlayer, onComplete = null) {
+	const scene = document.getElementById('road-3d-scene-container');
+	const btnRoll = document.getElementById('btn-roll-dice');
+
+	if (!scene || gameState.players.length <= 1) {
+		centerPerspective(true, 450, nextPlayer);
+		if (onComplete) onComplete();
+		return;
+	}
+
+	// Inhabilitar tiro de dados mientras se realiza la maniobra de vuelo
+	if (btnRoll) btnRoll.disabled = true;
+
+	// Fase 1: Elevarse un poco (zoom out / pull back)
+	sounds.whoosh();
+	scene.classList.add('camera-pull-back');
+
+	setTimeout(() => {
+		// Fase 2: Desplazamiento orbital/rotatorio hacia la casilla destino
+		centerPerspective(true, 650, nextPlayer);
+
+		setTimeout(() => {
+			// Fase 3: Descender a altitud normal / zoom de enfoque
+			scene.classList.remove('camera-pull-back');
+			if (btnRoll && nextPlayer.skipTurns <= 0) {
+				btnRoll.disabled = false;
+			}
+			updateRollButtonTooltip();
+			if (onComplete) onComplete();
+		}, 450);
+	}, 350);
+}
+
 function endTurn() {
 	if (gameState.isCardFlying) {
 		gameState.pendingEndTurn = true;
@@ -4536,7 +4585,9 @@ function endTurn() {
 	gameState.isRolling = false;
 	gameState.cameraViewOffset = 0;
 	updateHUDAndHeaders();
-	centerPerspective(true); // Al terminar el turno, deslizar suavemente las casillas para centrar al siguiente jugador
+
+	const nextPlayer = gameState.players[gameState.currentPlayerIndex];
+	transitionCameraToPlayer(nextPlayer);
 }
 
 /**
@@ -4915,9 +4966,7 @@ function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, 
 	}
 
 	// 1. Obtener la casilla activa del camino donde cayó el jugador
-	const isParallelTwo = gameState.players.length === 2;
-	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
-	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
+	const activeTile = document.getElementById(`lane-tile-0-${current.position}`);
 
 	gameState.isCardFlying = true;
 	currentFlyingTileEl = activeTile;
@@ -4931,7 +4980,7 @@ function showModal({ typeName, headerClass, icon, image, title, subtitle, desc, 
 
 		// Medir posición y dimensiones exactas en la pantalla de la casilla en el camino
 		const rect = activeTile.getBoundingClientRect();
-		const startW = activeTile.offsetWidth || 236;
+		const startW = activeTile.offsetWidth || 320;
 		const startH = activeTile.offsetHeight || 115;
 		const startX = rect.left + rect.width / 2 - startW / 2;
 		const startY = rect.top + rect.height / 2 - startH / 2;

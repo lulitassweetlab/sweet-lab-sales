@@ -370,14 +370,16 @@
 			.p-flow { font-size: 0.82rem; }
 		}
 
-		/* Suavizado mínimo en la línea del horizonte para no tapar los 12 recuadros futuros */
+		/* Suavizado curvado de atmósfera planetaria en el horizonte */
 		.horizon-line {
 			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 35px;
-			background: linear-gradient(to bottom, rgba(203, 213, 225, 0.35) 0%, rgba(255, 255, 255, 0) 100%);
+			top: -45px;
+			left: -20%;
+			width: 140%;
+			height: 95px;
+			border-radius: 50%;
+			background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(224, 242, 254, 0.45) 55%, rgba(255, 255, 255, 0) 100%);
+			box-shadow: 0 16px 36px rgba(56, 189, 248, 0.18);
 			z-index: 50;
 			pointer-events: none;
 		}
@@ -386,49 +388,46 @@
 			position: absolute;
 			bottom: 0;
 			width: 100%;
-			max-width: 950px;
+			max-width: 980px;
 			height: 100%;
 			display: flex;
 			justify-content: center;
 			align-items: flex-end;
 			gap: 16px;
 			transform-style: preserve-3d;
-			transform-origin: 50% 92%;
-			transform: scale(0.76) translateY(38px); /* Vista lejana que abarca anterior, actual y 12 casillas siguientes */
-			transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+			transform-origin: 50% 90%;
+			transform: scale(0.86) translateY(20px);
+			transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 		}
 
-		/* Contenedor de caminos paralelos pegados uno al lado del otro */
-		.road-lanes-group {
-			display: flex;
-			align-items: flex-end;
-			justify-content: center;
-			gap: 4px; /* Casillas una al lado de la otra, justo donde terminan sus recuadros */
-			transform-style: preserve-3d;
+		/* Modo Cámara Retirada (Zoom Out Aéreo Panorámico entre Turnos) */
+		.road-3d-scene.camera-pull-back {
+			transform: scale(0.62) translateY(85px) rotateX(12deg) !important;
+			transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1) !important;
 		}
 
-		/* Cada columna de pista */
+		/* Camino Único Central Compartido */
+		.parallel-road-column.unified-road-column,
 		.parallel-road-column {
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			position: relative;
-			width: 236px;
+			width: 320px;
 			transform-style: preserve-3d;
 		}
 
-		/* La Pista Inclinada en 3D Hacia el Fondo (Perspectiva de Carretera) */
+		/* La Pista Inclinada en 3D Esférico (Globo Terráqueo Rodante) */
 		.road-3d-track {
-			width: 236px;
+			width: 320px;
 			display: flex;
 			flex-direction: column-reverse; /* La casilla actual abajo y el futuro arriba en el horizonte */
 			align-items: center;
 			gap: 14px;
-			padding-bottom: 52px;
+			padding-bottom: 56px;
 			transform-origin: 50% 100%;
 			transform-style: preserve-3d;
-			/* Inclinación 3D para abarcar 14 casillas simultáneas */
-			transform: rotateX(44deg);
+			transform: rotateX(40deg);
 			transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 		}
 
@@ -528,16 +527,21 @@
 			.scenery-column {
 				display: none;
 			}
+			.parallel-road-column,
+			.road-3d-track,
+			.tile-lane-card {
+				width: 290px !important;
+			}
 		}
 
 		/* Casilla Individual con Profundidad 3D */
 		.tile-lane-card {
-			width: 236px;
-			height: 115px;
+			width: 320px;
+			height: 122px;
 			background: #ffffff;
 			border: 2px solid var(--border-color);
 			border-radius: 20px;
-			padding: 9px 12px;
+			padding: 10px 14px;
 			display: flex;
 			flex-direction: column;
 			justify-content: space-between;
@@ -551,8 +555,8 @@
 
 		.tile-lane-card.active-step {
 			border-color: #16a34a !important;
-			box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.4), 0 16px 36px rgba(22, 163, 74, 0.3) !important;
-			transform: translateZ(20px) scale(1.05);
+			box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.4), 0 18px 40px rgba(22, 163, 74, 0.35) !important;
+			transform: translateZ(24px) scale(1.04);
 			z-index: 25;
 		}
 
@@ -2660,7 +2664,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-clean-balance-v5"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-planet-world-v6"></script>
 </body>
 
 </html>
