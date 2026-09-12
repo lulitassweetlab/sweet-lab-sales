@@ -1943,7 +1943,9 @@ function wireEventListeners() {
 
 	document.getElementById('btn-new-game')?.addEventListener('click', () => {
 		if (confirm('¿Deseas reiniciar la partida y volver a la configuración?')) {
-			document.getElementById('game-hud').classList.add('hidden');
+			document.getElementById('game-hud')?.classList.add('hidden');
+			document.getElementById('game-hud-left')?.classList.add('hidden');
+			document.getElementById('game-hud-right')?.classList.add('hidden');
 			document.getElementById('game-screen').classList.add('hidden');
 			document.getElementById('floating-status-pill').classList.add('hidden');
 			document.getElementById('setup-screen').classList.remove('hidden');
@@ -2067,6 +2069,7 @@ function startGame() {
 		const nameInput = document.getElementById(`player-input-${i}`);
 		const name = (nameInput?.value || `Jugador ${i + 1}`).trim();
 		const avatar = AVATARS[i];
+		const initialExpensePct = Math.floor(Math.random() * 9) + 90; // 90% a 98% de su salario
 
 		players.push({
 			id: i,
@@ -2076,6 +2079,7 @@ function startGame() {
 			bg: avatar.bg,
 			profession: 'Sin empleo',
 			salary: 0,
+			initialExpensePct: initialExpensePct,
 			housingLevel: 0,
 			rentExpense: DEFAULT_FIXED_EXPENSES.rent,
 			groceriesExpense: DEFAULT_FIXED_EXPENSES.groceries,
@@ -2110,7 +2114,9 @@ function startGame() {
 	extendPerspectiveRoad(40);
 
 	document.getElementById('setup-screen').classList.add('hidden');
-	document.getElementById('game-hud').classList.remove('hidden');
+	document.getElementById('game-hud')?.classList.remove('hidden');
+	document.getElementById('game-hud-left')?.classList.remove('hidden');
+	document.getElementById('game-hud-right')?.classList.remove('hidden');
 	document.getElementById('game-screen').classList.remove('hidden');
 	document.getElementById('floating-status-pill').classList.remove('hidden');
 
@@ -2245,9 +2251,15 @@ function updatePawnsOnRoad(activeHoppingIndex = -1) {
  * Actualiza el HUD flotante minimalista de jugadores en la parte superior
  */
 function updateHUDAndHeaders() {
-	const container = document.getElementById('game-hud');
-	if (!container) return;
-	container.innerHTML = '';
+	const hudLeft = document.getElementById('game-hud-left');
+	const hudRight = document.getElementById('game-hud-right');
+	const legacyContainer = document.getElementById('game-hud');
+
+	if (hudLeft) hudLeft.innerHTML = '';
+	if (hudRight) hudRight.innerHTML = '';
+	if (legacyContainer) legacyContainer.innerHTML = '';
+
+	const isParallelTwo = gameState.players.length === 2;
 
 	gameState.players.forEach((p, idx) => {
 		const fin = getPlayerFinancials(p);
@@ -2277,7 +2289,23 @@ function updateHUDAndHeaders() {
 			openBalanceDrawer();
 		});
 
-		container.appendChild(pill);
+		// Si hay dos jugadores: jugador 1 a la izquierda de su camino, jugador 2 a la derecha de su camino
+		if (isParallelTwo) {
+			if (idx === 0) {
+				(hudLeft || legacyContainer)?.appendChild(pill);
+			} else {
+				(hudRight || legacyContainer)?.appendChild(pill);
+			}
+		} else if (gameState.players.length > 2) {
+			if (idx % 2 === 0) {
+				(hudLeft || legacyContainer)?.appendChild(pill);
+			} else {
+				(hudRight || legacyContainer)?.appendChild(pill);
+			}
+		} else {
+			// 1 solo jugador: a la izquierda de su camino
+			(hudLeft || legacyContainer)?.appendChild(pill);
+		}
 	});
 
 	// Actualizar pill flotante
@@ -2292,7 +2320,6 @@ function updateHUDAndHeaders() {
 
 	// Resaltar casilla activa
 	document.querySelectorAll('.tile-lane-card').forEach(t => t.classList.remove('active-step'));
-	const isParallelTwo = gameState.players.length === 2;
 	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 	const activeTile = document.getElementById(`lane-tile-${laneIndex}-${current.position}`);
 	if (activeTile) activeTile.classList.add('active-step');
@@ -2891,14 +2918,21 @@ function handleLanding(player, tile) {
 			player.profession = job.title;
 			player.salary = job.salary;
 			player.housingLevel = player.housingLevel || 0;
-			player.rentExpense = HOUSING_LEVELS[player.housingLevel]?.rent || DEFAULT_FIXED_EXPENSES.rent;
-			player.groceriesExpense = DEFAULT_FIXED_EXPENSES.groceries;
-			player.utilitiesExpense = DEFAULT_FIXED_EXPENSES.utilities;
-			player.transportExpense = DEFAULT_FIXED_EXPENSES.transport;
-			player.internetExpense = DEFAULT_FIXED_EXPENSES.internet;
-			player.phoneExpense = DEFAULT_FIXED_EXPENSES.phone;
-			player.otherExpenses = DEFAULT_FIXED_EXPENSES.other;
-			player.fixedExpenses = player.rentExpense + player.groceriesExpense + player.utilitiesExpense + player.transportExpense + player.internetExpense + player.phoneExpense + player.otherExpenses;
+
+			// Gastos iniciales calibrados aleatoriamente entre el 90% y el 98% del salario
+			const expensePct = player.initialExpensePct || (Math.floor(Math.random() * 9) + 90);
+			player.initialExpensePct = expensePct;
+			const targetTotalExpenses = Math.round((player.salary * (expensePct / 100)) / 1000) * 1000;
+			const scale = targetTotalExpenses / 1500000;
+
+			player.rentExpense = Math.round((DEFAULT_FIXED_EXPENSES.rent * scale) / 1000) * 1000;
+			player.groceriesExpense = Math.round((DEFAULT_FIXED_EXPENSES.groceries * scale) / 1000) * 1000;
+			player.utilitiesExpense = Math.round((DEFAULT_FIXED_EXPENSES.utilities * scale) / 1000) * 1000;
+			player.transportExpense = Math.round((DEFAULT_FIXED_EXPENSES.transport * scale) / 1000) * 1000;
+			player.internetExpense = Math.round((DEFAULT_FIXED_EXPENSES.internet * scale) / 1000) * 1000;
+			player.phoneExpense = Math.round((DEFAULT_FIXED_EXPENSES.phone * scale) / 1000) * 1000;
+			player.otherExpenses = targetTotalExpenses - (player.rentExpense + player.groceriesExpense + player.utilitiesExpense + player.transportExpense + player.internetExpense + player.phoneExpense);
+			player.fixedExpenses = targetTotalExpenses;
 			player.salariesCollected = 0;
 			player.jobTier = 1;
 
@@ -2911,13 +2945,12 @@ function handleLanding(player, tile) {
 				headerClass: 'job',
 				icon: job.icon,
 				title: `¡Eres ${job.title}!`,
-				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te llevaron a la casilla <strong>#${tile.globalIndex}</strong> y has conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)} COP</strong>. Recuerda que no se cobra de inmediato: se cobrará periódicamente cada 3 minutos cuando cruces o caigas en las casillas de Día de Pago.</em>`,
+				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te han conseguido el empleo de <strong>${job.title}</strong>.<br><br>Tus gastos fijos iniciales se calibraron aleatoriamente en el <strong>${expensePct}%</strong> de tu salario mensual.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)} COP</strong>. Recuerda que no se cobra de inmediato: se cobrará periódicamente cada vez que cruces o caigas en las casillas de Día de Pago.</em>`,
 				stats: [
 					{ label: 'Empleo obtenido:', value: job.title },
-					{ label: 'Casilla alcanzada:', value: `#${tile.globalIndex}` },
 					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} COP / mes`, color: 'green' },
-					{ label: 'Gastos fijos base:', value: `-${formatCOP(player.fixedExpenses)} COP / mes`, color: 'red' },
-					{ label: 'Plata libre al mes:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} COP / mes`, color: netFlow >= 0 ? 'green' : 'red' }
+					{ label: `Gastos fijos base (${expensePct}%):`, value: `-${formatCOP(player.fixedExpenses)} COP / mes`, color: 'red' },
+					{ label: 'Plata libre al mes:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} COP / mes (${100 - expensePct}%)`, color: netFlow >= 0 ? 'green' : 'red' }
 				],
 				buttons: [
 					{

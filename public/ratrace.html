@@ -95,19 +95,45 @@
 			letter-spacing: 0.5px;
 		}
 
-		/* 2. Casillas Flotantes de Jugadores (A un lado del camino para dejarlo 100% visible) */
+		/* 2. Casillas Flotantes de Jugadores (A los lados de cada camino de recuadros) */
 		.floating-players-hud {
 			position: fixed;
 			top: 60px;
-			left: 18px;
 			z-index: 150;
 			display: flex;
 			flex-direction: column;
-			align-items: flex-start;
 			gap: 8px;
 			max-height: calc(100vh - 120px);
 			overflow-y: auto;
 			pointer-events: auto;
+		}
+
+		.floating-players-hud.hud-left {
+			left: 18px;
+			align-items: flex-start;
+		}
+
+		.floating-players-hud.hud-right {
+			right: 18px;
+			align-items: flex-end;
+		}
+
+		.hud-right .player-hud-pill {
+			flex-direction: row-reverse;
+			padding: 10px 12px 10px 22px;
+		}
+
+		.hud-right .player-hud-data {
+			align-items: flex-end;
+			text-align: right;
+		}
+
+		.hud-right .player-hud-name-row {
+			justify-content: flex-end;
+		}
+
+		.hud-right .player-hud-stats-row {
+			justify-content: flex-end;
 		}
 
 		.player-hud-pill {
@@ -132,11 +158,19 @@
 			box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
 		}
 
+		.hud-right .player-hud-pill:hover {
+			transform: translateX(-4px);
+		}
+
 		.player-hud-pill.is-turn {
 			border-color: #16a34a !important;
 			background: rgba(240, 253, 244, 0.98);
 			box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.3), 0 10px 28px rgba(22, 163, 74, 0.22);
 			transform: translateX(6px) scale(1.02);
+		}
+
+		.hud-right .player-hud-pill.is-turn {
+			transform: translateX(-6px) scale(1.02);
 		}
 
 		.player-hud-avatar {
@@ -313,22 +347,31 @@
 			}
 			.floating-players-hud {
 				top: 54px;
-				left: 10px;
 				gap: 6px;
-				max-width: 80vw;
+				max-width: 48vw;
+			}
+			.floating-players-hud.hud-left {
+				left: 6px;
+			}
+			.floating-players-hud.hud-right {
+				right: 6px;
 			}
 			.player-hud-pill {
-				padding: 6px 14px 6px 8px;
-				gap: 8px;
+				padding: 6px 12px 6px 6px;
+				gap: 6px;
+				max-width: 100%;
+			}
+			.hud-right .player-hud-pill {
+				padding: 6px 6px 6px 12px;
 			}
 			.player-hud-avatar {
-				width: 40px;
-				height: 40px;
-				font-size: 1.4rem;
+				width: 38px;
+				height: 38px;
+				font-size: 1.3rem;
 			}
-			.p-name { font-size: 1.05rem; }
-			.p-cash { font-size: 1.15rem; }
-			.p-flow { font-size: 0.95rem; }
+			.p-name { font-size: 0.9rem; max-width: 85px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.p-cash { font-size: 0.95rem; }
+			.p-flow { font-size: 0.85rem; }
 		}
 
 		/* Suavizado mínimo en la línea del horizonte para no tapar los 12 recuadros futuros */
@@ -2028,8 +2071,10 @@
 		<span class="brand-sub">Sweet Lab</span>
 	</div>
 
-	<!-- HUD Flotante Minimalista de Jugadores (Arriba al Centro) -->
-	<div id="game-hud" class="floating-players-hud hidden"></div>
+	<!-- HUD Flotante Minimalista de Jugadores (A los lados de cada camino de recuadros) -->
+	<div id="game-hud" class="hidden" style="display:none;"></div>
+	<div id="game-hud-left" class="floating-players-hud hud-left hidden"></div>
+	<div id="game-hud-right" class="floating-players-hud hud-right hidden"></div>
 
 	<!-- Acciones Flotantes Minimalistas (Arriba a la Derecha) -->
 	<div class="floating-actions-dock">
@@ -2434,7 +2479,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-11-dice-hold-nobonus-v1"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-expenses-and-side-hud-v1"></script>
 </body>
 
 </html>
