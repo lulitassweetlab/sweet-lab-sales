@@ -1795,9 +1795,10 @@ function pickTileForIndex(index) {
 		};
 	}
 
-	// Casillas 2 a 13: Los 12 empleos básicos de inicio visibles directamente en el tablero
+	// Casillas 2 a 13: Los empleos básicos de inicio visibles directamente en el tablero
 	if (index >= 2 && index <= 13) {
-		const job = STARTER_JOBS[index - 2];
+		const jobsList = (gameState.starterJobs && gameState.starterJobs.length === STARTER_JOBS.length) ? gameState.starterJobs : STARTER_JOBS;
+		const job = jobsList[(index - 2) % jobsList.length];
 		return {
 			type: 'job',
 			isStarterJob: true,
@@ -2106,6 +2107,7 @@ function startGame() {
 	gameState.currentPlayerIndex = 0;
 	gameState.isRolling = false;
 	gameState.generatedTiles = [];
+	gameState.starterJobs = [...STARTER_JOBS].sort(() => Math.random() - 0.5);
 	gameState.cameraViewOffset = 0;
 
 	// Configurar contenedor de pistas 3D (1 columna o 2 paralelas lado a lado)
@@ -2413,28 +2415,17 @@ function rollTwoDice() {
 			dice1?.classList.remove('aladdin-magic');
 			dice2?.classList.remove('aladdin-magic');
 
-			let d1, d2, totalSteps;
+			// Tiros estándar con 2 dados normales (cada dado estrictamente de 1 a 6)
+			const d1 = Math.floor(Math.random() * 6) + 1;
+			const d2 = Math.floor(Math.random() * 6) + 1;
+			const totalSteps = d1 + d2;
+
+			setDiceFace(1, d1);
+			setDiceFace(2, d2);
 
 			if (!player.hasJob) {
-				// Primer turno: conseguir empleo avanzando por el camino a las casillas 2 a 13 (posibilidad equitativa 1/12)
-				totalSteps = Math.floor(Math.random() * 12) + 2; // Rango exacto: 2 a 13
-				if (totalSteps <= 12) {
-					d1 = Math.min(6, Math.max(1, Math.floor(totalSteps / 2)));
-					d2 = totalSteps - d1;
-				} else {
-					d1 = 6;
-					d2 = 7;
-				}
-				setDiceFace(1, d1);
-				setDiceFace(2, d2);
 				pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Avanzando a la casilla #${totalSteps} para conseguir empleo...`;
 			} else {
-				// Tiros regulares con 2 dados estándar
-				d1 = Math.floor(Math.random() * 6) + 1;
-				d2 = Math.floor(Math.random() * 6) + 1;
-				totalSteps = d1 + d2;
-				setDiceFace(1, d1);
-				setDiceFace(2, d2);
 				pill.textContent = `🎲 ¡${player.name} sacó ${d1} + ${d2} = ${totalSteps}! Preparando avance...`;
 			}
 
@@ -2666,18 +2657,28 @@ function animateTransactionNumbersToBalance({
 				chip.style.opacity = '0';
 
 				// Destello y pulso en el elemento destino
-				if (targetEl) {
-					const flashClass = isPositive ? 'balance-updated-flash-green' : 'balance-updated-flash-red';
-					targetEl.classList.remove('balance-updated-flash-green', 'balance-updated-flash-red');
-					void targetEl.offsetWidth;
-					targetEl.classList.add(flashClass);
+				// Destello y pulso en el elemento destino (y elementos vinculados si es empleo/sueldo)
+				const flashClass = isPositive ? 'balance-updated-flash-green' : 'balance-updated-flash-red';
+				const elementsToFlash = targetEl ? [targetEl] : [];
+				if (category === 'salary') {
+					const flowEl = document.getElementById('side-bal-flow');
+					const jobEl = document.getElementById('side-bal-job');
+					const totalExpEl = document.getElementById('side-bal-total-exp');
+					if (flowEl) elementsToFlash.push(flowEl);
+					if (jobEl) elementsToFlash.push(jobEl);
+					if (totalExpEl) elementsToFlash.push(totalExpEl);
 				}
+				elementsToFlash.forEach(el => {
+					el.classList.remove('balance-updated-flash-green', 'balance-updated-flash-red');
+					void el.offsetWidth;
+					el.classList.add(flashClass);
+				});
 
 				// Sonido de confirmación al impactar
 				if (isPositive) sounds.cash();
 				else sounds.loss();
 
-				// Actualizar de inmediato las cifras del balance
+				// Actualizar de inmediato las cifras del balance y HUD
 				renderModalSideBalance();
 				updateHUDAndHeaders();
 
@@ -2914,32 +2915,22 @@ function handleLanding(player, tile) {
 		const job = tile.starterJob || STARTER_JOBS[tile.globalIndex - 2];
 
 		if (!player.hasJob) {
-			player.hasJob = true;
-			player.profession = job.title;
-			player.salary = job.salary;
-			player.housingLevel = player.housingLevel || 0;
-
 			// Gastos iniciales calibrados aleatoriamente entre el 90% y el 98% del salario
 			const expensePct = player.initialExpensePct || (Math.floor(Math.random() * 9) + 90);
-			player.initialExpensePct = expensePct;
-			const targetTotalExpenses = Math.round((player.salary * (expensePct / 100)) / 1000) * 1000;
+			const targetTotalExpenses = Math.round((job.salary * (expensePct / 100)) / 1000) * 1000;
 			const scale = targetTotalExpenses / 1500000;
 
-			player.rentExpense = Math.round((DEFAULT_FIXED_EXPENSES.rent * scale) / 1000) * 1000;
-			player.groceriesExpense = Math.round((DEFAULT_FIXED_EXPENSES.groceries * scale) / 1000) * 1000;
-			player.utilitiesExpense = Math.round((DEFAULT_FIXED_EXPENSES.utilities * scale) / 1000) * 1000;
-			player.transportExpense = Math.round((DEFAULT_FIXED_EXPENSES.transport * scale) / 1000) * 1000;
-			player.internetExpense = Math.round((DEFAULT_FIXED_EXPENSES.internet * scale) / 1000) * 1000;
-			player.phoneExpense = Math.round((DEFAULT_FIXED_EXPENSES.phone * scale) / 1000) * 1000;
-			player.otherExpenses = targetTotalExpenses - (player.rentExpense + player.groceriesExpense + player.utilitiesExpense + player.transportExpense + player.internetExpense + player.phoneExpense);
-			player.fixedExpenses = targetTotalExpenses;
-			player.salariesCollected = 0;
-			player.jobTier = 1;
+			const rentExpense = Math.round((DEFAULT_FIXED_EXPENSES.rent * scale) / 1000) * 1000;
+			const groceriesExpense = Math.round((DEFAULT_FIXED_EXPENSES.groceries * scale) / 1000) * 1000;
+			const utilitiesExpense = Math.round((DEFAULT_FIXED_EXPENSES.utilities * scale) / 1000) * 1000;
+			const transportExpense = Math.round((DEFAULT_FIXED_EXPENSES.transport * scale) / 1000) * 1000;
+			const internetExpense = Math.round((DEFAULT_FIXED_EXPENSES.internet * scale) / 1000) * 1000;
+			const phoneExpense = Math.round((DEFAULT_FIXED_EXPENSES.phone * scale) / 1000) * 1000;
+			const otherExpenses = targetTotalExpenses - (rentExpense + groceriesExpense + utilitiesExpense + transportExpense + internetExpense + phoneExpense);
 
 			sounds.genieMagic();
-			updateHUDAndHeaders();
 
-			const netFlow = player.salary - player.fixedExpenses;
+			const netFlow = job.salary - targetTotalExpenses;
 			showModal({
 				typeName: '🎉 ¡CONTRATADO EN TU PRIMER EMPLEO!',
 				headerClass: 'job',
@@ -2949,7 +2940,7 @@ function handleLanding(player, tile) {
 				detailedInfo: `¡Felicitaciones, <strong>${player.name}</strong>! Tus dados te han conseguido el empleo de <strong>${job.title}</strong>.<br><br>⏱️ <em>Tu salario mensual es de <strong>${formatCOP(job.salary)}</strong>. Recuerda que no se cobra de inmediato: se cobrará en cada Día de Pago.</em>`,
 				stats: [
 					{ label: 'Sueldo mensual:', value: `${formatCOP(job.salary)} / mes`, color: 'green' },
-					{ label: 'Gastos mensuales:', value: `-${formatCOP(player.fixedExpenses)} / mes`, color: 'red' },
+					{ label: 'Gastos mensuales:', value: `-${formatCOP(targetTotalExpenses)} / mes`, color: 'red' },
 					{ label: 'Flujo de efectivo:', value: `${netFlow >= 0 ? '+' : ''}${formatCOP(netFlow)} / mes`, color: netFlow >= 0 ? 'green' : 'red' }
 				],
 				buttons: [
@@ -2957,6 +2948,23 @@ function handleLanding(player, tile) {
 						text: '¡Comenzar mi Carrera! 🚀',
 						class: 'primary',
 						action: () => {
+							// Aplicar datos del empleo y gastos al confirmar con el botón
+							player.hasJob = true;
+							player.profession = job.title;
+							player.salary = job.salary;
+							player.housingLevel = player.housingLevel || 0;
+							player.initialExpensePct = expensePct;
+							player.rentExpense = rentExpense;
+							player.groceriesExpense = groceriesExpense;
+							player.utilitiesExpense = utilitiesExpense;
+							player.transportExpense = transportExpense;
+							player.internetExpense = internetExpense;
+							player.phoneExpense = phoneExpense;
+							player.otherExpenses = otherExpenses;
+							player.fixedExpenses = targetTotalExpenses;
+							player.salariesCollected = 0;
+							player.jobTier = 1;
+
 							savePlayerFinancialSnapshot(player, `Primer Empleo: ${job.title}`);
 							const btnEl = document.querySelector('#modal-footer button');
 							animateTransactionNumbersToBalance({
@@ -3960,9 +3968,8 @@ function renderDrawerPlayerHeader(playerIndex = gameState.selectedDrawerPlayerIn
 			<div style="display:flex; flex-direction:column; line-height:1.25;">
 				<div style="display:flex; align-items:center; gap:8px;">
 					<span style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.15rem; color:var(--text-main);">${p.name}</span>
-					${playerIndex === gameState.currentPlayerIndex ? '<span style="font-size:0.7rem; font-weight:800; color:#15803d; background:#dcfce7; padding:1px 6px; border-radius:6px; text-transform:uppercase;">Turno</span>' : ''}
 				</div>
-				<small style="color:var(--text-muted); font-size:0.82rem; font-weight:700;">${p.hasJob ? p.profession : 'Buscando empleo'} • ${p.salariesCollected || 0} salarios cobrados</small>
+				<small style="color:var(--text-muted); font-size:0.82rem; font-weight:700;">${p.hasJob ? p.profession : 'Buscando empleo'}</small>
 			</div>
 		</div>
 	`;
@@ -4269,15 +4276,15 @@ function renderModalSideBalance() {
 	const otherExpEl = document.getElementById('side-bal-other-exp');
 	const debtExpEl = document.getElementById('side-bal-debt-exp');
 	const totalExpEl = document.getElementById('side-bal-total-exp');
-	if (rentExpEl) rentExpEl.textContent = `-${formatCOP(player.hasJob ? (player.rentExpense || 0) : 0)}`;
-	if (groceriesExpEl) groceriesExpEl.textContent = `-${formatCOP(player.hasJob ? (player.groceriesExpense || 0) : 0)}`;
-	if (utilitiesExpEl) utilitiesExpEl.textContent = `-${formatCOP(player.hasJob ? (player.utilitiesExpense || 0) : 0)}`;
-	if (transportExpEl) transportExpEl.textContent = `-${formatCOP(player.hasJob ? (player.transportExpense || 0) : 0)}`;
-	if (internetExpEl) internetExpEl.textContent = `-${formatCOP(player.hasJob ? (player.internetExpense || 0) : 0)}`;
-	if (phoneExpEl) phoneExpEl.textContent = `-${formatCOP(player.hasJob ? (player.phoneExpense || 0) : 0)}`;
-	if (otherExpEl) otherExpEl.textContent = `-${formatCOP(player.hasJob ? (player.otherExpenses || 0) : 0)}`;
+	if (rentExpEl) rentExpEl.textContent = (player.hasJob && player.rentExpense) ? `-${formatCOP(player.rentExpense)}` : '$0';
+	if (groceriesExpEl) groceriesExpEl.textContent = (player.hasJob && player.groceriesExpense) ? `-${formatCOP(player.groceriesExpense)}` : '$0';
+	if (utilitiesExpEl) utilitiesExpEl.textContent = (player.hasJob && player.utilitiesExpense) ? `-${formatCOP(player.utilitiesExpense)}` : '$0';
+	if (transportExpEl) transportExpEl.textContent = (player.hasJob && player.transportExpense) ? `-${formatCOP(player.transportExpense)}` : '$0';
+	if (internetExpEl) internetExpEl.textContent = (player.hasJob && player.internetExpense) ? `-${formatCOP(player.internetExpense)}` : '$0';
+	if (phoneExpEl) phoneExpEl.textContent = (player.hasJob && player.phoneExpense) ? `-${formatCOP(player.phoneExpense)}` : '$0';
+	if (otherExpEl) otherExpEl.textContent = (player.hasJob && player.otherExpenses) ? `-${formatCOP(player.otherExpenses)}` : '$0';
 	if (debtExpEl) debtExpEl.textContent = (player.debtExpenses || 0) > 0 ? `-${formatCOP(player.debtExpenses)}` : '$0';
-	if (totalExpEl) totalExpEl.textContent = `-${formatCOP(fin.totalExpenses)}`;
+	if (totalExpEl) totalExpEl.textContent = fin.totalExpenses > 0 ? `-${formatCOP(fin.totalExpenses)}` : '$0';
 
 	// 3. ACTIVOS
 	const assetsCountEl = document.getElementById('side-bal-assets-count');
