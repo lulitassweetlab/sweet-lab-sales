@@ -324,16 +324,16 @@ function getPromotedTitle(currentTitle, tier = 1) {
 
 // Opciones de Nuevo Trabajo para cambiar de empleo con diferentes sueldos (Calibrados 2026)
 const NEW_JOBS = [
-	{ title: 'Barista en Cafetería ☕', salary: 1950000, desc: 'Preparando cafés especiales y malteadas deliciosas.' },
-	{ title: 'Pastelero en Sweet Lab 🍰', salary: 2100000, desc: 'Creando tortas decoradas y postres para eventos.' },
-	{ title: 'Entrenador Deportivo ⚽', salary: 2200000, desc: 'Guiando entrenamientos y partidos de fútbol juvenil.' },
-	{ title: 'Profesor de Música 🎸', salary: 2300000, desc: 'Enseñando guitarra, piano y canto a nuevos talentos.' },
-	{ title: 'Fotógrafo de Moda 📸', salary: 2400000, desc: 'Tomando fotos para marcas juveniles y redes sociales.' },
-	{ title: 'Técnico de Celulares 📱', salary: 2450000, desc: 'Arreglando pantallas y repuestos de teléfonos.' },
-	{ title: 'Administrador de Local 🏪', salary: 2550000, desc: 'Coordinando el equipo y las ventas de la tienda.' },
-	{ title: 'Diseñador Digital 🎨', salary: 2750000, desc: 'Diseñando marcas, logos y publicidad para internet.' },
-	{ title: 'Programador Junior 💻', salary: 3000000, desc: 'Creando aplicaciones móviles y páginas web modernas.' },
-	{ title: 'Piloto de Drones 🛸', salary: 3200000, desc: 'Grabando tomas aéreas para películas y comerciales.' }
+	{ title: 'Barista en Cafetería ☕', salary: 1950000, icon: '☕', image: '/images/jobs/cocinero.svg', desc: 'Preparando cafés especiales y malteadas deliciosas.' },
+	{ title: 'Pastelero en Sweet Lab 🍰', salary: 2100000, icon: '🍰', image: '/images/jobs/cocinero.svg', desc: 'Creando tortas decoradas y postres para eventos.' },
+	{ title: 'Entrenador Deportivo ⚽', salary: 2200000, icon: '⚽', image: '/images/jobs/recreacionista.svg', desc: 'Guiando entrenamientos y partidos de fútbol juvenil.' },
+	{ title: 'Profesor de Música 🎸', salary: 2300000, icon: '🎸', image: '/images/jobs/recreacionista.svg', desc: 'Enseñando guitarra, piano y canto a nuevos talentos.' },
+	{ title: 'Fotógrafo de Moda 📸', salary: 2400000, icon: '📸', image: '/images/jobs/fotografo.svg', desc: 'Tomando fotos para marcas juveniles y redes sociales.' },
+	{ title: 'Técnico de Celulares 📱', salary: 2450000, icon: '📱', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Arreglando pantallas y repuestos de teléfonos.' },
+	{ title: 'Administrador de Local 🏪', salary: 2550000, icon: '🏪', image: '/images/jobs/tendero.svg', desc: 'Coordinando el equipo y las ventas de la tienda.' },
+	{ title: 'Diseñador Digital 🎨', salary: 2750000, icon: '🎨', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Diseñando marcas, logos y publicidad para internet.' },
+	{ title: 'Programador Junior 💻', salary: 3000000, icon: '💻', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Creando aplicaciones móviles y páginas web modernas.' },
+	{ title: 'Piloto de Drones 🛸', salary: 3200000, icon: '🛸', image: '/images/cards/tecnologia_maquinas.svg', desc: 'Grabando tomas aéreas para películas y comerciales.' }
 ];
 
 // Ascensos dentro del trabajo con mejor pago (Calibrados 2026, sin bonos sorpresa)
@@ -1731,16 +1731,21 @@ class SoundEffects {
 		this.playTone(340, 0.05, 'sine', 0.08);
 	}
 
+	chipLaunch() {
+		// Sutil toque discreto al despegar un número hacia el balance
+		this.playTone(440, 0.04, 'sine', 0.015);
+	}
+
 	cash() {
-		this.playTone(523.25, 0.1, 'sine', 0.12);
-		setTimeout(() => this.playTone(659.25, 0.1, 'sine', 0.12), 100);
-		setTimeout(() => this.playTone(783.99, 0.25, 'sine', 0.15), 200);
+		// Toque sutil, cálido y aterciopelado al actualizar balance con números positivos (muy suave y agradable)
+		this.playTone(392, 0.08, 'sine', 0.035);
+		setTimeout(() => this.playTone(523.25, 0.12, 'sine', 0.03), 70);
 	}
 
 	loss() {
-		// Tono suave, redondo y musical (amable al oído, sin estridencias)
-		this.playTone(330, 0.12, 'sine', 0.045);
-		setTimeout(() => this.playTone(294, 0.16, 'sine', 0.04), 100);
+		// Toque sutil, acústico y cálido tipo marimba/madera suave (amable al oído, fácil de escuchar)
+		this.playTone(260, 0.08, 'sine', 0.025);
+		setTimeout(() => this.playTone(310, 0.07, 'sine', 0.02), 60);
 	}
 
 	victory() {
@@ -2285,7 +2290,7 @@ function updateHUDAndHeaders() {
 				<div class="player-hud-stats-row">
 					<span class="p-cash">${formatCOP(p.cash)}</span>
 					<span class="p-divider">•</span>
-					<span class="p-flow ${fin.monthlyCashFlow >= 0 ? 'green' : 'red'}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
+					<span class="p-flow ${fin.monthlyCashFlow > 0 ? 'green' : (fin.monthlyCashFlow < 0 ? 'red' : 'zero')}">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m</span>
 				</div>
 			</div>
 		`;
@@ -2663,10 +2668,8 @@ function animateTransactionNumbersToBalance({
 
 	document.body.appendChild(chip);
 
-	// Sonido inicial
-	if (category === 'expense') sounds.loss();
-	else if (isPositive) sounds.cash();
-	else sounds.loss();
+	// Sonido inicial suave al despegar
+	sounds.chipLaunch();
 
 	// Fase 1: Crecer y aparecer en la tarjeta de donde sale
 	requestAnimationFrame(() => {
@@ -2695,9 +2698,7 @@ function animateTransactionNumbersToBalance({
 
 				const elementsToFlash = targetEl ? [targetEl] : [];
 				if (category === 'salary') {
-					const flowEl = document.getElementById('side-bal-flow');
 					const jobEl = document.getElementById('side-bal-job');
-					if (flowEl) elementsToFlash.push(flowEl);
 					if (jobEl) elementsToFlash.push(jobEl);
 				}
 				elementsToFlash.forEach(el => {
@@ -2730,9 +2731,9 @@ function animateTransactionNumbersToBalance({
 }
 
 /**
- * Ejecuta una cadena secuencial de animaciones de números voladores hacia el balance,
- * asegurando que cada cuadrante (Ingresos ➔ Gastos ➔ Flujo, etc.) se actualice uno por uno
- * con pausas claras y didácticas entre sí.
+ * Ejecuta una cadena secuencial de animaciones de números voladores hacia el balance
+ * para los cuadrantes modificados (Ingresos, Gastos, Activos, Deuda, Efectivo).
+ * Nota: El flujo mensual se actualiza automáticamente en el balance sin necesidad de arrastrarlo.
  */
 function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
 	if (!steps || steps.length === 0) {
@@ -2740,20 +2741,35 @@ function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
 		return;
 	}
 
+	// El flujo mensual ya se actualiza automáticamente en el balance, no es necesario arrastrarlo
+	const validSteps = steps.filter(s => s && s.category !== 'flow');
+	if (validSteps.length === 0) {
+		renderModalSideBalance();
+		updateHUDAndHeaders();
+		if (onAllComplete) onAllComplete();
+		return;
+	}
+
+	gameState.isFlowPendingInSequence = false;
+	gameState.flowLockedValue = undefined;
+
 	let currentIndex = 0;
 
 	function runNextStep() {
-		if (currentIndex >= steps.length) {
+		if (currentIndex >= validSteps.length) {
+			renderModalSideBalance();
+			updateHUDAndHeaders();
 			if (onAllComplete) onAllComplete();
 			return;
 		}
 
-		const step = steps[currentIndex];
+		const step = validSteps[currentIndex];
 		currentIndex++;
 
 		// Si el paso incluye una acción de mutación previa en el jugador antes de animar:
 		if (step.actionBefore) {
 			step.actionBefore();
+			renderModalSideBalance();
 			updateHUDAndHeaders();
 		}
 
@@ -2766,9 +2782,9 @@ function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
 			onComplete: () => {
 				if (step.actionAfter) {
 					step.actionAfter();
-					renderModalSideBalance();
-					updateHUDAndHeaders();
 				}
+				renderModalSideBalance();
+				updateHUDAndHeaders();
 				// Pausa didáctica de 400ms antes del siguiente paso
 				setTimeout(runNextStep, 400);
 			}
@@ -2783,6 +2799,7 @@ function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
  * mientras el usuario mantiene presionado el botón.
  */
 function showPreviousBalanceState(player) {
+	if (!player) player = gameState.players[gameState.currentPlayerIndex];
 	if (!player || !player.previousSnapshot) return;
 	const prev = player.previousSnapshot;
 	const fin = getPlayerFinancials(player);
@@ -2816,7 +2833,10 @@ function showPreviousBalanceState(player) {
 	if (flowEl) {
 		flowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}/m`;
 		const flowChanged = fin.monthlyCashFlow !== prev.monthlyCashFlow;
-		flowEl.className = `val flow ${prev.monthlyCashFlow < 0 ? 'red' : ''} ${flowChanged ? 'past-val-highlight' : ''}`;
+		let prevFlowClass = 'zero';
+		if (prev.monthlyCashFlow > 0) prevFlowClass = 'green';
+		else if (prev.monthlyCashFlow < 0) prevFlowClass = 'red';
+		flowEl.className = `val flow ${prevFlowClass} ${flowChanged ? 'past-val-highlight' : ''}`;
 	}
 
 	// 1. Ingresos
@@ -2969,66 +2989,74 @@ function restoreCurrentBalanceState() {
 }
 
 /**
- * Conecta los eventos de "mantener presionado" y "soltar" de forma robusta
+ * Conecta los eventos de "mantener presionado" y "toque/click" de forma robusta
  * para dispositivos móviles (touch) y desktop (mouse / pointer).
+ * Permite tanto mantener presionado para comparar como dar click/tap para alternar la vista.
  */
 function attachHoldToPeekEvents(buttonEl, onHold, onRelease) {
 	if (!buttonEl) return;
 
-	let isHolding = false;
+	buttonEl.style.userSelect = 'none';
+	buttonEl.style.webkitUserSelect = 'none';
+	buttonEl.style.webkitTouchCallout = 'none';
+	buttonEl.style.touchAction = 'none';
+	buttonEl.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
 
-	const startHold = (e) => {
-		if (e && e.button !== undefined && e.button !== 0) return; // solo click principal izquierdo
-		if (!isHolding) {
-			isHolding = true;
+	let pressStartTime = 0;
+	let isCurrentlyPeeking = false;
+	let wasToggledByClick = false;
+
+	const doShow = () => {
+		if (!isCurrentlyPeeking) {
+			isCurrentlyPeeking = true;
 			onHold();
 		}
 	};
 
-	const endHold = () => {
-		if (isHolding) {
-			isHolding = false;
+	const doHide = () => {
+		if (isCurrentlyPeeking) {
+			isCurrentlyPeeking = false;
+			wasToggledByClick = false;
 			onRelease();
 		}
 	};
 
-	// Evitar menú contextual, selección y llamadas en móviles
-	buttonEl.style.userSelect = 'none';
-	buttonEl.style.webkitUserSelect = 'none';
-	buttonEl.style.webkitTouchCallout = 'none';
-	buttonEl.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
-
-	// Pointer Events modernos con captura de puntero
 	buttonEl.onpointerdown = (e) => {
 		if (e && e.button !== undefined && e.button !== 0) return;
 		try { buttonEl.setPointerCapture(e.pointerId); } catch (_) {}
-		startHold(e);
+		pressStartTime = Date.now();
+
+		if (wasToggledByClick) {
+			// Si ya estaba activo por un click previo, este nuevo toque lo apaga
+			doHide();
+			return;
+		}
+
+		doShow();
 	};
+
 	buttonEl.onpointerup = (e) => {
 		try { buttonEl.releasePointerCapture(e.pointerId); } catch (_) {}
-		endHold();
+		const duration = Date.now() - pressStartTime;
+
+		if (duration < 250) {
+			// Fue un tap/click rápido: mantenerlo activo para inspeccionar con calma
+			wasToggledByClick = true;
+		} else {
+			// Fue mantener presionado prolongado: al soltar, restaurar de inmediato
+			doHide();
+		}
 	};
-	buttonEl.onpointercancel = endHold;
+
+	buttonEl.onpointercancel = () => {
+		if (!wasToggledByClick) doHide();
+	};
+
 	buttonEl.onpointerleave = (e) => {
-		if (e.pointerType === 'mouse') endHold();
+		if (e.pointerType === 'mouse' && !wasToggledByClick) {
+			doHide();
+		}
 	};
-
-	// Touch Events de respaldo
-	buttonEl.ontouchstart = (e) => {
-		startHold(e);
-	};
-	buttonEl.ontouchend = endHold;
-	buttonEl.ontouchcancel = endHold;
-
-	// Mouse Events de respaldo
-	buttonEl.onmousedown = startHold;
-	buttonEl.onmouseup = endHold;
-	buttonEl.onmouseleave = endHold;
-
-	// Respaldo global por si se suelta fuera del botón
-	window.addEventListener('mouseup', () => {
-		if (isHolding) endHold();
-	}, { passive: true });
 }
 
 // ==========================================
@@ -3116,12 +3144,6 @@ function handleLanding(player, tile) {
 										player.otherExpenses = otherExpenses;
 										player.fixedExpenses = targetTotalExpenses;
 									}
-								},
-								{
-									amount: netFlow,
-									category: 'flow',
-									sourceEl: btnEl,
-									label: 'Flujo Libre'
 								}
 							], () => {
 								showModalContinueButton(() => {
@@ -3300,7 +3322,7 @@ function showFloatingPaydayBubble(tileIndex, laneIndex, amount) {
 	}, 1050);
 }
 
-// 1. Día de Pago con Animación Especial y Didáctica de 3 Etapas
+// 1. Día de Pago con Animación Visual y Pocas Palabras
 function collectPayday(player, isLanding, onComplete = null) {
 	if (!player.hasJob || player.salary === 0) {
 		if (onComplete) onComplete();
@@ -3322,51 +3344,30 @@ function collectPayday(player, isLanding, onComplete = null) {
 	const laneIndex = isParallelTwo ? gameState.currentPlayerIndex : 0;
 	showFloatingPaydayBubble(player.position, laneIndex, fin.monthlyCashFlow);
 
-	// Desglose de ingresos
-	const salaryVal = player.salary || 0;
-	const passiveVal = fin.passiveIncome || 0;
-	let incomeDetails = `Sueldo: ${formatCOP(salaryVal)}`;
-	if (passiveVal > 0) {
-		incomeDetails += ` + Ganancias de Negocios: ${formatCOP(passiveVal)}`;
-	}
-
-	// Desglose de gastos
-	let expenseDetails = 'Arriendo, mercado, servicios, transporte y deudas';
-	const fixedExp = player.fixedExpenses || fin.totalExpenses;
-
-	// HTML de las 3 etapas didácticas y visuales
+	// HTML visual minimalista con pocas palabras (Ingresos, Gastos, Flujo)
 	const paydayCustomHtml = `
 		<div class="payday-flow-breakdown" id="payday-breakdown-box">
-			<!-- ETAPA 1: DINERO QUE INGRESÓ -->
+			<!-- ETAPA 1: INGRESOS -->
 			<div class="payday-step payday-step-in payday-step-active" id="payday-step-1">
 				<div class="payday-step-header">
-					<span class="payday-step-badge in">1. Dinero que Ingresó</span>
+					<span class="payday-step-badge in">Ingresos</span>
 					<span class="payday-step-amount green">+${formatCOP(fin.totalIncome)}</span>
 				</div>
-				<div class="payday-step-detail">
-					<span>${incomeDetails}</span>
-					<span style="color: #16a34a; font-weight: 700;">¡Tu esfuerzo del mes rinde frutos!</span>
-				</div>
 			</div>
 
-			<!-- ETAPA 2: DINERO QUE SALIÓ (GASTOS CUBIERTOS) -->
+			<!-- ETAPA 2: GASTOS MENSUALES -->
 			<div class="payday-step payday-step-out payday-step-dimmed" id="payday-step-2">
 				<div class="payday-step-header">
-					<span class="payday-step-badge out">2. Dinero que Salió: Gastos</span>
+					<span class="payday-step-badge out">Gastos Mensuales</span>
 					<span class="payday-step-amount red">-${formatCOP(fin.totalExpenses)}</span>
-				</div>
-				<div class="payday-step-detail">
-					<span>${expenseDetails}</span>
-					<span class="payday-covered-tag">✓ ¡100% de tus gastos mensuales cubiertos y al día!</span>
 				</div>
 			</div>
 
-			<!-- ETAPA 3: CUÁNTO TE QUEDÓ (FLUJO LIMPIO) -->
+			<!-- ETAPA 3: FLUJO NETO -->
 			<div class="payday-step payday-step-net payday-step-dimmed" id="payday-step-3">
 				<div class="payday-net-banner">
-					<span class="payday-net-label">3. Tu Dinero Disponible Este Mes</span>
+					<span class="payday-net-label">Flujo Neto</span>
 					<span class="payday-net-val">${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}</span>
-					<span class="payday-net-sub">¡Dinero limpio que entra directo a tu efectivo!</span>
 				</div>
 			</div>
 		</div>
@@ -3377,20 +3378,29 @@ function collectPayday(player, isLanding, onComplete = null) {
 		headerClass: 'payday',
 		icon: '💰',
 		image: '/images/cards/dia_de_pago.svg',
-		title: '¡Día de Pago!',
-		detailedInfo: `Cobro #${count} del mes. En cada Día de Pago recibes tus ingresos, se pagan automáticamente todos tus gastos mensuales para mantenerte al día, y la diferencia es tu flujo de efectivo disponible.`,
+		title: '¡Día de Pago! 💰',
+		detailedInfo: '',
 		customHtml: paydayCustomHtml,
 		buttons: [
 			{
-				text: `¡Cobrar +${formatCOP(fin.monthlyCashFlow)} a mi Efectivo! 🚀`,
+				text: `¡Cobrar Flujo +${formatCOP(fin.monthlyCashFlow)}! 🚀`,
 				class: 'primary',
 				action: () => {
-					// 1. Acreditar dinero al jugador
+					// 1. Deshabilitar botón inmediatamente para evitar congelamientos o dobles clics
+					const btnEl = document.querySelector('#modal-footer button');
+					if (btnEl) {
+						btnEl.disabled = true;
+						btnEl.style.opacity = '0.75';
+						btnEl.style.pointerEvents = 'none';
+						btnEl.textContent = '¡Flujo Recibido! 💸';
+					}
+
+					// 2. Acreditar dinero al jugador
 					player.cash += fin.monthlyCashFlow;
 					sounds.cash();
 					updateHUDAndHeaders();
 
-					// 2. Destello en HUD del jugador
+					// 3. Destello en HUD del jugador
 					const playerPills = document.querySelectorAll('.player-hud-pill');
 					if (playerPills[gameState.currentPlayerIndex]) {
 						const targetPill = playerPills[gameState.currentPlayerIndex];
@@ -3399,19 +3409,16 @@ function collectPayday(player, isLanding, onComplete = null) {
 						targetPill.classList.add('pill-payday-flash');
 					}
 
-					// 3. Volar el dinero al balance
-					const btnEl = document.querySelector('#modal-footer button');
+					// 4. Volar el dinero al balance y continuar fluidamente
 					if (fin.monthlyCashFlow !== 0) {
 						animateTransactionNumbersToBalance({
 							amount: fin.monthlyCashFlow,
 							category: 'cash',
 							sourceEl: btnEl,
-							label: 'Cobro de Mes',
+							label: 'Flujo del Mes',
 							onComplete: () => {
-								showModalContinueButton(() => {
-									closeModal(() => {
-										handlePaydayMilestones(player, count, onComplete);
-									});
+								closeModal(() => {
+									handlePaydayMilestones(player, count, onComplete);
 								});
 							}
 						});
@@ -3426,10 +3433,9 @@ function collectPayday(player, isLanding, onComplete = null) {
 	});
 
 	// Animación secuencial en 3 tiempos con pausas agradables
-	// Tiempo 0: Etapa 1 activa (sonido caja)
 	sounds.cash();
 
-	// Tiempo 1 (850ms): Se activa la Etapa 2 de Gastos Cubiertos
+	// Tiempo 1 (650ms): Se activa la Etapa 2 de Gastos Cubiertos
 	setTimeout(() => {
 		const step2 = document.getElementById('payday-step-2');
 		if (step2) {
@@ -3437,9 +3443,9 @@ function collectPayday(player, isLanding, onComplete = null) {
 			step2.classList.add('payday-step-active');
 			sounds.loss();
 		}
-	}, 850);
+	}, 650);
 
-	// Tiempo 2 (1750ms): Se activa la Etapa 3 con gran protagonismo
+	// Tiempo 2 (1350ms): Se activa la Etapa 3 con gran protagonismo
 	setTimeout(() => {
 		const step3 = document.getElementById('payday-step-3');
 		if (step3) {
@@ -3447,7 +3453,7 @@ function collectPayday(player, isLanding, onComplete = null) {
 			step3.classList.add('payday-step-active');
 			sounds.cash();
 		}
-	}, 1750);
+	}, 1350);
 }
 
 /**
@@ -3475,6 +3481,7 @@ function handlePaydayMilestones(player, count, onComplete) {
 						text: '¡Excelente! Continuar ➔',
 						class: 'primary',
 						action: () => {
+							savePlayerFinancialSnapshot(player, 'Aumento 5% Antigüedad');
 							const btnEl = document.querySelector('#modal-footer button');
 							animateSequentialFinancialUpdate([
 								{
@@ -3483,15 +3490,8 @@ function handlePaydayMilestones(player, count, onComplete) {
 									sourceEl: btnEl,
 									label: 'Aumento 5%',
 									actionBefore: () => {
-										savePlayerFinancialSnapshot(player, 'Aumento 5% Antigüedad');
 										player.salary += raise5;
 									}
-								},
-								{
-									amount: raise5,
-									category: 'flow',
-									sourceEl: btnEl,
-									label: 'Más Flujo'
 								}
 							], () => {
 								showModalContinueButton(() => {
@@ -3530,6 +3530,7 @@ function handlePaydayMilestones(player, count, onComplete) {
 						text: '¡Celebrar mi Ascenso! 🚀',
 						class: 'primary',
 						action: () => {
+							savePlayerFinancialSnapshot(player, `Ascenso: ${newTitle}`);
 							const btnEl = document.querySelector('#modal-footer button');
 							animateSequentialFinancialUpdate([
 								{
@@ -3538,17 +3539,10 @@ function handlePaydayMilestones(player, count, onComplete) {
 									sourceEl: btnEl,
 									label: 'Ascenso 10%',
 									actionBefore: () => {
-										savePlayerFinancialSnapshot(player, `Ascenso: ${newTitle}`);
 										player.jobTier = nextTier;
 										player.salary += raise10;
 										player.profession = newTitle;
 									}
-								},
-								{
-									amount: raise10,
-									category: 'flow',
-									sourceEl: btnEl,
-									label: 'Más Flujo'
 								}
 							], () => {
 								showModalContinueButton(() => {
@@ -3589,7 +3583,8 @@ function showJobModal(player) {
 	showModal({
 		typeName: 'NUEVO EMPLEO 💼',
 		headerClass: 'job',
-		icon: '💼',
+		icon: newJob.icon || '💼',
+		image: newJob.image || '/images/cards/primer_empleo.svg',
 		title: newJob.title,
 		detailedInfo: `¿Quieres cambiar de empleo? Te ofrecen trabajar como <strong>${newJob.title}</strong> con un sueldo de <strong>${formatCOP(newJob.salary)}/mes</strong>.`,
 		stats: stats,
@@ -3600,8 +3595,6 @@ function showJobModal(player) {
 				action: () => {
 					savePlayerFinancialSnapshot(player, `Nuevo Empleo: ${newJob.title}`);
 					const oldSalary = player.salary;
-					player.profession = newJob.title;
-					player.salary = newJob.salary;
 					sounds.cash();
 					const btnEl = document.querySelector('#modal-footer button');
 					const steps = [
@@ -3612,36 +3605,15 @@ function showJobModal(player) {
 							label: newJob.title,
 							customText: `${newJob.salary >= oldSalary ? '+' : ''}${formatCOP(newJob.salary - oldSalary)}/m 💼`,
 							actionBefore: () => {
-								savePlayerFinancialSnapshot(player, `Nuevo Empleo: ${newJob.title}`);
 								player.profession = newJob.title;
 								player.salary = newJob.salary;
 							}
 						}
 					];
 
-					if (diff !== 0) {
-						steps.push({
-							amount: diff,
-							category: 'flow',
-							sourceEl: btnEl,
-							label: 'Ajuste Flujo'
-						});
-					}
-
 					animateSequentialFinancialUpdate(steps, () => {
-						showModal({
-							typeName: '¡ESTRENAS TRABAJO! 🎉',
-							headerClass: 'job',
-							icon: '🎉',
-							image: '/images/cards/primer_empleo.svg',
-							title: newJob.title,
-							detailedInfo: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)}</strong> al mes.`,
-							stats: [
-								{ label: 'Nuevo sueldo:', value: `${formatCOP(newJob.salary)}/mes`, color: 'green' }
-							],
-							buttons: [
-								{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
-							]
+						showModalContinueButton(() => {
+							closeModal(() => endTurn());
 						});
 					});
 				}
@@ -3680,6 +3652,7 @@ function showPromotionModal(player) {
 				text: '¡Celebrar y Recibir Aumento! 🎉',
 				class: 'primary',
 				action: () => {
+					savePlayerFinancialSnapshot(player, `Ascenso: ${promo.title}`);
 					const btnEl = document.querySelector('#modal-footer button');
 					animateSequentialFinancialUpdate([
 						{
@@ -3688,19 +3661,12 @@ function showPromotionModal(player) {
 							sourceEl: btnEl,
 							label: 'Aumento Sueldo',
 							actionBefore: () => {
-								savePlayerFinancialSnapshot(player, `Ascenso: ${promo.title}`);
 								player.salary += promo.raise;
 								if (nextTitle !== player.profession) {
 									player.jobTier = nextTier;
 									player.profession = nextTitle;
 								}
 							}
-						},
-						{
-							amount: promo.raise,
-							category: 'flow',
-							sourceEl: btnEl,
-							label: 'Más Flujo'
 						}
 					], () => {
 						showModalContinueButton(() => {
@@ -3792,34 +3758,9 @@ function presentDeal(player, deal) {
 					}
 				];
 
-				if (deal.cashFlow > 0) {
-					steps.push({
-						amount: deal.cashFlow,
-						category: 'flow',
-						sourceEl: btnEl,
-						label: `+${deal.roiPercent}% Flujo`
-					});
-				}
-
 				animateSequentialFinancialUpdate(steps, () => {
-					const successDesc = `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} extra (${deal.roiPercent}% de ganancia mensual)</strong> todos los meses en tu Día de Pago.`;
-
-					showModal({
-						typeName: deal.rarity === 'very_rare' ? '¡OCASIÓN EXTRAORDINARIA! 🔥💎' : (deal.rarity === 'rare' ? '¡OCASIÓN EXTRAÑA APROVECHADA! ⭐' : '¡ÉXITO! 🎉'),
-						headerClass: 'opportunity',
-						icon: deal.icon || '🎉',
-						title: deal.title,
-						detailedInfo: successDesc,
-						stats: [
-							{
-								label: 'Ganancia agregada:',
-								value: `+${formatCOP(deal.cashFlow)}/mes (${deal.roiPercent}%)`,
-								color: 'green'
-							}
-						],
-						buttons: [
-							{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
-						]
+					showModalContinueButton(() => {
+						closeModal(() => endTurn());
 					});
 				});
 			}
@@ -3869,8 +3810,7 @@ function showDoodadModal(player) {
 		title: doodad.title,
 		detailedInfo: `${doodad.desc}<br><br><small style="color:#64748b;">💡 Consejo: Guardar platica para imprevistos te protege sin frenar tus inversiones en negocios.</small>`,
 		stats: [
-			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)}`, color: 'red' },
-			{ label: 'Te quedará en bolsillo:', value: `${formatCOP(remaining)}`, color: remaining >= 0 ? 'green' : 'red' }
+			{ label: 'Gasto en efectivo:', value: `-${formatCOP(doodad.cost)}` }
 		],
 		buttons: [
 			{
@@ -3994,15 +3934,6 @@ function showMarketModal(player) {
 							customText: `-${asset.title.slice(0, 14)} 🏢`
 						}
 					];
-
-					if (saleFlow > 0) {
-						steps.push({
-							amount: -saleFlow,
-							category: 'flow',
-							sourceEl: btnEl,
-							label: 'Menos Flujo'
-						});
-					}
 
 					animateSequentialFinancialUpdate(steps, () => {
 						showModal({
@@ -4258,12 +4189,6 @@ function showPayDebtModal() {
 								player.totalDebt -= payAmount;
 								player.debtExpenses = Math.max(0, player.debtExpenses - 25000);
 							}
-						},
-						{
-							amount: 25000,
-							category: 'flow',
-							sourceEl: btnEl,
-							label: 'Menos Gastos'
 						}
 					], () => {
 						showModalContinueButton(() => {
@@ -4317,7 +4242,7 @@ function renderDrawerPlayerHeader(playerIndex = gameState.selectedDrawerPlayerIn
 				<div style="display:flex; align-items:center; gap:8px;">
 					<span style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.15rem; color:var(--text-main);">${p.name}</span>
 				</div>
-				<small style="color:var(--text-muted); font-size:0.82rem; font-weight:700;">${p.hasJob ? p.profession : 'Buscando empleo'}</small>
+				<small id="drawer-player-job" style="color:var(--text-muted); font-size:0.82rem; font-weight:700;">${p.hasJob ? p.profession : 'Buscando empleo'}</small>
 			</div>
 		</div>
 	`;
@@ -4336,10 +4261,16 @@ function updateDrawerFinancials(playerIndex) {
 	document.getElementById('drawer-freedom-pct').textContent = `${fin.freedomProgress}%`;
 	document.getElementById('drawer-freedom-fill').style.width = `${fin.freedomProgress}%`;
 
-	document.getElementById('drawer-cash-val').textContent = `${formatCOP(p.cash)}`;
+	const drawerCashEl = document.getElementById('drawer-cash-val');
+	if (drawerCashEl) {
+		drawerCashEl.textContent = `${formatCOP(p.cash)}`;
+		drawerCashEl.style.color = p.cash < 0 ? '#dc2626' : '#16a34a';
+	}
 	const cashflowEl = document.getElementById('drawer-cashflow-val');
-	cashflowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`;
-	cashflowEl.style.color = fin.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
+	if (cashflowEl) {
+		cashflowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}`;
+		cashflowEl.style.color = fin.monthlyCashFlow > 0 ? '#16a34a' : (fin.monthlyCashFlow < 0 ? '#dc2626' : '#0f172a');
+	}
 
 	document.getElementById('drawer-salary').textContent = formatCOP(p.salary);
 	document.getElementById('drawer-passive').textContent = formatCOP(fin.passiveIncome);
@@ -4427,13 +4358,21 @@ function showPreviousDrawerState(player) {
 	const fixedEl = document.getElementById('drawer-fixed-exp');
 	const debtEl = document.getElementById('drawer-debt-exp');
 
+	const drawerJobEl = document.getElementById('drawer-player-job');
+	if (drawerJobEl) {
+		const prevJob = prev.hasJob ? (prev.profession || 'Profesión') : 'Buscando empleo';
+		drawerJobEl.textContent = prevJob;
+		drawerJobEl.classList.toggle('past-val-highlight', player.profession !== prev.profession || player.hasJob !== prev.hasJob);
+	}
+
 	if (cashValEl) {
 		cashValEl.textContent = `${formatCOP(prev.cash)}`;
+		cashValEl.style.color = prev.cash < 0 ? '#dc2626' : '#16a34a';
 		cashValEl.classList.toggle('past-val-highlight', player.cash !== prev.cash);
 	}
 	if (cashflowEl) {
 		cashflowEl.textContent = `${prev.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(prev.monthlyCashFlow)}`;
-		cashflowEl.style.color = prev.monthlyCashFlow >= 0 ? '#15803d' : '#dc2626';
+		cashflowEl.style.color = prev.monthlyCashFlow > 0 ? '#16a34a' : (prev.monthlyCashFlow < 0 ? '#dc2626' : '#0f172a');
 		cashflowEl.classList.toggle('past-val-highlight', fin.monthlyCashFlow !== prev.monthlyCashFlow);
 	}
 	const prevSalary = prev.salary || 0;
@@ -4521,6 +4460,12 @@ function restoreCurrentDrawerState(playerIndex) {
 		drawerHistBtn.textContent = '¿Cómo era antes?';
 	}
 	document.querySelectorAll('.past-val-highlight').forEach(el => el.classList.remove('past-val-highlight'));
+	const p = gameState.players[playerIndex];
+	const drawerJobEl = document.getElementById('drawer-player-job');
+	if (drawerJobEl && p) {
+		drawerJobEl.textContent = p.hasJob ? p.profession : 'Buscando empleo';
+		drawerJobEl.classList.remove('past-val-highlight');
+	}
 	updateDrawerFinancials(playerIndex);
 }
 
@@ -4617,6 +4562,7 @@ function renderModalSideBalance() {
 	}
 	if (nameEl) nameEl.textContent = player.name;
 	if (jobEl) {
+		jobEl.classList.remove('past-val-highlight');
 		if (player.hasJob) {
 			jobEl.textContent = player.profession;
 		} else {
@@ -4624,7 +4570,7 @@ function renderModalSideBalance() {
 		}
 	}
 
-	// Resumen Superior: Efectivo y Flujo Libre
+	// Resumen Superior: Efectivo y Flujo
 	const cashEl = document.getElementById('side-bal-cash');
 	const flowEl = document.getElementById('side-bal-flow');
 	if (cashEl) {
@@ -4632,8 +4578,12 @@ function renderModalSideBalance() {
 		cashEl.className = `val cash ${player.cash < 0 ? 'red' : ''}`;
 	}
 	if (flowEl) {
-		flowEl.textContent = `${fin.monthlyCashFlow >= 0 ? '+' : ''}${formatCOP(fin.monthlyCashFlow)}/m`;
-		flowEl.className = `val flow ${fin.monthlyCashFlow < 0 ? 'red' : ''}`;
+		const displayFlow = fin.monthlyCashFlow;
+		flowEl.textContent = `${displayFlow >= 0 ? '+' : ''}${formatCOP(displayFlow)}/m`;
+		let flowClass = 'zero';
+		if (displayFlow > 0) flowClass = 'green';
+		else if (displayFlow < 0) flowClass = 'red';
+		flowEl.className = `val flow ${flowClass}`;
 	}
 
 	// 1. INGRESOS
@@ -4692,14 +4642,11 @@ function renderModalSideBalance() {
 	if (debtValEl) debtValEl.textContent = player.totalDebt > 0 ? `${formatCOP(player.totalDebt)}` : '$0';
 	if (debtPayEl) debtPayEl.textContent = player.debtExpenses > 0 ? `-${formatCOP(player.debtExpenses)}/m` : '$0/m';
 
-	// 5. Indicadores delta y botón de historial "Cómo era antes"
+	// 5. Botón de historial "Cómo era antes"
 	const prev = player.previousSnapshot;
 	const historyBtn = document.getElementById('btn-side-bal-history');
-	const cashDeltaEl = document.getElementById('side-bal-cash-delta');
-	const flowDeltaEl = document.getElementById('side-bal-flow-delta');
 	const cashMetricBox = document.getElementById('side-bal-metric-cash');
 	const flowMetricBox = document.getElementById('side-bal-metric-flow');
-	const incomeQuad = document.getElementById('k-quad-income');
 
 	if (prev) {
 		if (historyBtn) {
@@ -4710,32 +4657,6 @@ function renderModalSideBalance() {
 				() => showPreviousBalanceState(player),
 				() => restoreCurrentBalanceState()
 			);
-		}
-
-		// Delta en Efectivo
-		const cashDiff = player.cash - prev.cash;
-		if (cashDeltaEl) {
-			if (cashDiff !== 0) {
-				const sign = cashDiff > 0 ? '+' : '-';
-				cashDeltaEl.textContent = `${sign}${formatCOP(Math.abs(cashDiff))}`;
-				cashDeltaEl.className = `bal-delta-pill ${cashDiff > 0 ? 'gain' : 'loss'}`;
-				cashDeltaEl.classList.remove('hidden');
-			} else {
-				cashDeltaEl.classList.add('hidden');
-			}
-		}
-
-		// Delta en Flujo Libre
-		const flowDiff = fin.monthlyCashFlow - prev.monthlyCashFlow;
-		if (flowDeltaEl) {
-			if (flowDiff !== 0) {
-				const sign = flowDiff > 0 ? '+' : '-';
-				flowDeltaEl.textContent = `${sign}${formatCOP(Math.abs(flowDiff))}/m`;
-				flowDeltaEl.className = `bal-delta-pill ${flowDiff > 0 ? 'gain' : 'loss'}`;
-				flowDeltaEl.classList.remove('hidden');
-			} else {
-				flowDeltaEl.classList.add('hidden');
-			}
 		}
 
 		// Si el usuario también mantiene presionadas las métricas de efectivo o flujo, muestra cómo era antes
@@ -4755,8 +4676,6 @@ function renderModalSideBalance() {
 		}
 	} else {
 		if (historyBtn) historyBtn.classList.add('hidden');
-		if (cashDeltaEl) cashDeltaEl.classList.add('hidden');
-		if (flowDeltaEl) flowDeltaEl.classList.add('hidden');
 	}
 
 	sideBalanceEl.classList.add('active');
@@ -4850,8 +4769,27 @@ function getCardIllustrationPath({ image, headerClass, typeName, title, desc, de
 		return '/images/cards/paso_libre.svg';
 	}
 
+	// 15. Empleos y Profesiones
+	if (lowerHeader === 'job' || lowerType.includes('empleo') || lowerType.includes('trabajo')) {
+		if (fullText.includes('cocin') || fullText.includes('barista') || fullText.includes('pastel')) return '/images/jobs/cocinero.svg';
+		if (fullText.includes('tendero') || fullText.includes('local') || fullText.includes('tienda') || fullText.includes('admin')) return '/images/jobs/tendero.svg';
+		if (fullText.includes('veterinari') || fullText.includes('mascota')) return '/images/jobs/veterinario.svg';
+		if (fullText.includes('domiciliari') || fullText.includes('repart')) return '/images/jobs/domiciliario.svg';
+		if (fullText.includes('recreacion') || fullText.includes('deport') || fullText.includes('música')) return '/images/jobs/recreacionista.svg';
+		if (fullText.includes('jardin')) return '/images/jobs/jardinero.svg';
+		if (fullText.includes('construct') || fullText.includes('obra')) return '/images/jobs/constructor.svg';
+		if (fullText.includes('vendedor') || fullText.includes('venta')) return '/images/jobs/vendedor.svg';
+		if (fullText.includes('fotó')) return '/images/jobs/fotografo.svg';
+		if (fullText.includes('lava')) return '/images/jobs/lavacarros.svg';
+		if (fullText.includes('cliente') || fullText.includes('servicio')) return '/images/jobs/servicio-cliente.svg';
+		if (fullText.includes('traduc')) return '/images/jobs/traductor.svg';
+		if (fullText.includes('program') || fullText.includes('diseñ') || fullText.includes('dron') || fullText.includes('celular')) return '/images/cards/tecnologia_maquinas.svg';
+		return '/images/cards/primer_empleo.svg';
+	}
+
 	// Fallback por categoría/header
 	switch (lowerHeader) {
+		case 'job': return '/images/cards/primer_empleo.svg';
 		case 'opportunity': return '/images/cards/oportunidad_choice.svg';
 		case 'payday': return '/images/cards/dia_de_pago.svg';
 		case 'doodad': return '/images/cards/caprichos.svg';

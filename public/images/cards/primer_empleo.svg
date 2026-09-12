@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg_job" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="badge_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="gold_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="160" rx="16" fill="url(#bg_job)"/>
+  <circle cx="50" cy="40" r="28" fill="#bfdbfe" opacity="0.4"/>
+  <circle cx="280" cy="120" r="36" fill="#bfdbfe" opacity="0.4"/>
+  <g transform="translate(160, 80)">
+    <rect x="-85" y="-55" width="170" height="110" rx="12" fill="#ffffff" stroke="#93c5fd" stroke-width="2.5"/>
+    <path d="M -85 -43 Q -85 -55 -73 -55 L 73 -55 Q 85 -55 85 -43 L 85 -25 L -85 -25 Z" fill="url(#badge_grad)"/>
+    <rect x="-14" y="-50" width="28" height="6" rx="3" fill="#ffffff" opacity="0.8"/>
+    <circle cx="-42" cy="12" r="24" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+    <circle cx="-42" cy="6" r="9" fill="#4f46e5"/>
+    <path d="M -58 26 C -58 18, -26 18, -26 26 Z" fill="#4f46e5"/>
+    <rect x="-6" y="-12" width="75" height="8" rx="4" fill="#1e293b"/>
+    <rect x="-6" y="2" width="55" height="6" rx="3" fill="#64748b"/>
+    <rect x="-6" y="14" width="65" height="6" rx="3" fill="#10b981"/>
+    <g transform="translate(56, 32) scale(0.9)">
+      <circle cx="0" cy="0" r="14" fill="url(#gold_grad)"/>
+      <polygon points="0,-8 2.5,-2.5 8,-2.5 3.5,1.5 5.5,7 0,3.5 -5.5,7 -3.5,1.5 -8,-2.5 -2.5,-2.5" fill="#ffffff"/>
+    </g>
+  </g>
+  <g fill="#f59e0b">
+    <polygon points="65,45 68,52 75,55 68,58 65,65 62,58 55,55 62,52"/>
+    <polygon points="255,42 257,47 262,49 257,51 255,56 253,51 248,49 253,47"/>
+  </g>
+</svg>
