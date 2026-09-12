@@ -2046,10 +2046,11 @@ function wireEventListeners() {
 	});
 }
 
-function openBalanceDrawer() {
-	gameState.selectedDrawerPlayerIndex = gameState.currentPlayerIndex;
-	renderDrawerPlayerTabs();
-	updateDrawerFinancials(gameState.selectedDrawerPlayerIndex);
+function openBalanceDrawer(playerIndex) {
+	const targetIndex = (typeof playerIndex === 'number') ? playerIndex : (gameState.selectedDrawerPlayerIndex ?? gameState.currentPlayerIndex);
+	gameState.selectedDrawerPlayerIndex = targetIndex;
+	renderDrawerPlayerHeader(targetIndex);
+	updateDrawerFinancials(targetIndex);
 	document.getElementById('balance-drawer-overlay')?.classList.add('open');
 }
 
@@ -2285,8 +2286,7 @@ function updateHUDAndHeaders() {
 		`;
 
 		pill.addEventListener('click', () => {
-			gameState.selectedDrawerPlayerIndex = idx;
-			openBalanceDrawer();
+			openBalanceDrawer(idx);
 		});
 
 		// Si hay dos jugadores: jugador 1 a la izquierda de su camino, jugador 2 a la derecha de su camino
@@ -3945,23 +3945,32 @@ function getPlayerFinancials(player) {
 	};
 }
 
-function renderDrawerPlayerTabs() {
+function renderDrawerPlayerHeader(playerIndex = gameState.selectedDrawerPlayerIndex) {
 	const container = document.getElementById('drawer-players-tabs');
 	if (!container) return;
-	container.innerHTML = '';
+	const p = gameState.players[playerIndex];
+	if (!p) return;
 
-	gameState.players.forEach((p, idx) => {
-		const btn = document.createElement('button');
-		btn.className = `drawer-tab ${idx === gameState.selectedDrawerPlayerIndex ? 'active' : ''}`;
-		btn.innerHTML = `${p.avatar} ${p.name.split(' ')[0]}`;
-		btn.addEventListener('click', () => {
-			gameState.selectedDrawerPlayerIndex = idx;
-			renderDrawerPlayerTabs();
-			updateDrawerFinancials(idx);
-		});
-		container.appendChild(btn);
-	});
+	container.innerHTML = `
+		<div class="drawer-player-single-card" style="display:flex; align-items:center; gap:12px; width:100%; padding:10px 14px; border-radius:16px; background:${p.bg || 'rgba(37,99,235,0.08)'}; border:1.5px solid ${p.color || '#3b82f6'};">
+			<div style="width:44px; height:44px; border-radius:50%; background:${p.color || '#3b82f6'}; display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:white; flex-shrink:0;">
+				${p.avatar}
+			</div>
+			<div style="display:flex; flex-direction:column; line-height:1.25;">
+				<div style="display:flex; align-items:center; gap:8px;">
+					<span style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.15rem; color:var(--text-main);">${p.name}</span>
+					${playerIndex === gameState.currentPlayerIndex ? '<span style="font-size:0.7rem; font-weight:800; color:#15803d; background:#dcfce7; padding:1px 6px; border-radius:6px; text-transform:uppercase;">Turno</span>' : ''}
+				</div>
+				<small style="color:var(--text-muted); font-size:0.82rem; font-weight:700;">${p.hasJob ? p.profession : 'Buscando empleo'} • ${p.salariesCollected || 0} salarios cobrados</small>
+			</div>
+		</div>
+	`;
+
+	const titleEl = document.querySelector('.drawer-header h2');
+	if (titleEl) titleEl.textContent = `📋 Balance de ${p.name}`;
 }
+
+const renderDrawerPlayerTabs = renderDrawerPlayerHeader;
 
 function updateDrawerFinancials(playerIndex) {
 	const p = gameState.players[playerIndex];
