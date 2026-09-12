@@ -21,11 +21,106 @@ function formatCOP(amount) {
 // 2. CONFIGURACIÓN Y CONSTANTES
 // ==========================================
 
+const MONOPOLY_SVGS = {
+	tophat: `<svg class="monopoly-token-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<linearGradient id="hatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+				<stop offset="0%" stop-color="#ffffff"/>
+				<stop offset="35%" stop-color="#93c5fd"/>
+				<stop offset="70%" stop-color="#2563eb"/>
+				<stop offset="100%" stop-color="#1e3a8a"/>
+			</linearGradient>
+			<linearGradient id="ribbonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+				<stop offset="0%" stop-color="#f59e0b"/>
+				<stop offset="50%" stop-color="#fef08a"/>
+				<stop offset="100%" stop-color="#d97706"/>
+			</linearGradient>
+		</defs>
+		<!-- Copa del Sombrero -->
+		<path d="M14 10 H34 L32 29 H16 Z" fill="url(#hatGrad)" stroke="#1e3a8a" stroke-width="1.5"/>
+		<ellipse cx="24" cy="10" rx="10" ry="3" fill="#bfdbfe" stroke="#1e3a8a" stroke-width="1.2"/>
+		<!-- Cinta dorada -->
+		<path d="M15.5 25 H32.5 L32 29 H16 Z" fill="url(#ribbonGrad)" stroke="#b45309" stroke-width="1"/>
+		<!-- Ala ancha del Sombrero -->
+		<ellipse cx="24" cy="30" rx="19" ry="5.5" fill="url(#hatGrad)" stroke="#1e3a8a" stroke-width="1.8"/>
+		<ellipse cx="24" cy="30" rx="15" ry="3.5" fill="#dbeafe" opacity="0.4"/>
+	</svg>`,
+	racecar: `<svg class="monopoly-token-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<linearGradient id="carGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+				<stop offset="0%" stop-color="#ffffff"/>
+				<stop offset="40%" stop-color="#d8b4fe"/>
+				<stop offset="75%" stop-color="#9333ea"/>
+				<stop offset="100%" stop-color="#581c87"/>
+			</linearGradient>
+		</defs>
+		<!-- Carrocería deportiva clásica Monopoly -->
+		<path d="M6 25 Q12 18 20 18 Q26 13 32 17 L42 24 Q44 26 44 28 L4 28 Q4 26 6 25 Z" fill="url(#carGrad)" stroke="#581c87" stroke-width="1.5"/>
+		<!-- Parabrisas y cabina abierta -->
+		<path d="M22 18 L27 15 L30 18 Z" fill="#f3e8ff" stroke="#7e22ce" stroke-width="1.2"/>
+		<circle cx="28" cy="17" r="2.5" fill="#e9d5ff"/>
+		<!-- Rueda delantera y trasera con radios cromados -->
+		<circle cx="13" cy="29" r="6" fill="#1e1b4b" stroke="#9333ea" stroke-width="1.5"/>
+		<circle cx="13" cy="29" r="3" fill="#e9d5ff"/>
+		<circle cx="35" cy="29" r="6" fill="#1e1b4b" stroke="#9333ea" stroke-width="1.5"/>
+		<circle cx="35" cy="29" r="3" fill="#e9d5ff"/>
+		<!-- Tubo de escape cromado -->
+		<rect x="2" y="26" width="4" height="2" rx="1" fill="#cbd5e1"/>
+	</svg>`,
+	scottie: `<svg class="monopoly-token-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<linearGradient id="dogGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+				<stop offset="0%" stop-color="#ffffff"/>
+				<stop offset="35%" stop-color="#fde68a"/>
+				<stop offset="70%" stop-color="#d97706"/>
+				<stop offset="100%" stop-color="#78350f"/>
+			</linearGradient>
+		</defs>
+		<!-- Perro Terrier Escocés Monopoly -->
+		<!-- Orejas erguidas -->
+		<polygon points="12,11 16,17 10,17" fill="url(#dogGrad)" stroke="#78350f" stroke-width="1.2"/>
+		<polygon points="17,11 21,17 15,17" fill="url(#dogGrad)" stroke="#78350f" stroke-width="1.2"/>
+		<!-- Cabeza y hocico con barba de terrier -->
+		<path d="M12 16 L22 17 L25 22 L18 24 L14 22 Z" fill="url(#dogGrad)" stroke="#78350f" stroke-width="1.5"/>
+		<!-- Ojo -->
+		<circle cx="17" cy="19" r="1.2" fill="#451a03"/>
+		<!-- Collar rojo -->
+		<path d="M19 23 L22 25 L21 27 L18 25 Z" fill="#ef4444"/>
+		<!-- Cuerpo robusto -->
+		<path d="M20 24 Q28 22 36 26 L36 33 L18 33 L18 25 Z" fill="url(#dogGrad)" stroke="#78350f" stroke-width="1.5"/>
+		<!-- Cola alegre apuntando hacia arriba -->
+		<path d="M35 25 Q39 18 38 15 Q36 17 34 23 Z" fill="url(#dogGrad)" stroke="#78350f" stroke-width="1.2"/>
+		<!-- Patas cortas y firmes -->
+		<rect x="18" y="32" width="4.5" height="5" rx="1.5" fill="url(#dogGrad)" stroke="#78350f" stroke-width="1.2"/>
+		<rect x="31" y="32" width="4.5" height="5" rx="1.5" fill="url(#dogGrad)" stroke="#78350f" stroke-width="1.2"/>
+	</svg>`,
+	battleship: `<svg class="monopoly-token-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<linearGradient id="shipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+				<stop offset="0%" stop-color="#ffffff"/>
+				<stop offset="35%" stop-color="#fecdd3"/>
+				<stop offset="70%" stop-color="#e11d48"/>
+				<stop offset="100%" stop-color="#881337"/>
+			</linearGradient>
+		</defs>
+		<!-- Barco de Guerra / Transatlántico Monopoly -->
+		<!-- Casco naval perfilado -->
+		<path d="M4 27 L10 32 L38 32 L44 26 L38 25 L6 25 Z" fill="url(#shipGrad)" stroke="#881337" stroke-width="1.5"/>
+		<!-- Cubierta superior y puente de mando -->
+		<rect x="16" y="19" width="16" height="6" rx="1" fill="#ffe4e6" stroke="#be123c" stroke-width="1.2"/>
+		<rect x="20" y="14" width="8" height="5" rx="1" fill="url(#shipGrad)" stroke="#881337" stroke-width="1.2"/>
+		<!-- Chimenea y cañones navales -->
+		<line x1="24" y1="9" x2="24" y2="14" stroke="#881337" stroke-width="2.5" stroke-linecap="round"/>
+		<line x1="12" y1="23" x2="6" y2="21" stroke="#881337" stroke-width="2" stroke-linecap="round"/>
+		<line x1="36" y1="23" x2="42" y2="21" stroke="#881337" stroke-width="2" stroke-linecap="round"/>
+	</svg>`
+};
+
 const AVATARS = [
-	{ id: 'rat-blue', name: 'Quesito Veloz', emoji: '🐭', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.12)' },
-	{ id: 'rat-purple', name: 'Don Inversor', emoji: '🐹', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.12)' },
-	{ id: 'rat-amber', name: 'Ahorrador Feliz', emoji: '🐰', color: '#d97706', bg: 'rgba(217, 119, 6, 0.12)' },
-	{ id: 'rat-rose', name: 'Emprendedor Astuto', emoji: '🦊', color: '#e11d48', bg: 'rgba(225, 29, 72, 0.12)' }
+	{ id: 'token-hat', name: 'Sombrero de Copa', tokenKey: 'tophat', emoji: '🎩', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.14)' },
+	{ id: 'token-car', name: 'Carro Clásico', tokenKey: 'racecar', emoji: '🏎️', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.14)' },
+	{ id: 'token-dog', name: 'Perro Terrier', tokenKey: 'scottie', emoji: '🐕', color: '#d97706', bg: 'rgba(217, 119, 6, 0.14)' },
+	{ id: 'token-ship', name: 'Barco Clásico', tokenKey: 'battleship', emoji: '🚢', color: '#e11d48', bg: 'rgba(225, 29, 72, 0.14)' }
 ];
 
 // 12 Empleos básicos de inicio seleccionados por el usuario (Calibrados 2026: Salario mínimo base $1.750.000)
@@ -1985,8 +2080,8 @@ function setupPlayerInputs(count) {
 		const row = document.createElement('div');
 		row.className = 'player-input-row';
 		row.innerHTML = `
-			<div class="player-badge-preview" style="background: ${avatar.bg}; border: 2px solid ${avatar.color};">
-				${avatar.emoji}
+			<div class="player-badge-preview" style="background: ${avatar.bg}; border: 2px solid ${avatar.color}; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; padding: 4px;">
+				${MONOPOLY_SVGS[avatar.tokenKey] || avatar.emoji}
 			</div>
 			<input type="text" id="player-input-${i}" class="player-name-field" value="${name}" placeholder="Nombre del jugador ${i + 1}" maxlength="18" />
 			<span style="font-size: 0.85rem; font-weight: 800; color: ${avatar.color}; font-family: 'Outfit', sans-serif;">${avatar.name}</span>
@@ -2154,6 +2249,7 @@ function startGame() {
 			id: i,
 			name: name,
 			avatar: avatar.emoji,
+			tokenKey: avatar.tokenKey,
 			color: avatar.color,
 			bg: avatar.bg,
 			profession: 'Sin empleo',
@@ -2295,15 +2391,22 @@ function updatePawnsOnRoad(activeHoppingIndex = -1) {
 		if (slot) slot.innerHTML = '';
 	});
 
-	// Colocar fichas de todos los jugadores en su posición del camino compartido
+	// Colocar fichas de Monopoly de todos los jugadores en su posición del camino compartido
 	gameState.players.forEach((p, idx) => {
 		const slot = document.getElementById(`lane-pawns-0-${p.position}`);
 		if (slot) {
 			const pawn = document.createElement('div');
 			pawn.className = `mini-pawn ${idx === activeHoppingIndex ? 'pawn-hopping pawn-hop-anim' : ''}`;
-			pawn.style.background = p.color;
-			pawn.title = `${p.name} (Posición #${p.position})`;
-			pawn.innerHTML = p.avatar;
+			pawn.title = `${p.name} • ${p.avatar} (Posición #${p.position})`;
+
+			const svgContent = MONOPOLY_SVGS[p.tokenKey] || `<div style="font-size:1.6rem;">${p.avatar}</div>`;
+
+			pawn.innerHTML = `
+				<div class="monopoly-token-figure">
+					${svgContent}
+				</div>
+				<div class="monopoly-token-pedestal" style="border-color: ${p.color};"></div>
+			`;
 			slot.appendChild(pawn);
 		}
 	});
@@ -2412,7 +2515,10 @@ function updateHUDAndHeaders() {
 function applySphericalPerspective(focalPosition = null, smooth = false, durationMs = 450) {
 	const current = gameState.players[gameState.currentPlayerIndex];
 	const pos = (typeof focalPosition === 'number') ? focalPosition : (current ? current.position : 0);
-	const effectivePos = pos + gameState.cameraViewOffset;
+	// Desplazar el punto focal 1 casilla hacia adelante (+ 1.0) para que la casilla actual del jugador
+	// quede en la cúspide óptima y la casilla anterior (pos - 1) quede perfectamente visible antes de ella
+	// sin quedar cortada ni pegada al final de la pantalla.
+	const effectivePos = (pos - 1.0) + gameState.cameraViewOffset;
 
 	const transitionStyle = smooth ? `transform ${durationMs}ms cubic-bezier(0.25, 1, 0.5, 1), opacity ${durationMs}ms ease` : 'none';
 
@@ -2447,8 +2553,8 @@ function applySphericalPerspective(focalPosition = null, smooth = false, duratio
 		let opacity = 1.0;
 		if (delta > 7) {
 			opacity = Math.max(0, 1.0 - (delta - 7) * 0.32);
-		} else if (delta < -1) {
-			opacity = Math.max(0, 1.0 - (-delta - 1) * 0.7);
+		} else if (delta < -1.8) {
+			opacity = Math.max(0, 1.0 - (-delta - 1.8) * 0.8);
 		}
 
 		// z-index: las casillas más cercanas a la cámara (menor delta positivo o 0) van arriba
@@ -2602,15 +2708,15 @@ function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 
 		sounds.step();
 
-		// El mundo rueda hacia adelante suavemente trayendo la casilla a primer plano
-		centerPerspective(true, 440);
+		// El mundo rueda hacia adelante con dinamismo trayendo la casilla a primer plano
+		centerPerspective(true, 220);
 
 		// Cargar más casillas si se acerca al final visible
 		if (player.position >= gameState.generatedTiles.length - 18) {
 			extendPerspectiveRoad(25);
 		}
 
-		// La ficha salta sobre el camino compartido
+		// La ficha salta ágilmente sobre el camino compartido
 		updatePawnsOnRoad(gameState.currentPlayerIndex);
 
 		// Resaltar casilla activa
@@ -2642,7 +2748,7 @@ function stepForwardOnRoad(player, totalSteps, originalTotal = totalSteps) {
 				handleLanding(player, currentTileData);
 			}, 1000);
 		}
-	}, 480);
+	}, 240);
 }
 
 // ==========================================

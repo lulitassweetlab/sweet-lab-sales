@@ -526,14 +526,14 @@
 			will-change: transform, opacity;
 		}
 
-		/* Salto de Ficha Suave */
+		/* Salto de Ficha Suave y Ágil tipo Monopoly */
 		.pawn-hop-anim {
-			animation: pawnHopSmooth 0.44s cubic-bezier(0.25, 1, 0.5, 1) !important;
+			animation: pawnHopSmooth 0.22s cubic-bezier(0.25, 1, 0.5, 1) !important;
 		}
 
 		@keyframes pawnHopSmooth {
 			0% { transform: translateY(0) scale(1); }
-			45% { transform: translateY(-24px) scale(1.18); }
+			45% { transform: translateY(-16px) scale(1.12); }
 			100% { transform: translateY(0) scale(1); }
 		}
 
@@ -636,16 +636,46 @@
 		}
 
 		.mini-pawn {
-			width: 30px;
-			height: 30px;
-			border-radius: 50%;
+			position: relative;
+			width: 38px;
+			height: 44px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: flex-end;
+			transition: all 0.22s ease;
+			filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.35));
+			transform-origin: 50% 90%;
+		}
+
+		.monopoly-token-figure {
+			width: 32px;
+			height: 32px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			font-size: 1.1rem;
-			border: 2.5px solid #ffffff;
-			box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-			transition: all 0.25s ease;
+			position: relative;
+			z-index: 2;
+			transition: transform 0.2s ease;
+		}
+
+		.monopoly-token-svg {
+			width: 100%;
+			height: 100%;
+			filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.25));
+		}
+
+		/* Base circular sólida de metal pulido / pedestal tipo Monopoly */
+		.monopoly-token-pedestal {
+			width: 26px;
+			height: 7px;
+			border-radius: 50%;
+			margin-top: -3px;
+			background: radial-gradient(ellipse at 50% 30%, #ffffff 0%, #cbd5e1 55%, #64748b 100%);
+			border: 1px solid rgba(255, 255, 255, 0.9);
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+			position: relative;
+			z-index: 1;
 		}
 
 		/* Ficha con diseño destacado y letras limpias sin borde blanco */
@@ -2796,7 +2826,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-slot-reels-v11"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-monopoly-tokens-v12"></script>
 </body>
 
 </html>
