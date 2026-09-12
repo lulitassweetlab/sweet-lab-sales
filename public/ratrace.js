@@ -2553,28 +2553,37 @@ function showModalContinueButton(onContinue) {
 
 function animateTransactionNumbersToBalance({
 	amount,
-	category = 'cash', // 'cash' | 'flow' | 'salary' | 'debt' | 'expense'
+	category = 'cash', // 'cash' | 'flow' | 'salary' | 'income' | 'debt' | 'expense' | 'asset'
 	sourceEl = null,
 	label = '',
+	customText = '',
 	onComplete = null
 }) {
-	if (amount === 0 || isNaN(amount)) {
+	if (amount === 0 && !customText) {
 		if (onComplete) onComplete();
 		return;
 	}
 
 	// Elemento destino en el widget de balance o en el HUD
 	let targetEl = null;
+	let targetQuadrant = null;
+
 	if (category === 'cash') {
 		targetEl = document.getElementById('side-bal-cash') || document.querySelector('.player-hud-pill.is-turn .p-cash');
 	} else if (category === 'flow') {
 		targetEl = document.getElementById('side-bal-flow') || document.querySelector('.player-hud-pill.is-turn .p-flow');
-	} else if (category === 'salary') {
-		targetEl = document.getElementById('side-bal-salary') || document.getElementById('side-bal-flow');
+	} else if (category === 'salary' || category === 'income') {
+		targetEl = document.getElementById('side-bal-salary') || document.getElementById('side-bal-total-income');
+		targetQuadrant = document.getElementById('k-quad-income');
 	} else if (category === 'debt') {
 		targetEl = document.getElementById('side-bal-total-debt') || document.getElementById('side-bal-cash');
+		targetQuadrant = document.getElementById('k-quad-liabilities');
 	} else if (category === 'expense') {
-		targetEl = document.getElementById('side-bal-rent-exp') || document.getElementById('side-bal-total-exp');
+		targetEl = document.getElementById('side-bal-total-exp') || document.getElementById('side-bal-rent-exp');
+		targetQuadrant = document.getElementById('k-quad-expenses');
+	} else if (category === 'asset') {
+		targetEl = document.getElementById('side-bal-assets-count') || document.getElementById('side-bal-assets-list');
+		targetQuadrant = document.getElementById('k-quad-assets');
 	}
 
 	// Posición de inicio (origen del número volador)
@@ -2606,6 +2615,12 @@ function animateTransactionNumbersToBalance({
 			endX = r.left + r.width / 2;
 			endY = r.top + r.height / 2;
 		}
+	} else if (targetQuadrant && targetQuadrant.getBoundingClientRect) {
+		const r = targetQuadrant.getBoundingClientRect();
+		if (r.width > 0 && r.height > 0) {
+			endX = r.left + r.width / 2;
+			endY = r.top + r.height / 2;
+		}
 	}
 
 	// Crear el chip con los números que volarán al balance
@@ -2616,18 +2631,24 @@ function animateTransactionNumbersToBalance({
 	const formattedVal = formatCOP(Math.abs(amount));
 	const sign = isPositive ? '+' : '-';
 
-	if (category === 'flow') {
+	if (customText) {
+		chip.classList.add(isPositive ? 'flying-chip-gain' : 'flying-chip-loss');
+		chip.innerHTML = customText;
+	} else if (category === 'flow') {
 		chip.classList.add(isPositive ? 'flying-chip-gain' : 'flying-chip-loss');
 		chip.innerHTML = `${sign}${formattedVal}/m 📈`;
-	} else if (category === 'salary') {
+	} else if (category === 'salary' || category === 'income') {
 		chip.classList.add('flying-chip-gain');
 		chip.innerHTML = `+${formattedVal}/m 💼`;
 	} else if (category === 'debt') {
 		chip.classList.add(isPositive ? 'flying-chip-loss' : 'flying-chip-gain');
 		chip.innerHTML = `${sign}${formattedVal} 💳`;
 	} else if (category === 'expense') {
-		chip.classList.add(isPositive ? 'flying-chip-loss' : 'flying-chip-gain');
-		chip.innerHTML = `${isPositive ? '+' : '-'}${formattedVal}/m 🏡`;
+		chip.classList.add('flying-chip-loss');
+		chip.innerHTML = `-${formattedVal}/m 💸`;
+	} else if (category === 'asset') {
+		chip.classList.add('flying-chip-gain');
+		chip.innerHTML = `+${label || 'Negocio'} 🏢`;
 	} else {
 		chip.classList.add(isPositive ? 'flying-chip-gain' : 'flying-chip-loss');
 		chip.innerHTML = `${sign}${formattedVal} ${isPositive ? '💵' : '💸'}`;
@@ -2637,12 +2658,13 @@ function animateTransactionNumbersToBalance({
 	chip.style.top = `${startY}px`;
 	chip.style.transform = 'translate(-50%, -50%) scale(0.65)';
 	chip.style.opacity = '0';
-	chip.style.transition = 'all 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+	chip.style.transition = 'all 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
 
 	document.body.appendChild(chip);
 
 	// Sonido inicial
-	if (isPositive) sounds.cash();
+	if (category === 'expense') sounds.loss();
+	else if (isPositive) sounds.cash();
 	else sounds.loss();
 
 	// Fase 1: Crecer y aparecer en la tarjeta de donde sale
@@ -2650,32 +2672,32 @@ function animateTransactionNumbersToBalance({
 		chip.style.opacity = '1';
 		chip.style.transform = 'translate(-50%, -50%) scale(1.15)';
 
-		// Fase 2: Viajar pausadamente hacia el balance (1 segundo más de duración: 1550ms)
+		// Fase 2: Viajar pausadamente hacia el balance (1100ms)
 		setTimeout(() => {
-			const flyDuration = 1550;
+			const flyDuration = 1100;
 			chip.style.transition = `left ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), top ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${flyDuration}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${flyDuration}ms ease`;
 			chip.style.left = `${endX}px`;
 			chip.style.top = `${endY}px`;
-			chip.style.transform = 'translate(-50%, -50%) scale(0.85)';
-			chip.style.opacity = '0.95';
+			chip.style.transform = 'translate(-50%, -50%) scale(0.88)';
+			chip.style.opacity = '0.96';
 
 			// Fase 3: Impacto en el balance lateral
 			setTimeout(() => {
-				chip.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+				chip.style.transition = 'transform 0.16s ease, opacity 0.16s ease';
 				chip.style.transform = 'translate(-50%, -50%) scale(1.35)';
 				chip.style.opacity = '0';
 
-				// Destello y pulso en el elemento destino
-				// Destello y pulso en el elemento destino (y elementos vinculados si es empleo/sueldo)
-				const flashClass = isPositive ? 'balance-updated-flash-green' : 'balance-updated-flash-red';
+				// Destello y pulso en el elemento destino y su cuadrante
+				const isGreenFlash = category === 'expense' ? false : (category === 'debt' ? !isPositive : isPositive);
+				const flashClass = isGreenFlash ? 'balance-updated-flash-green' : 'balance-updated-flash-red';
+				const quadFlashClass = isGreenFlash ? 'quadrant-updated-flash-green' : 'quadrant-updated-flash-red';
+
 				const elementsToFlash = targetEl ? [targetEl] : [];
 				if (category === 'salary') {
 					const flowEl = document.getElementById('side-bal-flow');
 					const jobEl = document.getElementById('side-bal-job');
-					const totalExpEl = document.getElementById('side-bal-total-exp');
 					if (flowEl) elementsToFlash.push(flowEl);
 					if (jobEl) elementsToFlash.push(jobEl);
-					if (totalExpEl) elementsToFlash.push(totalExpEl);
 				}
 				elementsToFlash.forEach(el => {
 					el.classList.remove('balance-updated-flash-green', 'balance-updated-flash-red');
@@ -2683,11 +2705,17 @@ function animateTransactionNumbersToBalance({
 					el.classList.add(flashClass);
 				});
 
+				if (targetQuadrant) {
+					targetQuadrant.classList.remove('quadrant-updated-flash-green', 'quadrant-updated-flash-red');
+					void targetQuadrant.offsetWidth;
+					targetQuadrant.classList.add(quadFlashClass);
+				}
+
 				// Sonido de confirmación al impactar
-				if (isPositive) sounds.cash();
+				if (isGreenFlash) sounds.cash();
 				else sounds.loss();
 
-				// Actualizar de inmediato las cifras del balance y HUD
+				// Actualizar cifras en balance y HUD
 				renderModalSideBalance();
 				updateHUDAndHeaders();
 
@@ -2696,8 +2724,57 @@ function animateTransactionNumbersToBalance({
 					if (onComplete) onComplete();
 				}, 150);
 			}, flyDuration);
-		}, 180);
+		}, 160);
 	});
+}
+
+/**
+ * Ejecuta una cadena secuencial de animaciones de números voladores hacia el balance,
+ * asegurando que cada cuadrante (Ingresos ➔ Gastos ➔ Flujo, etc.) se actualice uno por uno
+ * con pausas claras y didácticas entre sí.
+ */
+function animateSequentialFinancialUpdate(steps = [], onAllComplete = null) {
+	if (!steps || steps.length === 0) {
+		if (onAllComplete) onAllComplete();
+		return;
+	}
+
+	let currentIndex = 0;
+
+	function runNextStep() {
+		if (currentIndex >= steps.length) {
+			if (onAllComplete) onAllComplete();
+			return;
+		}
+
+		const step = steps[currentIndex];
+		currentIndex++;
+
+		// Si el paso incluye una acción de mutación previa en el jugador antes de animar:
+		if (step.actionBefore) {
+			step.actionBefore();
+			updateHUDAndHeaders();
+		}
+
+		animateTransactionNumbersToBalance({
+			amount: step.amount,
+			category: step.category,
+			sourceEl: step.sourceEl,
+			label: step.label,
+			customText: step.customText,
+			onComplete: () => {
+				if (step.actionAfter) {
+					step.actionAfter();
+					renderModalSideBalance();
+					updateHUDAndHeaders();
+				}
+				// Pausa didáctica de 400ms antes del siguiente paso
+				setTimeout(runNextStep, 400);
+			}
+		});
+	}
+
+	runNextStep();
 }
 
 /**
@@ -2993,34 +3070,53 @@ function handleLanding(player, tile) {
 							// Guardar estado previo (sin empleo) antes de aplicar
 							savePlayerFinancialSnapshot(player, `Primer Empleo: ${job.title}`);
 
-							// Aplicar datos del empleo y gastos al confirmar con el botón
-							player.hasJob = true;
-							player.profession = job.title;
-							player.salary = job.salary;
-							player.housingLevel = player.housingLevel || 0;
-							player.initialExpensePct = expensePct;
-							player.rentExpense = rentExpense;
-							player.groceriesExpense = groceriesExpense;
-							player.utilitiesExpense = utilitiesExpense;
-							player.transportExpense = transportExpense;
-							player.internetExpense = internetExpense;
-							player.phoneExpense = phoneExpense;
-							player.otherExpenses = otherExpenses;
-							player.fixedExpenses = targetTotalExpenses;
-							player.salariesCollected = 0;
-							player.jobTier = 1;
-
 							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: job.salary,
-								category: 'salary',
-								sourceEl: btnEl,
-								label: job.title,
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal(() => endTurn());
-									});
+							// Animación didáctica secuencial cuadrante por cuadrante:
+							// 1. Ingresos (Sueldo) ➔ 2. Gastos Mensuales ➔ 3. Flujo de Efectivo
+							animateSequentialFinancialUpdate([
+								{
+									amount: job.salary,
+									category: 'salary',
+									sourceEl: btnEl,
+									label: job.title,
+									actionBefore: () => {
+										// Aplicar empleo y salario
+										player.hasJob = true;
+										player.profession = job.title;
+										player.salary = job.salary;
+										player.housingLevel = player.housingLevel || 0;
+										player.initialExpensePct = expensePct;
+										player.salariesCollected = 0;
+										player.jobTier = 1;
+									}
+								},
+								{
+									amount: -targetTotalExpenses,
+									category: 'expense',
+									sourceEl: btnEl,
+									label: 'Gastos Mensuales',
+									actionBefore: () => {
+										// Aplicar gastos detallados
+										player.rentExpense = rentExpense;
+										player.groceriesExpense = groceriesExpense;
+										player.utilitiesExpense = utilitiesExpense;
+										player.transportExpense = transportExpense;
+										player.internetExpense = internetExpense;
+										player.phoneExpense = phoneExpense;
+										player.otherExpenses = otherExpenses;
+										player.fixedExpenses = targetTotalExpenses;
+									}
+								},
+								{
+									amount: netFlow,
+									category: 'flow',
+									sourceEl: btnEl,
+									label: 'Flujo Libre'
 								}
+							], () => {
+								showModalContinueButton(() => {
+									closeModal(() => endTurn());
+								});
 							});
 						}
 					}
@@ -3374,18 +3470,25 @@ function handlePaydayMilestones(player, count, onComplete) {
 						class: 'primary',
 						action: () => {
 							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: raise5,
-								category: 'salary',
-								sourceEl: btnEl,
-								label: 'Aumento 5%',
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal(() => {
-											if (onComplete) onComplete();
-										});
-									});
+							animateSequentialFinancialUpdate([
+								{
+									amount: raise5,
+									category: 'salary',
+									sourceEl: btnEl,
+									label: 'Aumento 5%'
+								},
+								{
+									amount: raise5,
+									category: 'flow',
+									sourceEl: btnEl,
+									label: 'Más Flujo'
 								}
+							], () => {
+								showModalContinueButton(() => {
+									closeModal(() => {
+										if (onComplete) onComplete();
+									});
+								});
 							});
 						}
 					}
@@ -3422,18 +3525,25 @@ function handlePaydayMilestones(player, count, onComplete) {
 						class: 'primary',
 						action: () => {
 							const btnEl = document.querySelector('#modal-footer button');
-							animateTransactionNumbersToBalance({
-								amount: raise10,
-								category: 'salary',
-								sourceEl: btnEl,
-								label: 'Ascenso 10%',
-								onComplete: () => {
-									showModalContinueButton(() => {
-										closeModal(() => {
-											if (onComplete) onComplete();
-										});
-									});
+							animateSequentialFinancialUpdate([
+								{
+									amount: raise10,
+									category: 'salary',
+									sourceEl: btnEl,
+									label: 'Ascenso 10%'
+								},
+								{
+									amount: raise10,
+									category: 'flow',
+									sourceEl: btnEl,
+									label: 'Más Flujo'
 								}
+							], () => {
+								showModalContinueButton(() => {
+									closeModal(() => {
+										if (onComplete) onComplete();
+									});
+								});
 							});
 						}
 					}
@@ -3481,28 +3591,46 @@ function showJobModal(player) {
 					player.profession = newJob.title;
 					player.salary = newJob.salary;
 					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: newJob.salary - oldSalary,
-						category: 'salary',
-						sourceEl: btnEl,
-						label: 'Nuevo Sueldo'
-					});
+					const steps = [
+						{
+							amount: newJob.salary,
+							category: 'salary',
+							sourceEl: btnEl,
+							label: newJob.title,
+							customText: `${newJob.salary >= oldSalary ? '+' : ''}${formatCOP(newJob.salary - oldSalary)}/m 💼`,
+							actionBefore: () => {
+								savePlayerFinancialSnapshot(player, `Nuevo Empleo: ${newJob.title}`);
+								player.profession = newJob.title;
+								player.salary = newJob.salary;
+							}
+						}
+					];
 
-					showModal({
-						typeName: '¡ESTRENAS TRABAJO! 🎉',
-						headerClass: 'job',
-						icon: '🎉',
-						title: newJob.title,
-						detailedInfo: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)}</strong> al mes.`,
-						stats: [
-							{ label: 'Nuevo sueldo:', value: `${formatCOP(newJob.salary)}/mes`, color: 'green' }
-						],
-						buttons: [
-							{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
-						]
+					if (diff !== 0) {
+						steps.push({
+							amount: diff,
+							category: 'flow',
+							sourceEl: btnEl,
+							label: 'Ajuste Flujo'
+						});
+					}
+
+					animateSequentialFinancialUpdate(steps, () => {
+						showModal({
+							typeName: '¡ESTRENAS TRABAJO! 🎉',
+							headerClass: 'job',
+							icon: '🎉',
+							image: '/images/cards/primer_empleo.svg',
+							title: newJob.title,
+							detailedInfo: `¡Felicitaciones! Ahora trabajas como <strong>${newJob.title}</strong> y tu sueldo es de <strong>${formatCOP(newJob.salary)}</strong> al mes.`,
+							stats: [
+								{ label: 'Nuevo sueldo:', value: `${formatCOP(newJob.salary)}/mes`, color: 'green' }
+							],
+							buttons: [
+								{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
+							]
+						});
 					});
 				}
 			},
@@ -3540,26 +3668,32 @@ function showPromotionModal(player) {
 				text: '¡Celebrar y Recibir Aumento! 🎉',
 				class: 'primary',
 				action: () => {
-					savePlayerFinancialSnapshot(player, `Ascenso: ${promo.title}`);
-					player.salary += promo.raise;
-					if (nextTitle !== player.profession) {
-						player.jobTier = nextTier;
-						player.profession = nextTitle;
-					}
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: promo.raise,
-						category: 'salary',
-						sourceEl: btnEl,
-						label: 'Aumento Sueldo',
-						onComplete: () => {
-							showModalContinueButton(() => {
-								closeModal(() => endTurn());
-							});
+					animateSequentialFinancialUpdate([
+						{
+							amount: promo.raise,
+							category: 'salary',
+							sourceEl: btnEl,
+							label: 'Aumento Sueldo',
+							actionBefore: () => {
+								savePlayerFinancialSnapshot(player, `Ascenso: ${promo.title}`);
+								player.salary += promo.raise;
+								if (nextTitle !== player.profession) {
+									player.jobTier = nextTier;
+									player.profession = nextTitle;
+								}
+							}
+						},
+						{
+							amount: promo.raise,
+							category: 'flow',
+							sourceEl: btnEl,
+							label: 'Más Flujo'
 						}
+					], () => {
+						showModalContinueButton(() => {
+							closeModal(() => endTurn());
+						});
 					});
 				}
 			}
@@ -3622,49 +3756,58 @@ function presentDeal(player, deal) {
 			text: `¡Aprovechar Oportunidad! 🚀 (${formatCOP(deal.downPayment)})`,
 			class: 'primary',
 			action: () => {
-				savePlayerFinancialSnapshot(player, `Compra: ${deal.title}`);
-				player.cash -= deal.downPayment;
-				player.assets.push({ ...deal });
-				sounds.cash();
-				updateHUDAndHeaders();
-
 				const btnEl = document.querySelector('#modal-footer button');
-				animateTransactionNumbersToBalance({
-					amount: -deal.downPayment,
-					category: 'cash',
-					sourceEl: btnEl,
-					label: deal.title
-				});
+				const steps = [
+					{
+						amount: -deal.downPayment,
+						category: 'cash',
+						sourceEl: btnEl,
+						label: deal.title,
+						actionBefore: () => {
+							player.cash -= deal.downPayment;
+						}
+					},
+					{
+						amount: 1,
+						category: 'asset',
+						sourceEl: btnEl,
+						label: deal.title,
+						customText: `+${deal.title.slice(0, 14)} 🏢`,
+						actionBefore: () => {
+							player.assets.push({ ...deal });
+						}
+					}
+				];
 
 				if (deal.cashFlow > 0) {
-					setTimeout(() => {
-						animateTransactionNumbersToBalance({
-							amount: deal.cashFlow,
-							category: 'flow',
-							sourceEl: document.getElementById('modal-stats') || btnEl,
-							label: `+${deal.roiPercent}% Flujo`
-						});
-					}, 220);
+					steps.push({
+						amount: deal.cashFlow,
+						category: 'flow',
+						sourceEl: btnEl,
+						label: `+${deal.roiPercent}% Flujo`
+					});
 				}
 
-				const successDesc = `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} extra (${deal.roiPercent}% de ganancia mensual)</strong> todos los meses en tu Día de Pago.`;
+				animateSequentialFinancialUpdate(steps, () => {
+					const successDesc = `¡Excelente decisión! Ahora recibes <strong>+${formatCOP(deal.cashFlow)} extra (${deal.roiPercent}% de ganancia mensual)</strong> todos los meses en tu Día de Pago.`;
 
-				showModal({
-					typeName: deal.rarity === 'very_rare' ? '¡OCASIÓN EXTRAORDINARIA! 🔥💎' : (deal.rarity === 'rare' ? '¡OCASIÓN EXTRAÑA APROVECHADA! ⭐' : '¡ÉXITO! 🎉'),
-					headerClass: 'opportunity',
-					icon: deal.icon || '🎉',
-					title: deal.title,
-					detailedInfo: successDesc,
-					stats: [
-						{
-							label: 'Ganancia agregada:',
-							value: `+${formatCOP(deal.cashFlow)}/mes (${deal.roiPercent}%)`,
-							color: 'green'
-						}
-					],
-					buttons: [
-						{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
-					]
+					showModal({
+						typeName: deal.rarity === 'very_rare' ? '¡OCASIÓN EXTRAORDINARIA! 🔥💎' : (deal.rarity === 'rare' ? '¡OCASIÓN EXTRAÑA APROVECHADA! ⭐' : '¡ÉXITO! 🎉'),
+						headerClass: 'opportunity',
+						icon: deal.icon || '🎉',
+						title: deal.title,
+						detailedInfo: successDesc,
+						stats: [
+							{
+								label: 'Ganancia agregada:',
+								value: `+${formatCOP(deal.cashFlow)}/mes (${deal.roiPercent}%)`,
+								color: 'green'
+							}
+						],
+						buttons: [
+							{ text: '¡Continuar Jugando! ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }
+						]
+					});
 				});
 			}
 		});
@@ -3816,30 +3959,51 @@ function showMarketModal(player) {
 				text: `¡Vender por ${formatCOP(event.salePrice)}! 💰`,
 				class: 'primary',
 				action: () => {
-					savePlayerFinancialSnapshot(player, `Venta: ${asset.title}`);
-					player.assets.splice(eligibleIndex, 1);
-					player.cash += event.salePrice;
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: event.salePrice,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: `Venta: ${asset.title}`
-					});
+					const saleFlow = asset.cashFlow || 0;
+					const steps = [
+						{
+							amount: event.salePrice,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: `Venta: ${asset.title}`,
+							actionBefore: () => {
+								savePlayerFinancialSnapshot(player, `Venta: ${asset.title}`);
+								player.assets.splice(eligibleIndex, 1);
+								player.cash += event.salePrice;
+							}
+						},
+						{
+							amount: -1,
+							category: 'asset',
+							sourceEl: btnEl,
+							label: asset.title,
+							customText: `-${asset.title.slice(0, 14)} 🏢`
+						}
+					];
 
-					showModal({
-						typeName: '¡VENTA EXITOSA! 🎉',
-						headerClass: 'market',
-						icon: '🎉',
-						title: asset.title,
-						detailedInfo: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)}</strong> en efectivo para comprar nuevas oportunidades.`,
-						stats: [
-							{ label: 'Cobraste:', value: `+${formatCOP(event.salePrice)}`, color: 'green' }
-						],
-						buttons: [{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }]
+					if (saleFlow > 0) {
+						steps.push({
+							amount: -saleFlow,
+							category: 'flow',
+							sourceEl: btnEl,
+							label: 'Menos Flujo'
+						});
+					}
+
+					animateSequentialFinancialUpdate(steps, () => {
+						showModal({
+							typeName: '¡VENTA EXITOSA! 🎉',
+							headerClass: 'market',
+							icon: '🎉',
+							image: '/images/cards/mercado.svg',
+							title: asset.title,
+							detailedInfo: `¡Felicitaciones! Recibiste <strong>${formatCOP(event.salePrice)}</strong> en efectivo para comprar nuevas oportunidades.`,
+							stats: [
+								{ label: 'Cobraste:', value: `+${formatCOP(event.salePrice)}`, color: 'green' }
+							],
+							buttons: [{ text: 'Continuar ➔', class: 'primary', action: () => { closeModal(() => endTurn()); } }]
+						});
 					});
 				}
 			},
@@ -3947,22 +4111,36 @@ function showLoanModal(callbackAfterLoan) {
 				class: 'primary',
 				action: () => {
 					savePlayerFinancialSnapshot(player, 'Préstamo Bancario');
-					player.cash += loanBlock;
-					player.totalDebt += loanBlock;
-					player.debtExpenses += interest;
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: loanBlock,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: 'Préstamo',
-						onComplete: () => {
-							if (callbackAfterLoan) callbackAfterLoan();
-							else showModalContinueButton(() => closeModal(() => endTurn()));
+					animateSequentialFinancialUpdate([
+						{
+							amount: loanBlock,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: 'Préstamo',
+							actionBefore: () => {
+								player.cash += loanBlock;
+							}
+						},
+						{
+							amount: loanBlock,
+							category: 'debt',
+							sourceEl: btnEl,
+							label: 'Nueva Deuda',
+							actionBefore: () => {
+								player.totalDebt += loanBlock;
+								player.debtExpenses += interest;
+							}
+						},
+						{
+							amount: -interest,
+							category: 'expense',
+							sourceEl: btnEl,
+							label: 'Cuota Interés'
 						}
+					], () => {
+						if (callbackAfterLoan) callbackAfterLoan();
+						else showModalContinueButton(() => closeModal(() => endTurn()));
 					});
 				}
 			},
@@ -3972,22 +4150,36 @@ function showLoanModal(callbackAfterLoan) {
 				action: () => {
 					const block2 = loanBlock * 2;
 					savePlayerFinancialSnapshot(player, 'Préstamo Bancario 2x');
-					player.cash += block2;
-					player.totalDebt += block2;
-					player.debtExpenses += (interest * 2);
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: block2,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: 'Préstamo',
-						onComplete: () => {
-							if (callbackAfterLoan) callbackAfterLoan();
-							else showModalContinueButton(() => closeModal(() => endTurn()));
+					animateSequentialFinancialUpdate([
+						{
+							amount: block2,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: 'Préstamo 2x',
+							actionBefore: () => {
+								player.cash += block2;
+							}
+						},
+						{
+							amount: block2,
+							category: 'debt',
+							sourceEl: btnEl,
+							label: 'Nueva Deuda',
+							actionBefore: () => {
+								player.totalDebt += block2;
+								player.debtExpenses += (interest * 2);
+							}
+						},
+						{
+							amount: -(interest * 2),
+							category: 'expense',
+							sourceEl: btnEl,
+							label: 'Cuota Interés'
 						}
+					], () => {
+						if (callbackAfterLoan) callbackAfterLoan();
+						else showModalContinueButton(() => closeModal(() => endTurn()));
 					});
 				}
 			},
@@ -4033,23 +4225,37 @@ function showPayDebtModal() {
 						return;
 					}
 					savePlayerFinancialSnapshot(player, 'Abono a Deuda');
-					player.cash -= payAmount;
-					player.totalDebt -= payAmount;
-					player.debtExpenses = Math.max(0, player.debtExpenses - 25000);
-					sounds.cash();
-					updateHUDAndHeaders();
-
 					const btnEl = document.querySelector('#modal-footer button');
-					animateTransactionNumbersToBalance({
-						amount: -payAmount,
-						category: 'cash',
-						sourceEl: btnEl,
-						label: 'Pago Deuda',
-						onComplete: () => {
-							showModalContinueButton(() => {
-								closeModal();
-							});
+					animateSequentialFinancialUpdate([
+						{
+							amount: -payAmount,
+							category: 'cash',
+							sourceEl: btnEl,
+							label: 'Pago Deuda',
+							actionBefore: () => {
+								player.cash -= payAmount;
+							}
+						},
+						{
+							amount: -payAmount,
+							category: 'debt',
+							sourceEl: btnEl,
+							label: 'Deuda Reducida',
+							actionBefore: () => {
+								player.totalDebt -= payAmount;
+								player.debtExpenses = Math.max(0, player.debtExpenses - 25000);
+							}
+						},
+						{
+							amount: 25000,
+							category: 'flow',
+							sourceEl: btnEl,
+							label: 'Menos Gastos'
 						}
+					], () => {
+						showModalContinueButton(() => {
+							closeModal();
+						});
 					});
 				}
 			},

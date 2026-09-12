@@ -1910,6 +1910,26 @@
 			border-radius: 8px;
 		}
 
+		@keyframes quadFlashGreen {
+			0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); border-color: #cbd5e1; }
+			35% { transform: scale(1.025); box-shadow: 0 0 24px 4px rgba(34, 197, 94, 0.38); border-color: #22c55e; background: #f0fdf4; }
+			100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); border-color: #cbd5e1; }
+		}
+
+		@keyframes quadFlashRed {
+			0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: #cbd5e1; }
+			35% { transform: scale(1.025); box-shadow: 0 0 24px 4px rgba(239, 68, 68, 0.38); border-color: #ef4444; background: #fef2f2; }
+			100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: #cbd5e1; }
+		}
+
+		.quadrant-updated-flash-green {
+			animation: quadFlashGreen 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+		}
+
+		.quadrant-updated-flash-red {
+			animation: quadFlashRed 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+		}
+
 		/* ==========================================
 		   DESGLOSE VISUAL Y ANIMACIÓN DÍA DE PAGO
 		   ========================================== */
@@ -2525,7 +2545,7 @@
 				</div>
 
 				<!-- 2. GASTOS -->
-				<div class="k-quadrant k-expenses">
+				<div class="k-quadrant k-expenses" id="k-quad-expenses">
 					<div class="k-q-head">
 						<span class="k-q-title">2. GASTOS</span>
 						<span id="side-bal-total-exp" class="k-q-total red">-$1.500.000</span>
@@ -2567,7 +2587,7 @@
 				</div>
 
 				<!-- 3. ACTIVOS -->
-				<div class="k-quadrant k-assets">
+				<div class="k-quadrant k-assets" id="k-quad-assets">
 					<div class="k-q-head">
 						<span class="k-q-title">3. ACTIVOS</span>
 						<span id="side-bal-assets-count" class="k-q-count">0 negocios</span>
@@ -2578,7 +2598,7 @@
 				</div>
 
 				<!-- 4. PASIVOS -->
-				<div class="k-quadrant k-liabilities">
+				<div class="k-quadrant k-liabilities" id="k-quad-liabilities">
 					<div class="k-q-head">
 						<span class="k-q-title">4. PASIVOS</span>
 						<span id="side-bal-total-debt" class="k-q-total">$0</span>
@@ -2648,7 +2668,7 @@
 		</div>
 	</div>
 
-	<script type="module" src="/ratrace.js?v=2026-09-12-payday-ceremony-v1"></script>
+	<script type="module" src="/ratrace.js?v=2026-09-12-sequential-balance-anim-v1"></script>
 </body>
 
 </html>
